@@ -1,31 +1,40 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { cerrarSesion } from './actions';
+import { Cabecera } from '@/components/cabecera';
+import { ESTADOS_CERRADOS } from '@/lib/estados';
+import Kanban, { type TarjetaLead } from './kanban';
 
-const ETIQUETA_ESTADO: Record<string, { texto: string; clases: string }> = {
-  nuevo: { texto: 'Nuevo', clases: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  contactado: { texto: 'Contactado', clases: 'bg-sky-50 text-sky-700 ring-sky-200' },
-  cita_agendada: { texto: 'Cita agendada', clases: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
-  cita_realizada: { texto: 'Cita realizada', clases: 'bg-violet-50 text-violet-700 ring-violet-200' },
-  en_valoracion: { texto: 'En valoración', clases: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  convertido: { texto: 'Convertido', clases: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  derivado: { texto: 'Derivado', clases: 'bg-cyan-50 text-cyan-700 ring-cyan-200' },
-  perdido: { texto: 'Perdido', clases: 'bg-red-50 text-red-700 ring-red-200' },
-  no_valido: { texto: 'No válido', clases: 'bg-slate-100 text-slate-600 ring-slate-200' },
-  reabierto: { texto: 'Reabierto', clases: 'bg-orange-50 text-orange-700 ring-orange-200' },
-};
+const ESTADOS_ABIERTOS_SIN_ACCION = ['perdido', 'no_valido', 'convertido', 'derivado'];
 
-type FilaLead = {
+function hace(fechaIso: string): string {
+  const dias = Math.floor((Date.now() - new Date(fechaIso).getTime()) / 86_400_000);
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'hace 1 día';
+  return `hace ${dias} días`;
+}
+
+type FilaKanban = {
   id: string;
   nombre: string;
   estado: string;
+  urgencia: string | null;
+  etapa_id: string;
   created_at: string;
-  centro: { nombre: string } | null;
+  propietario_id: string | null;
+  subcanal: string | null;
+  centro: { nombre: string; es_bandeja_grupo: boolean } | null;
   canal: { nombre: string } | null;
   propietario: { nombre: string } | null;
+  tareas: { completada_at: string | null }[];
 };
 
-export default async function LeadsPage() {
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pipeline?: string; centro?: string }>;
+}) {
+  const filtros = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -33,107 +42,145 @@ export default async function LeadsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data, error } = await supabase
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('rol, nombre')
+    .eq('id', user.id)
+    .single();
+
+  const { data: pipelines } = await supabase
+    .from('pipelines')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('nombre');
+
+  const pipelineId =
+    (filtros.pipeline && pipelines?.find((p) => p.id === filtros.pipeline)?.id) ||
+    pipelines?.[0]?.id;
+
+  const { data: etapas } = pipelineId
+    ? await supabase
+        .from('pipeline_etapas')
+        .select('id, nombre, orden')
+        .eq('pipeline_id', pipelineId)
+        .order('orden')
+    : { data: [] };
+
+  const { data: centros } = await supabase
+    .from('centros')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('nombre');
+
+  let consulta = supabase
     .from('leads')
     .select(
-      `id, nombre, estado, created_at,
-       centro:centros (nombre),
+      `id, nombre, estado, urgencia, etapa_id, created_at, propietario_id, subcanal,
+       centro:centros (nombre, es_bandeja_grupo),
        canal:canales (nombre),
-       propietario:perfiles!leads_propietario_id_fkey (nombre)`,
+       propietario:perfiles!leads_propietario_id_fkey (nombre),
+       tareas (completada_at)`,
     )
     .order('created_at', { ascending: false });
+  if (pipelineId) consulta = consulta.eq('pipeline_id', pipelineId);
+  if (filtros.centro) consulta = consulta.eq('centro_id', filtros.centro);
 
-  const leads = (data ?? []) as unknown as FilaLead[];
+  const { data, error } = await consulta;
+  const filas = (data ?? []) as unknown as FilaKanban[];
+
+  // Propietarios ausentes hoy (fecha en Europe/Madrid)
+  const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const { data: ausencias } = await supabase
+    .from('ausencias')
+    .select('perfil_id')
+    .lte('desde', hoy)
+    .gte('hasta', hoy);
+  const ausentes = new Set((ausencias ?? []).map((a) => a.perfil_id));
+
+  const aTarjeta = (fila: FilaKanban): TarjetaLead => ({
+    id: fila.id,
+    nombre: fila.nombre,
+    estado: fila.estado,
+    urgencia: fila.urgencia,
+    etapaId: fila.etapa_id,
+    centroNombre: fila.centro?.nombre ?? '—',
+    esBandeja: fila.centro?.es_bandeja_grupo ?? false,
+    canalNombre: fila.canal?.nombre ?? '—',
+    subcanal: fila.subcanal,
+    propietarioNombre: fila.propietario?.nombre ?? null,
+    propietarioAusente: fila.propietario_id !== null && ausentes.has(fila.propietario_id),
+    sinProximaAccion:
+      !ESTADOS_ABIERTOS_SIN_ACCION.includes(fila.estado) &&
+      !fila.tareas.some((t) => t.completada_at === null),
+    creado: hace(fila.created_at),
+  });
+
+  const tarjetas = filas
+    .filter((f) => !ESTADOS_CERRADOS.includes(f.estado as (typeof ESTADOS_CERRADOS)[number]))
+    .map(aTarjeta);
+  const cerradas = filas
+    .filter((f) => ESTADOS_CERRADOS.includes(f.estado as (typeof ESTADOS_CERRADOS)[number]))
+    .map(aTarjeta);
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <h1 className="text-lg font-semibold tracking-tight">
-            Vida y Tu <span className="text-teal-600">DATA</span>
-          </h1>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-500 sm:inline">{user.email}</span>
-            <form action={cerrarSesion}>
-              <button
-                type="submit"
-                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-              >
-                Cerrar sesión
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <Cabecera email={user.email ?? ''} />
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-4 flex items-baseline justify-between">
+      <main className="mx-auto max-w-7xl px-4 py-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Leads</h2>
-          <span className="text-sm text-slate-500">
-            {leads.length} {leads.length === 1 ? 'lead visible' : 'leads visibles'}
-          </span>
+
+          <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
+            {pipelines && pipelines.length > 1 && (
+              <select
+                name="pipeline"
+                defaultValue={pipelineId}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+              >
+                {pipelines.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              name="centro"
+              defaultValue={filtros.centro ?? ''}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+            >
+              <option value="">Todos los centros</option>
+              {(centros ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-100"
+            >
+              Filtrar
+            </button>
+            {(filtros.centro || filtros.pipeline) && (
+              <Link href="/leads" className="text-teal-700 hover:underline">
+                Limpiar
+              </Link>
+            )}
+          </form>
         </div>
 
         {error ? (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
             No se pudieron cargar los leads: {error.message}
           </p>
-        ) : leads.length === 0 ? (
-          <p className="rounded-lg bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
-            No hay leads visibles para tu usuario.
-          </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-slate-200">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium">Centro</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Propietario</th>
-                  <th className="px-4 py-3 font-medium">Canal</th>
-                  <th className="px-4 py-3 font-medium">Creado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {leads.map((lead) => {
-                  const estado = ETIQUETA_ESTADO[lead.estado] ?? {
-                    texto: lead.estado,
-                    clases: 'bg-slate-100 text-slate-600 ring-slate-200',
-                  };
-                  return (
-                    <tr key={lead.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium">{lead.nombre}</td>
-                      <td className="px-4 py-3">{lead.centro?.nombre ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estado.clases}`}
-                        >
-                          {estado.texto}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {lead.propietario?.nombre ?? (
-                          <span className="inline-block rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-                            Sin asignar
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">{lead.canal?.nombre ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-500">
-                        {new Date(lead.created_at).toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                          timeZone: 'Europe/Madrid',
-                        })}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Kanban
+            etapas={etapas ?? []}
+            tarjetas={tarjetas}
+            cerradas={cerradas}
+            puedeAutoasignarse={perfil?.rol === 'admisiones'}
+          />
         )}
       </main>
     </div>
