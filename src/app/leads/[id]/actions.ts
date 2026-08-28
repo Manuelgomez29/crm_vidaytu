@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizarTelefono } from '@/lib/telefonos';
 import { moverLeadDeEtapa } from '../actions';
 
 type TipoActividad = 'llamada' | 'whatsapp' | 'email' | 'nota';
@@ -84,12 +85,6 @@ export async function completarTarea(leadId: string, tareaId: string) {
     .eq('id', tareaId);
   if (error) volver(leadId, { error: `No se pudo completar: ${error.message}` });
   volver(leadId);
-}
-
-function normalizarTelefono(entrada: string): string | null {
-  const limpio = entrada.replace(/[\s\-().]/g, '');
-  const conPrefijo = /^[679]\d{8}$/.test(limpio) ? `+34${limpio}` : limpio;
-  return /^\+[1-9]\d{6,14}$/.test(conPrefijo) ? conPrefijo : null;
 }
 
 export async function anadirContacto(leadId: string, formData: FormData) {

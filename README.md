@@ -61,6 +61,20 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
+## Ingesta de formularios web
+
+`POST /api/formularios` crea leads desde formularios externos (WordPress, Google Ads, landings Clientify). Autenticación por secreto compartido (`FORMULARIOS_WEBHOOK_SECRET` en `.env.local`), enviado en la cabecera `x-webhook-secret` o como `?token=`.
+
+Campos: `nombre` y `telefono` obligatorios; opcionales `email`, `mensaje`, `centro` (slug: `horizonte`, `eclipse`, `bellamar`; sin centro → bandeja de grupo), `canal` (slug, por defecto `formulario_web`), `subcanal`, `adiccion` (slug), `modalidad` (slug), `quien_contacta` (`familiar|afectado|prescriptor|otro`), `relacion_con_afectado`, `nombre_afectado`, `urgencia` (`alta|media|baja`), `zona`, `utm_source`, `utm_medium`, `utm_campaign`, `landing_url`, `origen_sistema`, `origen_ref` (idempotencia: el mismo par no crea dos leads).
+
+Comportamiento: teléfono nuevo → lead nuevo con contacto principal, nota del formulario y tarea de primera llamada según el SLA de `configuracion`. Teléfono conocido → **reabre** su último caso (estado `reabierto`, propietario anterior o administrador general) y avisa al propietario. Respuesta: `{ accion: "creado" | "reabierto" | "duplicado", lead_id }`.
+
+Ejemplo:
+
+```bash
+curl -X POST http://localhost:3000/api/formularios -H "content-type: application/json" -H "x-webhook-secret: $FORMULARIOS_WEBHOOK_SECRET" -d '{"nombre":"Ejemplo","telefono":"600123123","mensaje":"Quiero información","landing_url":"https://ejemplo.com/gracias","origen_ref":"wp-123"}'
+```
+
 ## Backups
 
 Supabase hace backups diarios automáticos en los planes de pago. Para una recuperación fina se recomienda activar **Point-in-Time Recovery (PITR)**:

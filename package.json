@@ -9,7 +9,8 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
-    "db:seed": "tsx --env-file=.env.local scripts/seed.ts"
+    "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "test:ingesta": "node --env-file=.env.local scripts/test-ingesta.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
