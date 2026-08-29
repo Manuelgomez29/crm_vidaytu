@@ -14,7 +14,6 @@ export type TarjetaLead = {
   urgencia: string | null;
   etapaId: string;
   centroNombre: string;
-  esBandeja: boolean;
   canalNombre: string;
   subcanal: string | null;
   propietarioNombre: string | null;
@@ -33,6 +32,9 @@ type Props = {
 type Arrastre = {
   leadId: string;
   nombre: string;
+  /** Punto donde empezó el gesto: contra él se mide el umbral de activación. */
+  origenX: number;
+  origenY: number;
   x: number;
   y: number;
   activo: boolean;
@@ -172,7 +174,15 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
   function empezarArrastre(e: React.PointerEvent, lead: TarjetaLead) {
     // Solo ratón / lápiz: en táctil el gesto debe seguir haciendo scroll.
     if (e.pointerType === 'touch' || e.button !== 0) return;
-    fijarArrastre({ leadId: lead.id, nombre: lead.nombre, x: e.clientX, y: e.clientY, activo: false });
+    fijarArrastre({
+      leadId: lead.id,
+      nombre: lead.nombre,
+      origenX: e.clientX,
+      origenY: e.clientY,
+      x: e.clientX,
+      y: e.clientY,
+      activo: false,
+    });
   }
 
   useEffect(() => {
@@ -190,7 +200,9 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
       e.preventDefault();
       const a = arrastreRef.current;
       if (!a) return;
-      const activo = a.activo || Math.hypot(e.clientX - a.x, e.clientY - a.y) > 6;
+      // El umbral se mide contra el ORIGEN del gesto, no contra el último
+      // movimiento: si no, un arrastre lento nunca llega a activarse.
+      const activo = a.activo || Math.hypot(e.clientX - a.origenX, e.clientY - a.origenY) > 6;
       fijarArrastre({ ...a, x: e.clientX, y: e.clientY, activo });
       setColumnaDestino(columnaBajo(e.clientX, e.clientY));
     }

@@ -10,6 +10,20 @@ export async function cerrarSesion() {
   redirect('/login');
 }
 
+export async function marcarNotificacionesLeidas() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from('notificaciones')
+    .update({ leida_at: new Date().toISOString() })
+    .eq('usuario_id', user.id)
+    .is('leida_at', null);
+  revalidatePath('/leads');
+}
+
 /** Mueve un lead a otra etapa. Movimiento LIBRE: el trigger sincroniza el estado. */
 export async function moverLeadDeEtapa(leadId: string, etapaId: string) {
   const supabase = await createClient();
@@ -48,13 +62,18 @@ export async function asignarmeLead(leadId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { error: 'Sesión caducada' };
 
-  const { error } = await supabase
+  const { data: asignados, error } = await supabase
     .from('leads')
     .update({ propietario_id: user.id })
     .eq('id', leadId)
-    .is('propietario_id', null);
+    .is('propietario_id', null)
+    .select('id');
   if (error) {
     return { error: `No se pudo asignar: ${error.message}` };
+  }
+  // Sin filas = otro comercial se lo quedó primero. No se registra actividad falsa.
+  if (!asignados || asignados.length === 0) {
+    return { error: 'Este lead ya tiene propietario: otra persona se lo ha asignado antes.' };
   }
 
   await supabase.from('actividades').insert({

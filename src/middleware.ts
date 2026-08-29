@@ -30,17 +30,18 @@ export async function middleware(request: NextRequest) {
 
   const esLogin = request.nextUrl.pathname.startsWith('/login');
 
-  if (!user && !esLogin) {
+  // Un redirect crea una respuesta nueva: hay que arrastrarle las cookies que
+  // el refresco de sesión acaba de escribir, o el usuario se queda sin sesión.
+  const redirigirA = (ruta: string) => {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
+    url.pathname = ruta;
+    const respuesta = NextResponse.redirect(url);
+    supabaseResponse.cookies.getAll().forEach((cookie) => respuesta.cookies.set(cookie));
+    return respuesta;
+  };
 
-  if (user && esLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/leads';
-    return NextResponse.redirect(url);
-  }
+  if (!user && !esLogin) return redirigirA('/login');
+  if (user && esLogin) return redirigirA('/leads');
 
   return supabaseResponse;
 }

@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarTelefono } from '@/lib/telefonos';
-import { moverLeadDeEtapa } from '../actions';
+import { desdeDatetimeLocal } from '@/lib/fechas';
+import { centroDeAtribucion, reabrirCaso, ultimoCasoPorTelefono } from '@/lib/casos';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { asignarmeLead, moverLeadDeEtapa } from '../actions';
 
 type TipoActividad = 'llamada' | 'whatsapp' | 'email' | 'nota';
 const TIPOS_CONTACTO_SALIENTE: TipoActividad[] = ['llamada', 'whatsapp', 'email'];
@@ -60,7 +63,9 @@ export async function registrarActividad(leadId: string, formData: FormData) {
 
 export async function crearTarea(leadId: string, formData: FormData) {
   const titulo = String(formData.get('titulo') ?? '').trim();
-  const vence = String(formData.get('vence') ?? '');
+  // El <input datetime-local> no lleva zona: se interpreta en Europe/Madrid,
+  // no en la del servidor (que en producción es UTC).
+  const vence = desdeDatetimeLocal(String(formData.get('vence') ?? ''));
   if (!titulo || !vence) volver(leadId, { error: 'La tarea necesita título y fecha.' });
 
   const supabase = await createClient();
@@ -70,7 +75,7 @@ export async function crearTarea(leadId: string, formData: FormData) {
   const { error } = await supabase.from('tareas').insert({
     lead_id: leadId,
     titulo,
-    vence_at: new Date(vence).toISOString(),
+    vence_at: vence,
     responsable_id: user?.id ?? null,
   });
   if (error) volver(leadId, { error: `No se pudo crear la tarea: ${error.message}` });
@@ -149,7 +154,6 @@ export async function anadirContacto(leadId: string, formData: FormData) {
 }
 
 export async function asignarmeDesdeFicha(leadId: string) {
-  const { asignarmeLead } = await import('../actions');
   const r = await asignarmeLead(leadId);
   if (r?.error) volver(leadId, { error: r.error });
   volver(leadId);
@@ -214,12 +218,31 @@ export async function marcarNoValido(leadId: string) {
 
 export async function reabrirLead(leadId: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: lead } = await supabase
     .from('leads')
-    .update({ estado: 'reabierto', motivo_perdida_id: null })
-    .eq('id', leadId);
-  if (error) volver(leadId, { error: `No se pudo reabrir: ${error.message}` });
-  await registrarEnHistorial(leadId, 'reapertura', 'Caso reabierto con todo su historial');
+    .select('id, estado, propietario_id, centro_id')
+    .eq('id', leadId)
+    .maybeSingle();
+  if (!lead) volver(leadId, { error: 'Lead no encontrado.' });
+
+  // Misma autoridad que la reapertura automática: propietario anterior (o
+  // administrador general si ya no está activo), próxima acción y aviso.
+  await reabrirCaso(createAdminClient(), {
+    caso: {
+      leadId: lead.id,
+      estado: lead.estado,
+      propietarioId: lead.propietario_id,
+      centroId: lead.centro_id,
+      contactoId: '',
+      cerrado: true,
+    },
+    motivo: 'Caso reabierto con todo su historial',
+    usuarioId: user?.id ?? null,
+  });
   volver(leadId);
 }
 
@@ -319,16 +342,13 @@ export async function registrarConversion(leadId: string, formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: lead } = await supabase
-    .from('leads')
-    .select('centro_id')
-    .eq('id', leadId)
-    .single();
-  if (!lead) volver(leadId, { error: 'Lead no encontrado.' });
+  // Regla 3: si el caso fue derivado, la conversión se atribuye al centro de ORIGEN.
+  const centroId = await centroDeAtribucion(supabase, leadId);
+  if (!centroId) volver(leadId, { error: 'Lead no encontrado.' });
 
   const { error } = await supabase.from('conversiones').insert({
     lead_id: leadId,
-    centro_id: lead.centro_id,
+    centro_id: centroId,
     fecha_inicio: fechaInicio,
     modalidad_id: modalidadId,
     importe_primer_pago: importe,
@@ -349,15 +369,20 @@ export async function validarConversion(leadId: string, conversionId: string) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { error } = await supabase
+  const { data: validadas, error } = await supabase
     .from('conversiones')
     .update({
       estado: 'validada',
       validada_por: user?.id ?? null,
       validada_at: new Date().toISOString(),
     })
-    .eq('id', conversionId);
+    .eq('id', conversionId)
+    .select('id');
   if (error) volver(leadId, { error: `No se pudo validar: ${error.message}` });
+  // Sin filas afectadas = RLS lo ha impedido. No se registra una validación que no ocurrió.
+  if (!validadas || validadas.length === 0) {
+    volver(leadId, { error: 'Solo dirección puede validar el pago de una conversión.' });
+  }
   await registrarEnHistorial(leadId, 'cambio_estado', 'Conversión validada por dirección');
   volver(leadId);
 }

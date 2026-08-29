@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Cabecera } from '@/components/cabecera';
-import { etiquetaEstado } from '@/lib/estados';
+import { ESTADOS_CERRADOS, etiquetaEstado, type EstadoLead } from '@/lib/estados';
+import { fecha } from '@/lib/fechas';
 import {
   anadirContacto,
   asignarCentro,
@@ -36,17 +37,6 @@ const TIPO_CONTACTO: Record<string, string> = {
   prescriptor: 'Prescriptor',
   otro: 'Otro',
 };
-
-function fecha(iso: string | null, conHora = true): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    ...(conHora ? { hour: '2-digit', minute: '2-digit' } : {}),
-    timeZone: 'Europe/Madrid',
-  });
-}
 
 const inputClase =
   'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
@@ -164,7 +154,7 @@ export default async function FichaLead({
     : { data: null };
 
   const estado = etiquetaEstado(lead.estado);
-  const cerrado = ['perdido', 'no_valido'].includes(lead.estado);
+  const cerrado = ESTADOS_CERRADOS.includes(lead.estado as EstadoLead);
   const tareasPendientes = (tareas ?? []).filter((t) => t.completada_at === null);
 
   return (
