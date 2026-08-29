@@ -155,6 +155,77 @@ export async function quitarDeLista(contactoId: string, listaId: string) {
   volver(contactoId);
 }
 
+// ---------------------------------------------------------------------------
+// Gestión del catálogo de etiquetas
+// ---------------------------------------------------------------------------
+
+function volverAEtiquetas(error?: string): never {
+  revalidatePath('/contactos/etiquetas');
+  revalidatePath('/contactos');
+  redirect(`/contactos/etiquetas${error ? `?error=${encodeURIComponent(error)}` : ''}`);
+}
+
+export async function crearEtiqueta(formData: FormData) {
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const color = String(formData.get('color') ?? 'gris');
+  if (!nombre) volverAEtiquetas('La etiqueta necesita un nombre.');
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: existente } = await supabase
+    .from('etiquetas')
+    .select('id')
+    .ilike('nombre', nombre)
+    .maybeSingle();
+  if (existente) volverAEtiquetas(`Ya existe una etiqueta llamada «${nombre}».`);
+
+  const { error } = await supabase
+    .from('etiquetas')
+    .insert({ nombre, color, created_by: user?.id ?? null });
+  if (error) volverAEtiquetas(`No se pudo crear: ${error.message}`);
+  volverAEtiquetas();
+}
+
+export async function editarEtiqueta(etiquetaId: string, formData: FormData) {
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const color = String(formData.get('color') ?? 'gris');
+  const activa = formData.get('activa') === 'on';
+  if (!nombre) volverAEtiquetas('La etiqueta necesita un nombre.');
+
+  const supabase = await createClient();
+  const { data: actualizadas, error } = await supabase
+    .from('etiquetas')
+    .update({ nombre, color, activa })
+    .eq('id', etiquetaId)
+    .select('id');
+  if (error) volverAEtiquetas(`No se pudo guardar: ${error.message}`);
+  if (!actualizadas || actualizadas.length === 0) {
+    volverAEtiquetas('No puedes editar esta etiqueta: solo dirección o quien la creó.');
+  }
+  volverAEtiquetas();
+}
+
+export async function borrarEtiqueta(etiquetaId: string) {
+  const supabase = await createClient();
+  // La FK de contacto_etiquetas es on delete cascade: al borrar la etiqueta
+  // desaparece de todos los contactos que la llevaban.
+  const { data: borradas, error } = await supabase
+    .from('etiquetas')
+    .delete()
+    .eq('id', etiquetaId)
+    .select('id');
+  if (error) volverAEtiquetas(`No se pudo borrar: ${error.message}`);
+  if (!borradas || borradas.length === 0) {
+    volverAEtiquetas(
+      'No puedes borrar esta etiqueta: solo dirección o quien la creó. Puedes desactivarla.',
+    );
+  }
+  volverAEtiquetas();
+}
+
 /** Crea una lista estática o un segmento dinámico. */
 export async function crearLista(formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim();
@@ -189,6 +260,47 @@ export async function crearLista(formData: FormData) {
     redirect('/contactos/listas?error=' + encodeURIComponent(`No se pudo crear: ${error.message}`));
   }
   revalidatePath('/contactos/listas');
+  redirect('/contactos/listas');
+}
+
+/** Edita una lista o los criterios de un segmento. */
+export async function editarLista(listaId: string, formData: FormData) {
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const descripcion = String(formData.get('descripcion') ?? '').trim() || null;
+  const tipo = String(formData.get('tipo') ?? 'estatica') as 'estatica' | 'dinamica';
+  if (!nombre) {
+    redirect('/contactos/listas?error=' + encodeURIComponent('La lista necesita nombre.'));
+  }
+
+  const filtro: FiltroSegmento = {};
+  if (tipo === 'dinamica') {
+    const etiquetas = formData.getAll('etiquetas').map(String).filter(Boolean);
+    if (etiquetas.length > 0) filtro.etiquetas = etiquetas;
+    const zona = String(formData.get('zona') ?? '').trim();
+    if (zona) filtro.zona = zona;
+    const consentimiento = String(formData.get('consentimiento') ?? '');
+    if (consentimiento === 'si') filtro.consentimiento = true;
+    if (consentimiento === 'no') filtro.consentimiento = false;
+    if (formData.get('con_email') === 'on') filtro.conEmail = true;
+  }
+
+  const supabase = await createClient();
+  const { data: actualizadas, error } = await supabase
+    .from('listas')
+    .update({ nombre, descripcion, filtro: tipo === 'dinamica' ? filtro : null })
+    .eq('id', listaId)
+    .select('id');
+  if (error) {
+    redirect('/contactos/listas?error=' + encodeURIComponent(`No se pudo guardar: ${error.message}`));
+  }
+  if (!actualizadas || actualizadas.length === 0) {
+    redirect(
+      '/contactos/listas?error=' +
+        encodeURIComponent('No puedes editar esta lista: solo dirección o quien la creó.'),
+    );
+  }
+  revalidatePath('/contactos/listas');
+  revalidatePath('/contactos');
   redirect('/contactos/listas');
 }
 

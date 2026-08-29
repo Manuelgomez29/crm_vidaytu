@@ -68,8 +68,8 @@ Estas credenciales son SOLO de desarrollo. En producción no existirán.
 - **Búsqueda** por nombre, teléfono (con o sin prefijo) o email, y filtros por etiqueta, lista y consentimiento.
 - **Ficha de contacto** (`/contactos/[id]`): datos, etiquetas, listas y los casos en los que participa — solo los que permita RLS al usuario.
 - **Consentimiento de marketing**: se registra siempre con fecha y origen; retirarlo los limpia. Sin consentimiento, el contacto queda fuera de cualquier envío (fase posterior).
-- **Etiquetas**: manuales (con autor) o automáticas por regla (`aplicada_por` nulo, motor pendiente).
-- **Listas y segmentos** (`/contactos/listas`): las listas estáticas guardan miembros; los segmentos dinámicos guardan criterios en `filtro` (jsonb) y se calculan al consultarlos. Los criterios son siempre comerciales — etiqueta, zona, consentimiento, email — nunca clínicos.
+- **Etiquetas** (`/contactos/etiquetas`): crear, renombrar, dar color, activar/desactivar y borrar, con el número de contactos de cada una. Pueden ser manuales (con autor) o automáticas por regla (`aplicada_por` nulo, motor pendiente). Cada usuario gestiona las suyas; dirección, todas.
+- **Listas y segmentos** (`/contactos/listas`): crear y editar. Las listas estáticas guardan miembros; los segmentos dinámicos guardan criterios en `filtro` (jsonb) y se recalculan al consultarlos. Los criterios son siempre comerciales — etiqueta, zona, consentimiento, email — nunca clínicos.
 
 Minimización RGPD: en el área comercial no se guardan diagnósticos ni documentos de identidad.
 

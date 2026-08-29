@@ -2,18 +2,73 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Cabecera } from '@/components/cabecera';
+import { NavContactos } from '../nav';
 import { contactosDelSegmento, describirFiltro, type FiltroSegmento } from '@/lib/segmentos';
-import { borrarLista, crearLista } from '../actions';
+import { borrarLista, crearLista, editarLista } from '../actions';
 
 const inputClase =
   'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
 
+/** Criterios de segmento, reutilizados por el formulario de alta y el de edición. */
+function CriteriosSegmento({
+  etiquetas,
+  filtro,
+  idPrefijo,
+}: {
+  etiquetas: { id: string; nombre: string }[];
+  filtro?: FiltroSegmento;
+  idPrefijo: string;
+}) {
+  const consentimiento =
+    filtro?.consentimiento === true ? 'si' : filtro?.consentimiento === false ? 'no' : '';
+  return (
+    <fieldset className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3">
+      <legend className="px-1 text-xs font-medium text-slate-500">
+        Criterios (solo para segmentos)
+      </legend>
+      <label className="flex flex-col gap-1 text-xs text-slate-600" htmlFor={`${idPrefijo}-etiquetas`}>
+        Etiquetas (debe tenerlas todas)
+        <select
+          id={`${idPrefijo}-etiquetas`}
+          name="etiquetas"
+          multiple
+          size={Math.min(4, Math.max(2, etiquetas.length))}
+          defaultValue={filtro?.etiquetas ?? []}
+          className={inputClase}
+        >
+          {etiquetas.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.nombre}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-slate-600">
+        Zona contiene
+        <input name="zona" defaultValue={filtro?.zona ?? ''} className={inputClase} />
+      </label>
+      <label className="flex flex-col gap-1 text-xs text-slate-600">
+        Consentimiento de marketing
+        <select name="consentimiento" defaultValue={consentimiento} className={inputClase}>
+          <option value="">Indiferente</option>
+          <option value="si">Solo con consentimiento</option>
+          <option value="no">Solo sin consentimiento</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        <input type="checkbox" name="con_email" defaultChecked={filtro?.conEmail ?? false} /> Solo
+        contactos con email
+      </label>
+    </fieldset>
+  );
+}
+
 export default async function ListasYSegmentos({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; editar?: string }>;
 }) {
-  const { error: errorMsg } = await searchParams;
+  const { error: errorMsg, editar } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -54,11 +109,8 @@ export default async function ListasYSegmentos({
       <Cabecera email={user.email ?? ''} />
 
       <main className="mx-auto max-w-5xl px-4 py-6">
-        <Link href="/contactos" className="text-sm text-teal-700 hover:underline">
-          ← Volver al directorio
-        </Link>
-        <h2 className="mt-2 text-xl font-semibold">Listas y segmentos</h2>
-        <p className="mt-1 text-sm text-slate-500">
+        <NavContactos activo="listas" />
+        <p className="mt-3 text-sm text-slate-500">
           Una <strong>lista estática</strong> tiene los contactos que le añades a mano. Un{' '}
           <strong>segmento dinámico</strong> no guarda miembros: se calcula cada vez a partir de sus
           criterios.
@@ -70,59 +122,105 @@ export default async function ListasYSegmentos({
           </p>
         )}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_360px]">
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
           <section className="flex flex-col gap-2">
             {(listas ?? []).length === 0 && (
               <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
-                Todavía no hay listas ni segmentos.
+                Todavía no hay listas ni segmentos. Crea el primero en el panel de la derecha.
               </p>
             )}
-            {(listas ?? []).map((lista) => (
-              <article key={lista.id} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium">{lista.nombre}</h3>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${
-                        lista.tipo === 'dinamica'
-                          ? 'bg-violet-50 text-violet-700 ring-violet-200'
-                          : 'bg-slate-100 text-slate-600 ring-slate-200'
-                      }`}
-                    >
-                      {lista.tipo === 'dinamica' ? 'Segmento dinámico' : 'Lista estática'}
-                    </span>
+
+            {(listas ?? []).map((lista) => {
+              const enEdicion = editar === lista.id;
+              const filtro = (lista.filtro ?? {}) as FiltroSegmento;
+              return (
+                <article key={lista.id} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{lista.nombre}</h3>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${
+                          lista.tipo === 'dinamica'
+                            ? 'bg-violet-50 text-violet-700 ring-violet-200'
+                            : 'bg-slate-100 text-slate-600 ring-slate-200'
+                        }`}
+                      >
+                        {lista.tipo === 'dinamica' ? 'Segmento dinámico' : 'Lista estática'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Link
+                        href={`/contactos?lista=${lista.id}`}
+                        className="text-sm text-teal-700 hover:underline"
+                      >
+                        Ver {recuentos.get(lista.id) ?? 0} contacto
+                        {(recuentos.get(lista.id) ?? 0) === 1 ? '' : 's'}
+                      </Link>
+                      <Link
+                        href={enEdicion ? '/contactos/listas' : `/contactos/listas?editar=${lista.id}`}
+                        className="text-xs text-slate-500 hover:text-teal-700 hover:underline"
+                      >
+                        {enEdicion ? 'Cancelar' : 'Editar'}
+                      </Link>
+                      <form action={borrarLista.bind(null, lista.id)}>
+                        <button
+                          type="submit"
+                          className="text-xs text-slate-400 hover:text-red-600 hover:underline"
+                        >
+                          Borrar
+                        </button>
+                      </form>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Link
-                      href={`/contactos?lista=${lista.id}`}
-                      className="text-sm text-teal-700 hover:underline"
+
+                  {!enEdicion && lista.descripcion && (
+                    <p className="mt-1 text-sm text-slate-600">{lista.descripcion}</p>
+                  )}
+                  {!enEdicion && lista.tipo === 'dinamica' && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Criterios: {describirFiltro(filtro, nombresEtiquetas)}
+                    </p>
+                  )}
+
+                  {enEdicion && (
+                    <form
+                      action={editarLista.bind(null, lista.id)}
+                      className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3"
                     >
-                      Ver {recuentos.get(lista.id) ?? 0} contacto
-                      {(recuentos.get(lista.id) ?? 0) === 1 ? '' : 's'}
-                    </Link>
-                    <form action={borrarLista.bind(null, lista.id)}>
+                      <input type="hidden" name="tipo" value={lista.tipo} />
+                      <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                        Nombre *
+                        <input name="nombre" defaultValue={lista.nombre} required className={inputClase} />
+                      </label>
+                      <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                        Descripción
+                        <input
+                          name="descripcion"
+                          defaultValue={lista.descripcion ?? ''}
+                          className={inputClase}
+                        />
+                      </label>
+                      {lista.tipo === 'dinamica' && (
+                        <CriteriosSegmento
+                          etiquetas={etiquetas ?? []}
+                          filtro={filtro}
+                          idPrefijo={lista.id}
+                        />
+                      )}
                       <button
                         type="submit"
-                        className="text-xs text-slate-400 hover:text-red-600 hover:underline"
+                        className="self-start rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
                       >
-                        Borrar
+                        Guardar cambios
                       </button>
                     </form>
-                  </div>
-                </div>
-                {lista.descripcion && (
-                  <p className="mt-1 text-sm text-slate-600">{lista.descripcion}</p>
-                )}
-                {lista.tipo === 'dinamica' && (
-                  <p className="mt-1 text-xs text-slate-500">
-                    Criterios: {describirFiltro((lista.filtro ?? {}) as FiltroSegmento, nombresEtiquetas)}
-                  </p>
-                )}
-              </article>
-            ))}
+                  )}
+                </article>
+              );
+            })}
           </section>
 
-          <aside className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+          <aside className="h-fit rounded-xl bg-white p-4 ring-1 ring-slate-200">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
               Nueva lista o segmento
             </h3>
@@ -143,36 +241,17 @@ export default async function ListasYSegmentos({
                 </select>
               </label>
 
-              <fieldset className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3">
-                <legend className="px-1 text-xs font-medium text-slate-500">
-                  Criterios (solo para segmentos)
-                </legend>
-                <label className="flex flex-col gap-1 text-xs text-slate-600">
-                  Etiquetas (debe tenerlas todas)
-                  <select name="etiquetas" multiple size={4} className={inputClase}>
-                    {(etiquetas ?? []).map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-slate-600">
-                  Zona contiene
-                  <input name="zona" className={inputClase} />
-                </label>
-                <label className="flex flex-col gap-1 text-xs text-slate-600">
-                  Consentimiento de marketing
-                  <select name="consentimiento" defaultValue="" className={inputClase}>
-                    <option value="">Indiferente</option>
-                    <option value="si">Solo con consentimiento</option>
-                    <option value="no">Solo sin consentimiento</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs text-slate-600">
-                  <input type="checkbox" name="con_email" /> Solo contactos con email
-                </label>
-              </fieldset>
+              {(etiquetas ?? []).length === 0 ? (
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  Aún no hay etiquetas.{' '}
+                  <Link href="/contactos/etiquetas" className="text-teal-700 hover:underline">
+                    Crea alguna
+                  </Link>{' '}
+                  para poder segmentar por ellas.
+                </p>
+              ) : (
+                <CriteriosSegmento etiquetas={etiquetas ?? []} idPrefijo="nueva" />
+              )}
 
               <button
                 type="submit"

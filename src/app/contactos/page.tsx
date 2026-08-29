@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Cabecera } from '@/components/cabecera';
+import { NavContactos } from './nav';
+import { clasesEtiqueta } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
 
@@ -147,17 +149,8 @@ function Pagina({
       <Cabecera email={email} />
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold">Contactos</h2>
-            <Link href="/contactos/listas" className="text-sm text-teal-700 hover:underline">
-              Listas y segmentos
-            </Link>
-          </div>
-          <Link href="/leads" className="text-sm text-teal-700 hover:underline">
-            Ir al tablero de leads
-          </Link>
-        </div>
+        <NavContactos activo="directorio" />
+        <h2 className="mb-4 mt-3 text-xl font-semibold">Directorio de contactos</h2>
 
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
           <input
@@ -257,7 +250,7 @@ function Pagina({
                               ce.etiqueta && (
                                 <span
                                   key={ce.etiqueta.id}
-                                  className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 ring-1 ring-slate-200"
+                                  className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(ce.etiqueta.color)}`}
                                 >
                                   {ce.etiqueta.nombre}
                                 </span>

@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Cabecera } from '@/components/cabecera';
 import { etiquetaEstado } from '@/lib/estados';
+import { clasesEtiqueta } from '@/lib/colores';
 import { fecha } from '@/lib/fechas';
 import {
   anadirAListaEstatica,
@@ -63,7 +64,7 @@ export default async function FichaContacto({
     await Promise.all([
       supabase
         .from('contacto_etiquetas')
-        .select('etiqueta_id, aplicada_por, etiqueta:etiquetas (id, nombre)')
+        .select('etiqueta_id, aplicada_por, etiqueta:etiquetas (id, nombre, color)')
         .eq('contacto_id', id),
       supabase.from('etiquetas').select('id, nombre').eq('activa', true).order('nombre'),
       supabase.from('listas').select('id, nombre, tipo').eq('tipo', 'estatica').order('nombre'),
@@ -194,7 +195,7 @@ export default async function FichaContacto({
                         <button
                           type="submit"
                           title="Quitar etiqueta"
-                          className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700 ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-700 hover:ring-red-200"
+                          className={`rounded-full px-2.5 py-1 text-xs ring-1 transition hover:bg-red-50 hover:text-red-700 hover:ring-red-200 ${clasesEtiqueta(ce.etiqueta.color)}`}
                         >
                           {ce.etiqueta.nombre}
                           {ce.aplicada_por === null && ' (auto)'} ×
