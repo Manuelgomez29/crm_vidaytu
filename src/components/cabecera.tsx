@@ -16,9 +16,19 @@ export async function Cabecera({ email }: { email: string }) {
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3">
-        <Link href="/leads" className="text-lg font-semibold tracking-tight">
-          Vida y Tu <span className="text-teal-600">DATA</span>
-        </Link>
+        <div className="flex items-baseline gap-4">
+          <Link href="/leads" className="text-lg font-semibold tracking-tight">
+            Vida y Tu <span className="text-teal-600">DATA</span>
+          </Link>
+          <nav className="flex items-center gap-3 text-sm">
+            <Link href="/leads" className="text-slate-600 hover:text-teal-700">
+              Leads
+            </Link>
+            <Link href="/contactos" className="text-slate-600 hover:text-teal-700">
+              Contactos
+            </Link>
+          </nav>
+        </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
           <details className="relative">

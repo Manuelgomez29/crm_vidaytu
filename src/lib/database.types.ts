@@ -1430,6 +1430,8 @@ export type Database = {
         Returns: Database["public"]["Enums"]["rol_usuario"]
       }
       mis_centros: { Args: never; Returns: string[] }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       estado_cita: "programada" | "realizada" | "no_show" | "cancelada"

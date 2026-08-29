@@ -454,7 +454,16 @@ export default async function FichaLead({
                 {(contactosCaso ?? []).map((lc) => (
                   <li key={lc.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
                     <p className="font-medium">
-                      {lc.contacto?.nombre}
+                      {lc.contacto ? (
+                        <Link
+                          href={`/contactos/${lc.contacto.id}`}
+                          className="hover:text-teal-700 hover:underline"
+                        >
+                          {lc.contacto.nombre}
+                        </Link>
+                      ) : (
+                        '—'
+                      )}
                       {lc.es_principal && (
                         <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-teal-200">
                           Principal

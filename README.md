@@ -61,6 +61,18 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
+## Directorio de contactos
+
+`/contactos` es el directorio único de personas, deduplicado por teléfono (E.164) y global: una persona existe una sola vez aunque aparezca en varios casos y centros.
+
+- **Búsqueda** por nombre, teléfono (con o sin prefijo) o email, y filtros por etiqueta, lista y consentimiento.
+- **Ficha de contacto** (`/contactos/[id]`): datos, etiquetas, listas y los casos en los que participa — solo los que permita RLS al usuario.
+- **Consentimiento de marketing**: se registra siempre con fecha y origen; retirarlo los limpia. Sin consentimiento, el contacto queda fuera de cualquier envío (fase posterior).
+- **Etiquetas**: manuales (con autor) o automáticas por regla (`aplicada_por` nulo, motor pendiente).
+- **Listas y segmentos** (`/contactos/listas`): las listas estáticas guardan miembros; los segmentos dinámicos guardan criterios en `filtro` (jsonb) y se calculan al consultarlos. Los criterios son siempre comerciales — etiqueta, zona, consentimiento, email — nunca clínicos.
+
+Minimización RGPD: en el área comercial no se guardan diagnósticos ni documentos de identidad.
+
 ## Ingesta de formularios web
 
 `POST /api/formularios` crea leads desde formularios externos (WordPress, Google Ads, landings Clientify). Autenticación por secreto compartido (`FORMULARIOS_WEBHOOK_SECRET` en `.env.local`), enviado en la cabecera `x-webhook-secret` o como `?token=`.
