@@ -58,8 +58,17 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 | direccion@test.com | direccion | todos |
 | horizonte@test.com | admisiones | Horizonte |
 | equipo@test.com | admisiones | Eclipse, Bellamar y bandeja de grupo |
+| terapeuta@test.com | terapeuta | solo sus citas |
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
+
+## Agenda
+
+`/agenda` muestra la semana en curso con navegación entre semanas y filtro por profesional. Las citas se crean desde la ficha del caso (sección Citas) y se marcan como realizadas, no presentadas o canceladas desde ambos sitios.
+
+- **Recordatorios discretos**: la plantilla vive en `configuracion.plantilla_recordatorio_cita` y jamás menciona adicciones ni motivos clínicos. Va al contacto CON QUIEN se agendó la cita, con enlace directo a WhatsApp.
+- **Avisos, nunca bloqueos**: al agendar se comprueba la disponibilidad del profesional, sus ausencias y los solapes; si algo no cuadra la cita se crea igual y se avisa.
+- **Rol terapeuta**: solo ve las citas en las que es el profesional, y de ellas solo el nombre y el teléfono del lead (nunca las notas ni la ficha). La agenda se sirve con la función `agenda_citas()`, que aplica esa regla en la base de datos.
 
 ## Directorio de contactos
 

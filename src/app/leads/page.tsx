@@ -47,6 +47,9 @@ export default async function LeadsPage({
       supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
     ]);
 
+  // El terapeuta solo tiene agenda (regla 14).
+  if (perfil?.rol === 'terapeuta') redirect('/agenda');
+
   const pipelineId =
     (filtros.pipeline && pipelines?.find((p) => p.id === filtros.pipeline)?.id) ||
     pipelines?.[0]?.id;

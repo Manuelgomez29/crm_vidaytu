@@ -33,6 +33,13 @@ export default async function DirectorioContactos({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  const { data: perfilRol } = await supabase
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
+
   const [{ data: etiquetas }, { data: listas }] = await Promise.all([
     supabase.from('etiquetas').select('id, nombre, color').eq('activa', true).order('nombre'),
     supabase.from('listas').select('id, nombre, tipo, filtro').order('nombre'),

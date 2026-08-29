@@ -53,6 +53,13 @@ export default async function FichaContacto({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  const { data: perfilRol } = await supabase
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
+
   const { data: contacto } = await supabase
     .from('contactos')
     .select('*')

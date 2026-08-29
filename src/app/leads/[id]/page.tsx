@@ -21,6 +21,8 @@ import {
   registrarConversion,
   validarConversion,
 } from './actions';
+import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
+import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
 
 const TIPO_ACTIVIDAD: Record<string, string> = {
   llamada: '📞 Llamada',
@@ -77,6 +79,7 @@ export default async function FichaLead({
     .select('rol')
     .eq('id', user.id)
     .single();
+  if (perfil?.rol === 'terapeuta') redirect('/agenda');
   const esDireccion = perfil?.rol === 'direccion';
 
   const { data: lead } = await supabase
@@ -107,6 +110,8 @@ export default async function FichaLead({
     { data: centros },
     { data: modalidades },
     { data: derivaciones },
+    { data: citas },
+    { data: profesionales },
   ] = await Promise.all([
     supabase
       .from('lead_contactos')
@@ -142,6 +147,12 @@ export default async function FichaLead({
       .select('id, motivo, created_at, origen:centros!derivaciones_centro_origen_id_fkey (nombre), destino:centros!derivaciones_centro_destino_id_fkey (nombre)')
       .eq('lead_id', id)
       .order('created_at', { ascending: false }),
+    supabase
+      .from('citas')
+      .select('id, tipo, modalidad_cita, inicio, fin, estado, notas, profesional:perfiles (nombre), contacto:contactos (nombre)')
+      .eq('lead_id', id)
+      .order('inicio', { ascending: false }),
+    supabase.rpc('profesionales_agendables'),
   ]);
 
   const { data: comerciales } = esDireccion
@@ -290,6 +301,107 @@ export default async function FichaLead({
                 ))}
                 {(tareas ?? []).length === 0 && (
                   <li className="text-sm text-slate-400">Sin tareas.</li>
+                )}
+              </ul>
+            </Seccion>
+
+            <Seccion titulo="Citas">
+              <form action={crearCita.bind(null, lead.id)} className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <input name="inicio" type="datetime-local" required className={inputClase} />
+                  <select name="duracion" defaultValue="60" className={inputClase}>
+                    <option value="30">30 min</option>
+                    <option value="45">45 min</option>
+                    <option value="60">1 hora</option>
+                    <option value="90">1 h 30</option>
+                  </select>
+                  <select name="profesional" defaultValue="" className={inputClase} required>
+                    <option value="">Profesional…</option>
+                    {(profesionales ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <select name="tipo" defaultValue="primera_cita" className={inputClase}>
+                    {Object.entries(TIPO_CITA).map(([valor, texto]) => (
+                      <option key={valor} value={valor}>
+                        {texto}
+                      </option>
+                    ))}
+                  </select>
+                  <select name="modalidad" defaultValue="presencial" className={inputClase}>
+                    {Object.entries(MODALIDAD_CITA).map(([valor, texto]) => (
+                      <option key={valor} value={valor}>
+                        {texto}
+                      </option>
+                    ))}
+                  </select>
+                  <select name="contacto" defaultValue="" className={inputClase}>
+                    <option value="">¿Con quién se agenda?</option>
+                    {(contactosCaso ?? []).map(
+                      (lc) =>
+                        lc.contacto && (
+                          <option key={lc.contacto.id} value={lc.contacto.id}>
+                            {lc.contacto.nombre}
+                          </option>
+                        ),
+                    )}
+                  </select>
+                  <input name="notas" placeholder="Notas" className={`${inputClase} min-w-0 flex-1`} />
+                  <button type="submit" className={botonClase}>
+                    Agendar
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">
+                  El recordatorio irá al contacto con quien se agende, y nunca menciona el motivo de
+                  consulta.
+                </p>
+              </form>
+
+              <ul className="mt-3 flex flex-col gap-2">
+                {(citas ?? []).map((c) => {
+                  const estadoCita = ESTADO_CITA[c.estado] ?? {
+                    texto: c.estado,
+                    clases: 'bg-slate-100 text-slate-600 ring-slate-200',
+                  };
+                  return (
+                    <li
+                      key={c.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">
+                          {fecha(c.inicio)} · {TIPO_CITA[c.tipo] ?? c.tipo}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {MODALIDAD_CITA[c.modalidad_cita] ?? c.modalidad_cita} ·{' '}
+                          {c.profesional?.nombre ?? '—'}
+                          {c.contacto?.nombre && ` · con ${c.contacto.nombre}`}
+                        </p>
+                        {c.notas && <p className="text-xs text-slate-500">{c.notas}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estadoCita.clases}`}
+                        >
+                          {estadoCita.texto}
+                        </span>
+                        {c.estado === 'programada' && (
+                          <form action={cambiarEstadoCita.bind(null, c.id, 'realizada', { lead: lead.id })}>
+                            <button type="submit" className={botonSecundario}>
+                              Realizada
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+                {(citas ?? []).length === 0 && (
+                  <li className="text-sm text-slate-400">Sin citas todavía.</li>
                 )}
               </ul>
             </Seccion>

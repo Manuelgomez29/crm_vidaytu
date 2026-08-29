@@ -64,6 +64,7 @@ async function main() {
   const direccionId = await asegurarUsuario('direccion@test.com', 'Dirección (prueba)', 'direccion');
   const horizonteId = await asegurarUsuario('horizonte@test.com', 'Comercial Horizonte (prueba)', 'admisiones');
   const equipoId = await asegurarUsuario('equipo@test.com', 'Comercial Equipo (prueba)', 'admisiones');
+  const terapeutaId = await asegurarUsuario('terapeuta@test.com', 'Terapeuta (prueba)', 'terapeuta');
 
   console.log('— Catálogos…');
   const { data: centros, error: errorCentros } = await admin.from('centros').select('id, slug');
@@ -94,6 +95,7 @@ async function main() {
     { perfil_id: equipoId, centro_id: centro['eclipse'] },
     { perfil_id: equipoId, centro_id: centro['bellamar'] },
     { perfil_id: equipoId, centro_id: centro['bandeja-grupo'] },
+    { perfil_id: terapeutaId, centro_id: centro['eclipse'] },
   ];
   const { error: errorAsig } = await admin
     .from('perfil_centros')
@@ -101,7 +103,7 @@ async function main() {
   fallar('perfil_centros', errorAsig);
 
   console.log('— Disponibilidades…');
-  await admin.from('disponibilidad').delete().in('perfil_id', [horizonteId, equipoId]);
+  await admin.from('disponibilidad').delete().in('perfil_id', [horizonteId, equipoId, terapeutaId]);
   const disponibilidad = [
     // Horizonte: L–V mañana y tarde (teléfono hasta 21:00) + sábado por la mañana
     ...[1, 2, 3, 4, 5].flatMap((dia) => [
@@ -115,6 +117,13 @@ async function main() {
       dia_semana: dia,
       hora_inicio: '09:00',
       hora_fin: '17:00',
+    })),
+    // Terapeuta: consulta de tarde, martes a viernes
+    ...[2, 3, 4, 5].map((dia) => ({
+      perfil_id: terapeutaId,
+      dia_semana: dia,
+      hora_inicio: '15:00',
+      hora_fin: '20:00',
     })),
   ];
   const { error: errorDisp } = await admin.from('disponibilidad').insert(disponibilidad);
@@ -316,11 +325,59 @@ async function main() {
   });
   fallar('tarea', errorTarea);
 
+  console.log('— Citas de ejemplo…');
+  await admin.from('citas').delete().in('lead_id', [leadTres.id, leadUno.id]);
+
+  const { data: contactoTres } = await admin
+    .from('lead_contactos')
+    .select('contacto_id')
+    .eq('lead_id', leadTres.id)
+    .eq('es_principal', true)
+    .maybeSingle();
+
+  // Próxima cita: martes que viene a las 17:00 (dentro de la disponibilidad del terapeuta)
+  const proxima = new Date();
+  proxima.setDate(proxima.getDate() + ((2 - proxima.getDay() + 7) % 7 || 7));
+  proxima.setHours(17, 0, 0, 0);
+  const finProxima = new Date(proxima.getTime() + 60 * 60 * 1000);
+
+  const anterior = new Date();
+  anterior.setDate(anterior.getDate() - 3);
+  anterior.setHours(11, 0, 0, 0);
+
+  const { error: errorCitas } = await admin.from('citas').insert([
+    {
+      lead_id: leadTres.id,
+      centro_id: centro['eclipse'],
+      profesional_id: terapeutaId,
+      tipo: 'primera_cita',
+      modalidad_cita: 'presencial',
+      inicio: proxima.toISOString(),
+      fin: finProxima.toISOString(),
+      estado: 'programada',
+      contacto_id: contactoTres?.contacto_id ?? null,
+      notas: 'Primera visita presencial (dato ficticio de seed)',
+    },
+    {
+      lead_id: leadUno.id,
+      centro_id: centro['horizonte'],
+      profesional_id: horizonteId,
+      tipo: 'primera_llamada',
+      modalidad_cita: 'telefonica',
+      inicio: anterior.toISOString(),
+      fin: new Date(anterior.getTime() + 30 * 60 * 1000).toISOString(),
+      estado: 'realizada',
+      notas: 'Llamada de contacto (dato ficticio de seed)',
+    },
+  ]);
+  fallar('citas', errorCitas);
+
   console.log('');
   console.log('Seed completado. Usuarios de prueba (contraseña: ' + PASSWORD_DEV + '):');
   console.log('  direccion@test.com  → dirección (ve todo)');
   console.log('  horizonte@test.com  → admisiones, solo Horizonte');
   console.log('  equipo@test.com     → admisiones, Eclipse + Bellamar + bandeja de grupo');
+  console.log('  terapeuta@test.com  → terapeuta, SOLO sus citas');
 }
 
 main().catch((e) => {

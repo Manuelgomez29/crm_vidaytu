@@ -5,11 +5,22 @@ import { fechaCorta } from '@/lib/fechas';
 
 export async function Cabecera({ email }: { email: string }) {
   const supabase = await createClient();
-  const { data: notificaciones } = await supabase
-    .from('notificaciones')
-    .select('id, mensaje, lead_id, leida_at, created_at')
-    .order('created_at', { ascending: false })
-    .limit(15);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ data: notificaciones }, { data: perfil }] = await Promise.all([
+    supabase
+      .from('notificaciones')
+      .select('id, mensaje, lead_id, leida_at, created_at')
+      .order('created_at', { ascending: false })
+      .limit(15),
+    supabase.from('perfiles').select('rol').eq('id', user?.id ?? '').maybeSingle(),
+  ]);
+
+  // El terapeuta solo tiene agenda: no ve leads ni el directorio de contactos.
+  const esTerapeuta = perfil?.rol === 'terapeuta';
+  const inicio = esTerapeuta ? '/agenda' : '/leads';
 
   const sinLeer = (notificaciones ?? []).filter((n) => n.leida_at === null).length;
 
@@ -17,16 +28,23 @@ export async function Cabecera({ email }: { email: string }) {
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-3">
         <div className="flex items-baseline gap-4">
-          <Link href="/leads" className="text-lg font-semibold tracking-tight">
+          <Link href={inicio} className="text-lg font-semibold tracking-tight">
             Vida y Tu <span className="text-teal-600">DATA</span>
           </Link>
           <nav className="flex items-center gap-3 text-sm">
-            <Link href="/leads" className="text-slate-600 hover:text-teal-700">
-              Leads
+            {!esTerapeuta && (
+              <Link href="/leads" className="text-slate-600 hover:text-teal-700">
+                Leads
+              </Link>
+            )}
+            <Link href="/agenda" className="text-slate-600 hover:text-teal-700">
+              Agenda
             </Link>
-            <Link href="/contactos" className="text-slate-600 hover:text-teal-700">
-              Contactos
-            </Link>
+            {!esTerapeuta && (
+              <Link href="/contactos" className="text-slate-600 hover:text-teal-700">
+                Contactos
+              </Link>
+            )}
           </nav>
         </div>
 

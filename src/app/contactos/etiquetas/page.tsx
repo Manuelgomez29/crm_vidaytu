@@ -22,6 +22,13 @@ export default async function GestionEtiquetas({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  const { data: perfilRol } = await supabase
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
+
   const [{ data: etiquetas }, { data: usos }] = await Promise.all([
     supabase
       .from('etiquetas')

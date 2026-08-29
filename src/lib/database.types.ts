@@ -1424,12 +1424,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agenda_citas: {
+        Args: { desde: string; hasta: string }
+        Returns: {
+          centro_id: string
+          centro_nombre: string
+          contacto_id: string
+          contacto_nombre: string
+          contacto_telefono: string
+          estado: Database["public"]["Enums"]["estado_cita"]
+          fin: string
+          id: string
+          inicio: string
+          lead_id: string
+          lead_nombre: string
+          lead_telefono: string
+          modalidad_cita: Database["public"]["Enums"]["modalidad_cita"]
+          notas: string
+          profesional_id: string
+          profesional_nombre: string
+          tipo: Database["public"]["Enums"]["tipo_cita"]
+        }[]
+      }
+      aviso_disponibilidad: {
+        Args: { p_fin: string; p_inicio: string; p_profesional: string }
+        Returns: string
+      }
       es_direccion: { Args: never; Returns: boolean }
       mi_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["rol_usuario"]
       }
       mis_centros: { Args: never; Returns: string[] }
+      profesionales_agendables: {
+        Args: never
+        Returns: {
+          id: string
+          nombre: string
+          rol: Database["public"]["Enums"]["rol_usuario"]
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }

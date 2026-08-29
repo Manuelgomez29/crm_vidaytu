@@ -35,6 +35,8 @@ export default async function NuevoLead({
     .eq('id', user.id)
     .single();
 
+  if (perfil?.rol === 'terapeuta') redirect('/agenda');
+
   const [{ data: todosCentros }, { data: misCentros }, { data: canales }, { data: adicciones }, { data: modalidades }] =
     await Promise.all([
       supabase.from('centros').select('id, nombre, es_bandeja_grupo').eq('activo', true).order('nombre'),
