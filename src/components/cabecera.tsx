@@ -36,9 +36,14 @@ export async function Cabecera({ email }: { email: string }) {
           </Link>
           <nav className="flex items-center gap-3 text-sm">
             {!esTerapeuta && (
-              <Link href="/leads" className="text-slate-600 hover:text-teal-700">
-                Leads
-              </Link>
+              <>
+                <Link href="/panel" className="text-slate-600 hover:text-teal-700">
+                  Panel
+                </Link>
+                <Link href="/leads" className="text-slate-600 hover:text-teal-700">
+                  Leads
+                </Link>
+              </>
             )}
             <Link href="/agenda" className="text-slate-600 hover:text-teal-700">
               Agenda

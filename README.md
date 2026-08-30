@@ -62,6 +62,17 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
+## Panel de dirección
+
+`/panel` reúne las métricas del área comercial, con periodos predefinidos (este mes, mes anterior, 3 meses, año) o rango libre, y filtro por centro.
+
+- **Titulares**: leads nuevos, conversiones **validadas** (regla 7: las pendientes de validar se cuentan aparte y no suman), ingresos validados y cumplimiento del SLA de primera respuesta leído de `configuracion`.
+- **Disciplina**: leads sin asignar del periodo y leads abiertos sin próxima acción (estos, en todo momento).
+- **Embudo** por estado, **origen** por canal, y tabla **por centro** con su tasa de conversión.
+- **Equipo comercial**: leads, citas, conversiones e ingresos de cada comercial frente a sus objetivos del mes (`objetivos`).
+
+Cada rol ve lo que le permite RLS: dirección todo, admisiones solo sus centros. El terapeuta no tiene acceso.
+
 ## Agenda
 
 `/agenda` tiene tres vistas — **Mes**, **Semana** y **Fechas** (rango libre) — con navegación entre periodos y filtros por centro y por profesional que se conservan al cambiar de vista. En la vista mensual cada día enlaza a su detalle. Las citas se crean desde la ficha del caso (sección Citas) y se marcan como realizadas, no presentadas o canceladas desde ambos sitios.

@@ -372,6 +372,68 @@ async function main() {
   ]);
   fallar('citas', errorCitas);
 
+  console.log('— Conversión validada y objetivos…');
+  const { data: leadCinco, error: errorLeadCinco } = await admin
+    .from('leads')
+    .select('id')
+    .eq('origen_sistema', 'seed')
+    .eq('origen_ref', 'lead-5')
+    .single();
+  fallar('recuperar lead-5', errorLeadCinco);
+
+  const { data: modalidades, error: errorModalidades } = await admin
+    .from('modalidades')
+    .select('id, slug');
+  fallar('leer modalidades', errorModalidades);
+  const modalidad = Object.fromEntries(modalidades.map((m) => [m.slug, m.id]));
+
+  // Un caso ya convertido y validado por dirección, para que el panel tenga datos.
+  await admin
+    .from('leads')
+    .update({ estado: 'convertido', etapa_id: etapa['convertido'] })
+    .eq('id', leadCinco.id);
+
+  const { data: presupuesto, error: errorPresupuesto } = await admin
+    .from('presupuestos')
+    .insert({
+      lead_id: leadCinco.id,
+      importe: 4200,
+      modalidad_id: modalidad['ingreso_residencial'],
+      descripcion: 'Programa de ingreso, primer mes (dato ficticio de seed)',
+      estado: 'aceptado',
+      creado_por: equipoId,
+    })
+    .select('id')
+    .single();
+  fallar('presupuesto', errorPresupuesto);
+
+  const { error: errorConversion } = await admin.from('conversiones').insert({
+    lead_id: leadCinco.id,
+    fecha_inicio: new Date().toISOString().slice(0, 10),
+    modalidad_id: modalidad['ingreso_residencial'],
+    centro_id: centro['bellamar'],
+    importe_primer_pago: 1500,
+    presupuesto_id: presupuesto.id,
+    estado: 'validada',
+    registrada_por: equipoId,
+    validada_por: direccionId,
+    validada_at: new Date().toISOString(),
+  });
+  fallar('conversion', errorConversion);
+
+  // Objetivos del mes en curso para los dos comerciales.
+  const primeroDeMes = new Date();
+  primeroDeMes.setDate(1);
+  const mes = primeroDeMes.toISOString().slice(0, 10);
+  const { error: errorObjetivos } = await admin.from('objetivos').upsert(
+    [
+      { perfil_id: equipoId, mes, meta_citas: 20, meta_conversiones: 4, meta_ingresos: 12000, created_by: direccionId },
+      { perfil_id: horizonteId, mes, meta_citas: 15, meta_conversiones: 3, meta_ingresos: 9000, created_by: direccionId },
+    ],
+    { onConflict: 'perfil_id,mes' },
+  );
+  fallar('objetivos', errorObjetivos);
+
   console.log('');
   console.log('Seed completado. Usuarios de prueba (contraseña: ' + PASSWORD_DEV + '):');
   console.log('  direccion@test.com  → dirección (ve todo)');
