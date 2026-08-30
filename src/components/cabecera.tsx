@@ -53,6 +53,11 @@ export async function Cabecera({ email }: { email: string }) {
                 Contactos
               </Link>
             )}
+            {perfil?.rol === 'direccion' && (
+              <Link href="/admin/equipo" className="text-slate-600 hover:text-teal-700">
+                Administración
+              </Link>
+            )}
           </nav>
         </div>
 

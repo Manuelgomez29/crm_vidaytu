@@ -62,6 +62,18 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
+## Panel de administración
+
+`/admin` (solo dirección) hace realidad el «nada cableado»: cinco pestañas donde vive todo lo que la plataforma lee en tiempo de ejecución.
+
+- **Equipo**: crear usuarios con su acceso, rol y centros; activar o desactivar; disponibilidad semanal, ausencias y objetivos mensuales. No permite quedarse sin ninguna cuenta de dirección activa.
+- **Centros**: crear y editar; no se borran (su historial depende de ellos), se desactivan.
+- **Catálogos**: canales, modalidades, motivos de pérdida y adicciones. Desactivar retira del formulario sin tocar los casos que ya lo usan.
+- **Pipelines**: etapas con su estado de sistema, que es lo que mantiene comparables las métricas entre pipelines. Una etapa con leads dentro no se puede borrar.
+- **Parámetros**: SLA de primera respuesta, cadencia de contacto, alerta de presupuesto y plantilla del recordatorio. La plantilla se rechaza si menciona el motivo de consulta (regla 12).
+
+Cada acción vuelve a comprobar el rol en el servidor: la interfaz nunca es la única barrera.
+
 ## Panel de dirección
 
 `/panel` reúne las métricas del área comercial, con periodos predefinidos (este mes, mes anterior, 3 meses, año) o rango libre, y filtro por centro.
