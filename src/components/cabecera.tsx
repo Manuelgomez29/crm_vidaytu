@@ -9,13 +9,16 @@ export async function Cabecera({ email }: { email: string }) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Sin usuario no hay nada que pintar: el middleware ya redirige al login.
+  if (!user) return null;
+
   const [{ data: notificaciones }, { data: perfil }] = await Promise.all([
     supabase
       .from('notificaciones')
       .select('id, mensaje, lead_id, leida_at, created_at')
       .order('created_at', { ascending: false })
       .limit(15),
-    supabase.from('perfiles').select('rol').eq('id', user?.id ?? '').maybeSingle(),
+    supabase.from('perfiles').select('rol').eq('id', user.id).maybeSingle(),
   ]);
 
   // El terapeuta solo tiene agenda: no ve leads ni el directorio de contactos.
