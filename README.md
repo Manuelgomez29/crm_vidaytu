@@ -64,7 +64,7 @@ Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
 ## Agenda
 
-`/agenda` muestra la semana en curso con navegación entre semanas y filtro por profesional. Las citas se crean desde la ficha del caso (sección Citas) y se marcan como realizadas, no presentadas o canceladas desde ambos sitios.
+`/agenda` tiene tres vistas — **Mes**, **Semana** y **Fechas** (rango libre) — con navegación entre periodos y filtros por centro y por profesional que se conservan al cambiar de vista. En la vista mensual cada día enlaza a su detalle. Las citas se crean desde la ficha del caso (sección Citas) y se marcan como realizadas, no presentadas o canceladas desde ambos sitios.
 
 - **Recordatorios discretos**: la plantilla vive en `configuracion.plantilla_recordatorio_cita` y jamás menciona adicciones ni motivos clínicos. Va al contacto CON QUIEN se agendó la cita, con enlace directo a WhatsApp.
 - **Avisos, nunca bloqueos**: al agendar se comprueba la disponibilidad del profesional, sus ausencias y los solapes; si algo no cuadra la cita se crea igual y se avisa.
