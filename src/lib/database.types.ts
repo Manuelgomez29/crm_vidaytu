@@ -1050,6 +1050,7 @@ export type Database = {
       }
       notificaciones: {
         Row: {
+          clave: string | null
           created_at: string
           email_enviado_at: string | null
           id: string
@@ -1060,6 +1061,7 @@ export type Database = {
           usuario_id: string
         }
         Insert: {
+          clave?: string | null
           created_at?: string
           email_enviado_at?: string | null
           id?: string
@@ -1070,6 +1072,7 @@ export type Database = {
           usuario_id: string
         }
         Update: {
+          clave?: string | null
           created_at?: string
           email_enviado_at?: string | null
           id?: string

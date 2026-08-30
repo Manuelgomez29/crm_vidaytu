@@ -62,6 +62,28 @@ Crea usuarios y 8 leads ficticios. Usuarios de desarrollo (contraseña de todos:
 
 Estas credenciales son SOLO de desarrollo. En producción no existirán.
 
+## Alertas automáticas y resumen diario
+
+`POST /api/tareas-programadas` (cabecera `x-cron-secret` o `?token=`) ejecuta el motor de disciplina comercial. Conviene llamarlo cada 15–30 minutos desde un cron (Vercel Cron, GitHub Actions, cron-job.org…). Es **idempotente**: cada aviso lleva una clave única, así que ejecutarlo de más no duplica nada.
+
+Qué hace en cada pasada, todo con los parámetros de `configuracion`:
+
+- **SLA de primera respuesta** incumplido → avisa al propietario.
+- **Cadencia de contacto**: mira los intentos ya registrados y avisa de cuál toca (alternando llamada y WhatsApp). Al agotarlos **propone** marcarlo como perdido «no respondió» — nunca cierra un lead por su cuenta.
+- **Presupuestos sin respuesta** pasados los días configurados.
+- **Tareas vencidas** y **citas de las próximas 24 h**.
+- **Resumen diario** a cada cuenta de dirección.
+
+Un comercial de vacaciones o de baja no recibe alertas: sus avisos van a dirección (regla 10).
+
+Para lanzarlo a mano con el servidor arrancado:
+
+```bash
+npm run alertas
+```
+
+**Correo (opcional).** Si defines `RESEND_API_KEY` y `EMAIL_REMITENTE`, los avisos se envían también por email y se marca `email_enviado_at`. Sin esas variables la plataforma funciona igual: los avisos se quedan en la campana. Ningún correo menciona el motivo de consulta (regla 12), ni siquiera los internos.
+
 ## Panel de administración
 
 `/admin` (solo dirección) hace realidad el «nada cableado»: cinco pestañas donde vive todo lo que la plataforma lee en tiempo de ejecución.
