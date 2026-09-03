@@ -14,9 +14,11 @@
     "alertas": "node --env-file=.env.local scripts/alertas.mjs",
     "push:claves": "node scripts/claves-push.mjs",
     "verificar:muro": "node --env-file=.env.local scripts/verificar-muro.mjs",
-    "verificar": "tsx --env-file=.env.local scripts/verificar.ts"
+    "verificar": "tsx --env-file=.env.local scripts/verificar.ts",
+    "verificar:retencion": "node --env-file=.env.local scripts/verificar-retencion.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.73.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
     "@types/web-push": "^3.6.4",

@@ -311,6 +311,30 @@ El permiso se pide **al pulsar el botón** en `/seguridad`, no al cargar la pág
 
 Los textos de las notificaciones son deliberadamente sosos («Caso asignado», «Tarea vencida»): se leen en la pantalla de bloqueo, y el teléfono lo puede coger cualquiera. Cada aviso se marca al enviarse, y los de más de seis horas se descartan sin enviar — nadie quiere veinte notificaciones de golpe al volver de un fin de semana con el motor parado.
 
+## Retención y anonimización (RGPD)
+
+`/admin/retencion` (solo dirección). **Apagado por defecto y a propósito**: el plazo de conservación es una decisión jurídica del grupo, no técnica. Los 12 meses que vienen puestos son una propuesta de partida que confirma vuestro asesor.
+
+La pantalla enseña **primero qué se anonimizaría** —con el número de casos y personas, y la lista— y solo después ofrece el botón. Una acción irreversible sobre datos de personas se mira antes de hacerse, y «12 meses» en abstracto no dice lo mismo que «estos 47 casos».
+
+**Anonimiza, no borra.** Las filas se quedan sin datos personales, así que las métricas históricas siguen cuadrando —cuántos leads entraron en 2026 por Instagram, cuántos se perdieron por precio— sin conservar a quién pertenecían. Borrar destruiría el histórico del negocio para proteger algo que se puede proteger sin destruirlo.
+
+Solo afecta a casos **perdidos** y **no válidos**. Nunca a abiertos ni convertidos: detrás de una conversión hay una relación contractual con su propio plazo, y ese no lo decide esta pantalla. Un contacto se anonimiza solo si **todos** sus casos son anonimizables: la misma persona puede haber vuelto por otro caso que sigue vivo.
+
+El reloj corre desde `leads.cerrado_at`, no desde `updated_at`: si contara desde la última modificación, un caso cerrado hace un año en el que alguien corrigiera una coma volvería a empezar de cero y no se anonimizaría nunca.
+
+```bash
+npm run verificar:retencion
+```
+
+Crea un caso perdido antiguo, lo anonimiza y comprueba las dos mitades: qué se va y qué se queda. Deja la base de datos como estaba.
+
+## Monitorización de errores
+
+Sentry está integrado en `src/instrumentation.ts` e **inerte sin `SENTRY_DSN`**: mientras no haya DSN no se inicializa nada y no sale ni un byte del servidor. El día que contratéis el servicio, basta con la variable.
+
+Cuando se active, filtra cookies, cabeceras de autorización, secretos de webhook y query strings, y `sendDefaultPii` se queda en false. Un informe de error de esta plataforma puede arrastrar el nombre y el teléfono de alguien que llamó a un centro de adicciones, y eso no puede acabar en un servicio de terceros por accidente.
+
 ## Estructura
 
 - `src/app` — rutas (App Router). `/login` pública; todo lo demás requiere sesión.
@@ -319,4 +343,6 @@ Los textos de las notificaciones son deliberadamente sosos («Caso asignado», �
 - `supabase/migrations` — migraciones SQL versionadas.
 - `scripts/seed.ts` — seed de desarrollo (usa la service role).
 - `scripts/verificar-muro.mjs` — comprueba el muro entre áreas contra la base de datos real.
+- `scripts/verificar-retencion.mjs` — comprueba qué se va y qué se queda al anonimizar.
+- `src/instrumentation.ts` — Sentry, inerte sin DSN.
 - `CLAUDE.md` — contexto de negocio y reglas innegociables del proyecto.

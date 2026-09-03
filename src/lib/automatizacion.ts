@@ -14,6 +14,7 @@ import { ZONA } from '@/lib/fechas';
 import { pesosDesdeConfig, puntuar, type SenalesLead } from '@/lib/scoring';
 import { ejecutarEtiquetado } from '@/lib/etiquetado';
 import { calcularInformeMensual, cuerpoInformeMensual, mesAnterior } from '@/lib/informe-mensual';
+import { anonimizar } from '@/lib/anonimizar';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
 
 type Cliente = SupabaseClient<Database>;
@@ -30,6 +31,7 @@ export type ResultadoAutomatizacion = {
   seguimientosProgramados: number;
   seguimientosAvisados: number;
   informeMensual: number;
+  anonimizados: number;
 };
 
 function hoyMadrid(): string {
@@ -383,6 +385,44 @@ async function informeMensual(admin: Cliente): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
+// 7. RETENCIÓN (RGPD)
+//
+// Apagada por defecto. El plazo es una decisión jurídica del grupo, y hasta
+// que su asesor lo valide la plataforma no anonimiza nada por su cuenta.
+// Cuando se enciende, corre una vez al día: anonimizar no es urgente y no
+// tiene sentido revisarlo cada quince minutos.
+// ---------------------------------------------------------------------------
+async function retencion(admin: Cliente, activa: boolean, meses: number): Promise<number> {
+  if (!activa) return 0;
+
+  const { data: direccion } = await admin
+    .from('perfiles')
+    .select('id')
+    .eq('rol', 'direccion')
+    .eq('activo', true)
+    .limit(1)
+    .maybeSingle();
+
+  // Sin dirección activa no hay a quién avisar, y sin aviso no hay marca de
+  // "ya se hizo hoy": mejor no ejecutar que ejecutar a ciegas cada pasada.
+  if (!direccion) return 0;
+
+  // Una marca al día con la clave del aviso: si ya se hizo hoy, no se repite.
+  const nuevos = await avisar(admin, [
+    {
+      usuario_id: direccion.id,
+      tipo: 'resumen_diario',
+      mensaje: 'Anonimización por retención ejecutada',
+      clave: `retencion:${hoyMadrid()}`,
+    },
+  ]);
+  if (nuevos === 0) return 0;
+
+  const resultado = await anonimizar(admin, meses, null);
+  return resultado.casos;
+}
+
+// ---------------------------------------------------------------------------
 
 export async function ejecutarAutomatizaciones(admin: Cliente): Promise<ResultadoAutomatizacion> {
   const { data: config } = await admin.from('configuracion').select('clave, valor');
@@ -403,6 +443,12 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
       informeMensual(admin),
     ]);
 
+  const anonimizados = await retencion(
+    admin,
+    mapa.get('retencion_automatica') === true,
+    Number(mapa.get('retencion_meses')) || 12,
+  );
+
   return {
     puntuados,
     etiquetasAplicadas: etiquetado.etiquetasAplicadas,
@@ -412,5 +458,6 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
     seguimientosProgramados: postAlta.programados,
     seguimientosAvisados: postAlta.avisados,
     informeMensual: informe,
+    anonimizados,
   };
 }

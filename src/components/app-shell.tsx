@@ -121,6 +121,7 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Pipelines', href: '/admin/pipelines' },
     { texto: 'Clínica', href: '/admin/clinica' },
     { texto: 'Integraciones', href: '/admin/integraciones' },
+    { texto: 'Retención', href: '/admin/retencion' },
     { texto: 'Parámetros', href: '/admin/parametros' },
   ],
 };

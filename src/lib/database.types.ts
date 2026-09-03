@@ -1648,6 +1648,7 @@ export type Database = {
           adiccion_id: string | null
           canal_id: string
           centro_id: string
+          cerrado_at: string | null
           created_at: string
           created_by: string | null
           estado: Database["public"]["Enums"]["estado_lead"]
@@ -1684,6 +1685,7 @@ export type Database = {
           adiccion_id?: string | null
           canal_id: string
           centro_id: string
+          cerrado_at?: string | null
           created_at?: string
           created_by?: string | null
           estado?: Database["public"]["Enums"]["estado_lead"]
@@ -1720,6 +1722,7 @@ export type Database = {
           adiccion_id?: string | null
           canal_id?: string
           centro_id?: string
+          cerrado_at?: string | null
           created_at?: string
           created_by?: string | null
           estado?: Database["public"]["Enums"]["estado_lead"]
