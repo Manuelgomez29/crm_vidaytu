@@ -4,7 +4,7 @@ import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 
-export type Seccion = 'panel' | 'leads' | 'agenda' | 'contactos' | 'admin';
+export type Seccion = 'panel' | 'leads' | 'tareas' | 'agenda' | 'contactos' | 'admin';
 
 type Entrada = { clave: Seccion; texto: string; href: string; icono: string };
 type Bloque = { titulo: string; entradas: Entrada[] };
@@ -23,6 +23,7 @@ function bloques(rol: string | undefined): Bloque[] {
     titulo: 'Área comercial',
     entradas: [
       { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
+      { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
       { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
       { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
       { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
@@ -289,7 +290,7 @@ export async function AppShell({
             </div>
           </details>
 
-          <form action="/contactos" className="hidden max-w-[420px] flex-1 sm:flex">
+          <form action="/buscar" className="hidden max-w-[420px] flex-1 sm:flex">
             <label className="flex w-full items-center gap-2 rounded-lg border border-line bg-ground px-3 py-1.5 text-muted focus-within:border-primary">
               <IconoLupa />
               <input
