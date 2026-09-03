@@ -3,7 +3,15 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { COLORES_ETIQUETA, clasesEtiqueta } from '@/lib/colores';
-import { borrarEtiqueta, crearEtiqueta, editarEtiqueta } from '../actions';
+import {
+  borrarEtiqueta,
+  borrarRegla,
+  cambiarEstadoRegla,
+  crearEtiqueta,
+  crearRegla,
+  editarEtiqueta,
+} from '../actions';
+import { CAMPOS_REGLA, describirCondicion, type CondicionRegla } from '@/lib/reglas';
 
 const inputClase =
   'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
@@ -28,13 +36,17 @@ export default async function GestionEtiquetas({
     .maybeSingle();
   if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
 
-  const [{ data: etiquetas }, { data: usos }] = await Promise.all([
+  const [{ data: etiquetas }, { data: usos }, { data: reglas }] = await Promise.all([
     supabase
       .from('etiquetas')
       .select('id, nombre, color, activa, created_by')
       .order('activa', { ascending: false })
       .order('nombre'),
     supabase.from('contacto_etiquetas').select('etiqueta_id'),
+    supabase
+      .from('reglas_etiquetado')
+      .select('id, nombre, condicion, activa, etiqueta:etiquetas (nombre, color)')
+      .order('nombre'),
   ]);
 
   const recuento = new Map<string, number>();
@@ -165,6 +177,78 @@ export default async function GestionEtiquetas({
             </p>
           </aside>
         </div>
+
+        <section className="panel mt-4 p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Reglas de etiquetado automático
+          </h3>
+          <p className="mb-3 mt-0.5 text-xs text-ink2">
+            Aquí se definen: «si el canal es Instagram, etiqueta Lolo Drago». El motor que las
+            aplica llega en la fase 2; mientras tanto quedan registradas y las etiquetas puestas a
+            mano siguen funcionando igual.
+          </p>
+
+          <form action={crearRegla} className="mb-4 flex flex-wrap gap-2">
+            <input name="nombre" placeholder="Nombre de la regla" className={`${inputClase} min-w-44 flex-1`} />
+            <select name="campo" defaultValue="canal" className={inputClase}>
+              {Object.entries(CAMPOS_REGLA).map(([clave, texto]) => (
+                <option key={clave} value={clave}>
+                  {texto}
+                </option>
+              ))}
+            </select>
+            <input name="valor" placeholder="es igual a…" className={`${inputClase} min-w-36`} />
+            <select name="etiqueta" defaultValue="" className={inputClase}>
+              <option value="">Etiqueta a aplicar…</option>
+              {(etiquetas ?? [])
+                .filter((e) => e.activa)
+                .map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+            </select>
+            <button type="submit" className="btn btn-primary">
+              Crear regla
+            </button>
+          </form>
+
+          <ul className="flex flex-col gap-2">
+            {(reglas ?? []).map((r) => (
+              <li
+                key={r.id}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface2 px-3 py-2 ${
+                  r.activa ? '' : 'opacity-60'
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[13.5px] font-semibold">{r.nombre}</p>
+                  <p className="text-xs text-ink2">
+                    Si {describirCondicion(r.condicion as unknown as CondicionRegla)} → etiqueta{' '}
+                    <span className={`chip ${clasesEtiqueta(r.etiqueta?.color ?? null)}`}>
+                      {r.etiqueta?.nombre}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <form action={cambiarEstadoRegla.bind(null, r.id, !r.activa)}>
+                    <button type="submit" className="text-xs font-medium text-primary hover:underline">
+                      {r.activa ? 'Desactivar' : 'Activar'}
+                    </button>
+                  </form>
+                  <form action={borrarRegla.bind(null, r.id)}>
+                    <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
+                      Borrar
+                    </button>
+                  </form>
+                </div>
+              </li>
+            ))}
+            {(reglas ?? []).length === 0 && (
+              <li className="text-sm text-muted">Todavía no hay reglas definidas.</li>
+            )}
+          </ul>
+        </section>
       </AppShell>
   );
 }

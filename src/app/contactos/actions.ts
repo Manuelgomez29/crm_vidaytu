@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarTelefono } from '@/lib/telefonos';
 import type { FiltroSegmento } from '@/lib/segmentos';
+import { CAMPOS_REGLA, type CampoRegla } from '@/lib/reglas';
 
 function volver(contactoId: string, aviso?: { error?: string; aviso?: string }): never {
   const q = aviso?.error
@@ -153,6 +154,53 @@ export async function quitarDeLista(contactoId: string, listaId: string) {
     .eq('lista_id', listaId);
   if (error) volver(contactoId, { error: `No se pudo quitar de la lista: ${error.message}` });
   volver(contactoId);
+}
+
+// ---------------------------------------------------------------------------
+// Reglas de etiquetado automático
+//
+// Aquí se DEFINEN; quien las ejecuta es el motor de la fase 2. La condición se
+// guarda como {campo, valor} para que el motor no tenga que interpretar texto
+// libre.
+// ---------------------------------------------------------------------------
+
+export async function crearRegla(formData: FormData) {
+  const nombre = String(formData.get('nombre') ?? '').trim();
+  const campo = String(formData.get('campo') ?? '') as CampoRegla;
+  const valor = String(formData.get('valor') ?? '').trim();
+  const etiquetaId = String(formData.get('etiqueta') ?? '');
+
+  if (!nombre || !campo || !valor || !etiquetaId) {
+    volverAEtiquetas('La regla necesita nombre, condición y etiqueta.');
+  }
+  if (!(campo in CAMPOS_REGLA)) volverAEtiquetas('Campo de condición no válido.');
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('reglas_etiquetado').insert({
+    nombre,
+    condicion: { campo, valor },
+    etiqueta_id: etiquetaId,
+    activa: true,
+  });
+  if (error) volverAEtiquetas(`No se pudo crear la regla: ${error.message}`);
+  volverAEtiquetas();
+}
+
+export async function cambiarEstadoRegla(reglaId: string, activa: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('reglas_etiquetado')
+    .update({ activa })
+    .eq('id', reglaId);
+  if (error) volverAEtiquetas(`No se pudo actualizar: ${error.message}`);
+  volverAEtiquetas();
+}
+
+export async function borrarRegla(reglaId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('reglas_etiquetado').delete().eq('id', reglaId);
+  if (error) volverAEtiquetas(`No se pudo borrar: ${error.message}`);
+  volverAEtiquetas();
 }
 
 // ---------------------------------------------------------------------------

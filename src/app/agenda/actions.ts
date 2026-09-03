@@ -98,11 +98,12 @@ export async function cambiarEstadoCita(citaId: string, estado: string, destino:
     .from('citas')
     .update({ estado: estado as 'programada' | 'realizada' | 'no_show' | 'cancelada' })
     .eq('id', citaId)
-    .select('id, lead_id');
+    .select('id, lead_id, inicio');
   if (error) volver(destino, { error: `No se pudo actualizar la cita: ${error.message}` });
   if (!actualizadas || actualizadas.length === 0) {
     volver(destino, { error: 'No tienes permiso para cambiar esta cita.' });
   }
+  const cita = actualizadas[0];
 
   const {
     data: { user },
@@ -113,13 +114,59 @@ export async function cambiarEstadoCita(citaId: string, estado: string, destino:
     cancelada: 'Cita cancelada',
     programada: 'Cita reactivada',
   };
-  // El terapeuta no tiene acceso a `actividades`: su cambio se refleja en la cita.
   await supabase.from('actividades').insert({
-    lead_id: actualizadas[0].lead_id,
+    lead_id: cita.lead_id,
     tipo: 'cambio_estado',
     contenido: textos[estado] ?? 'Cita actualizada',
     usuario_id: user?.id ?? null,
   });
+
+  const { data: lead } = await supabase
+    .from('leads')
+    .select('estado, pipeline_id, propietario_id, nombre')
+    .eq('id', cita.lead_id)
+    .maybeSingle();
+
+  /**
+   * Un no-show no puede quedarse en nada: se crea la tarea de reenganche el
+   * mismo día, que es cuando hay opciones de recuperar a la persona.
+   */
+  if (estado === 'no_show' && lead) {
+    const enDosHoras = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    await supabase.from('tareas').insert({
+      lead_id: cita.lead_id,
+      titulo: 'Reenganche: no se presentó a la cita',
+      vence_at: enDosHoras,
+      responsable_id: lead.propietario_id,
+    });
+    volver(destino, {
+      aviso: 'Marcada como no presentada. Se ha creado la tarea de reenganche para hoy.',
+    });
+  }
+
+  /**
+   * Tras una cita realizada se PROPONE avanzar la etapa: la decisión sigue
+   * siendo del comercial (regla 6, avisos y nunca bloqueos).
+   */
+  if (estado === 'realizada' && lead?.estado === 'cita_agendada') {
+    const { data: etapa } = await supabase
+      .from('pipeline_etapas')
+      .select('id, nombre')
+      .eq('pipeline_id', lead.pipeline_id)
+      .eq('estado_sistema', 'cita_realizada')
+      .maybeSingle();
+
+    if (etapa && destino.lead) {
+      revalidatePath('/agenda');
+      revalidatePath(`/leads/${destino.lead}`);
+      redirect(`/leads/${destino.lead}?sugerir=${etapa.id}`);
+    }
+    if (etapa) {
+      volver(destino, {
+        aviso: `Cita realizada. El caso sigue en «Cita agendada»: valora moverlo a «${etapa.nombre}».`,
+      });
+    }
+  }
 
   volver(destino);
 }

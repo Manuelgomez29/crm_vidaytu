@@ -65,10 +65,10 @@ export default async function FichaLead({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; aviso?: string }>;
+  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string }>;
 }) {
   const { id } = await params;
-  const { error: errorMsg, aviso } = await searchParams;
+  const { error: errorMsg, aviso, sugerir } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -216,6 +216,26 @@ export default async function FichaLead({
             <span className="text-sm text-danger">Motivo: {lead.motivo_perdida.nombre}</span>
           )}
         </div>
+
+        {sugerir && etapas?.some((e) => e.id === sugerir) && (
+          <form
+            action={cambiarEtapa.bind(null, lead.id)}
+            className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coral/30 bg-coral-soft px-4 py-3"
+          >
+            <p className="text-sm font-semibold text-coral-ink">
+              Cita realizada. ¿Muevo el caso a «{etapas.find((e) => e.id === sugerir)?.nombre}»?
+            </p>
+            <input type="hidden" name="etapa" value={sugerir} />
+            <div className="flex items-center gap-2">
+              <button type="submit" className={botonClase}>
+                Sí, moverlo
+              </button>
+              <Link href={`/leads/${lead.id}`} className={botonSecundario}>
+                Ahora no
+              </Link>
+            </div>
+          </form>
+        )}
 
         {!cerrado && tareasPendientes.length === 0 && (
           <p className="mt-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
