@@ -24,6 +24,8 @@ export type TarjetaLead = {
   importe: number | null;
   conversionPendiente: boolean;
   creado: string;
+  /** Calor del caso, 0-100. Lo calcula el motor con pesos configurables. */
+  puntuacion: number;
 };
 
 type Props = {
@@ -97,6 +99,17 @@ function Tarjeta({
         <span className={`chip ${centro.chip}`}>{lead.centroNombre}</span>
         <span className="chip chip-mut">{lead.subcanal || lead.canalNombre}</span>
         {lead.urgencia === 'alta' && <span className="chip chip-danger">Urgente</span>}
+        {/* El scoring prioriza la cola; no oculta ni cierra nada. */}
+        {lead.puntuacion >= 60 && (
+          <span className="chip chip-danger" title={`Puntuación ${lead.puntuacion}/100`}>
+            🔥 {lead.puntuacion}
+          </span>
+        )}
+        {lead.puntuacion >= 35 && lead.puntuacion < 60 && (
+          <span className="chip chip-warn" title={`Puntuación ${lead.puntuacion}/100`}>
+            {lead.puntuacion}
+          </span>
+        )}
         {lead.propietarioAusente && <span className="chip chip-warn">Propietario ausente</span>}
         {lead.conversionPendiente && <span className="chip chip-warn">Pendiente validación</span>}
       </div>

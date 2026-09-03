@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { ejecutarAlertas } from '@/lib/alertas';
 import { ejecutarAutomatizaciones } from '@/lib/automatizacion';
 import { procesarCampanas } from '@/lib/campanas';
+import { enviarPushPendientes } from '@/lib/push-pendientes';
 
 /**
  * Motor periódico de la plataforma. Pensado para llamarse cada 15–30 minutos
@@ -30,8 +31,12 @@ export async function POST(req: NextRequest) {
     const alertas = await ejecutarAlertas(admin);
     const campanas = await procesarCampanas(admin);
 
+    // El último, para que empuje al móvil todo lo que los pasos anteriores
+    // acaban de crear en la misma pasada.
+    const push = await enviarPushPendientes(admin);
+
     return NextResponse.json(
-      { ok: true, ...alertas, ...automatizacion, ...campanas },
+      { ok: true, ...alertas, ...automatizacion, ...campanas, push: push.enviados },
       { status: 200 },
     );
   } catch (e) {

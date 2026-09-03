@@ -2078,6 +2078,7 @@ export type Database = {
           lead_id: string | null
           leida_at: string | null
           mensaje: string
+          push_enviado_at: string | null
           tipo: Database["public"]["Enums"]["tipo_notificacion"]
           usuario_id: string
         }
@@ -2089,6 +2090,7 @@ export type Database = {
           lead_id?: string | null
           leida_at?: string | null
           mensaje: string
+          push_enviado_at?: string | null
           tipo: Database["public"]["Enums"]["tipo_notificacion"]
           usuario_id: string
         }
@@ -2100,6 +2102,7 @@ export type Database = {
           lead_id?: string | null
           leida_at?: string | null
           mensaje?: string
+          push_enviado_at?: string | null
           tipo?: Database["public"]["Enums"]["tipo_notificacion"]
           usuario_id?: string
         }

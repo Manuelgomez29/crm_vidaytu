@@ -11,14 +11,17 @@
     "db:types": "supabase gen types typescript --linked --schema public > src/lib/database.types.ts",
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "test:ingesta": "node --env-file=.env.local scripts/test-ingesta.mjs",
-    "alertas": "node --env-file=.env.local scripts/alertas.mjs"
+    "alertas": "node --env-file=.env.local scripts/alertas.mjs",
+    "push:claves": "node scripts/claves-push.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",
+    "@types/web-push": "^3.6.4",
     "next": "15.5.24",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

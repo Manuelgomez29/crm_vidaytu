@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fecha } from '@/lib/fechas';
 import { Alta2FA } from './alta-2fa';
+import { PushCliente } from '@/components/push-cliente';
 
 /**
  * Seguridad de la cuenta. La verificación en dos pasos es obligatoria: la
@@ -50,6 +51,16 @@ export default async function Seguridad() {
               Para cambiar de dispositivo, pide a dirección que retire el factor actual y vuelve a
               darlo de alta.
             </p>
+            <div className="mt-4 border-t border-line pt-4">
+              <h4 className="mb-1 text-[13px] font-semibold">Avisos en el móvil</h4>
+              <p className="mb-2 text-xs text-ink2">
+                Instala la plataforma en la pantalla de inicio y recibe los avisos aunque no la
+                tengas abierta. El texto nunca menciona el motivo de consulta: se lee en la pantalla
+                de bloqueo.
+              </p>
+              <PushCliente clavePublica={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+            </div>
+
             <Link href="/leads" className="btn btn-primary mt-4">
               Ir a la plataforma
             </Link>

@@ -1,0 +1,24 @@
+{
+  "name": "Vida y Tu DATA",
+  "short_name": "Vida y Tu",
+  "description": "Plataforma del Grupo Vida y Tu",
+  "start_url": "/leads",
+  "display": "standalone",
+  "background_color": "#F7F6F2",
+  "theme_color": "#384B71",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -17,7 +17,8 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 const ROLES = [
   ['direccion', 'Dirección (lo ve todo)'],
   ['admisiones', 'Admisiones (sus centros)'],
-  ['terapeuta', 'Terapeuta (solo sus citas)'],
+  ['terapeuta', 'Terapeuta (solo sus citas y sus pacientes)'],
+  ['administracion', 'Administración económica (facturas y cobros)'],
 ] as const;
 
 export default async function AdminEquipo({
@@ -30,7 +31,11 @@ export default async function AdminEquipo({
 
   const [{ data: perfiles }, { data: centros }, { data: asignaciones }, { data: disponibilidad }, { data: ausencias }, { data: objetivos }] =
     await Promise.all([
-      supabase.from('perfiles').select('id, nombre, email, rol, activo').order('rol').order('nombre'),
+      supabase
+        .from('perfiles')
+        .select('id, nombre, email, rol, activo, acceso_clinico')
+        .order('rol')
+        .order('nombre'),
       supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
       supabase.from('perfil_centros').select('perfil_id, centro_id'),
       supabase.from('disponibilidad').select('perfil_id, dia_semana, hora_inicio, hora_fin'),
@@ -211,6 +216,22 @@ export default async function AdminEquipo({
                     <label className="flex items-center gap-1.5 pb-2 text-sm text-ink2">
                       <input type="checkbox" name="activo" defaultChecked={p.activo} /> Activo
                     </label>
+                    {/*
+                      Doble acceso. Un terapeuta ya entra en el area clinica por
+                      su rol; esto es para quien lleva las dos cosas — tipico en
+                      un centro pequeno, donde quien atiende tambien admite.
+                      En la clinica seguira viendo SOLO sus pacientes.
+                    */}
+                    {p.rol !== 'terapeuta' && p.rol !== 'direccion' && (
+                      <label className="flex items-center gap-1.5 pb-2 text-sm text-ink2">
+                        <input
+                          type="checkbox"
+                          name="acceso_clinico"
+                          defaultChecked={p.acceso_clinico}
+                        />{' '}
+                        Acceso clinico
+                      </label>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {(centros ?? []).map((c) => (

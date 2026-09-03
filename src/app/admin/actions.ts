@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { Json } from '@/lib/database.types';
+import type { Database } from '@/lib/database.types';
+
+type Rol = Database['public']['Enums']['rol_usuario'];
 
 /** Toda acción de administración comprueba el rol en el servidor. */
 async function exigirDireccion() {
@@ -77,7 +81,14 @@ export async function crearUsuario(formData: FormData) {
 
   const { error: errorPerfil } = await admin
     .from('perfiles')
-    .upsert({ id: creado.user.id, nombre, email, rol: rol as 'direccion' | 'admisiones' | 'terapeuta', activo: true });
+    .upsert({
+      id: creado.user.id,
+      nombre,
+      email,
+      rol: rol as Rol,
+      activo: true,
+      acceso_clinico: rol === 'terapeuta',
+    });
   if (errorPerfil) volver('equipo', { error: `No se pudo crear el perfil: ${errorPerfil.message}` });
 
   if (centros.length > 0) {
@@ -120,7 +131,14 @@ export async function editarUsuario(perfilId: string, formData: FormData) {
   const admin = createAdminClient();
   const { error } = await admin
     .from('perfiles')
-    .update({ nombre, rol: rol as 'direccion' | 'admisiones' | 'terapeuta', activo })
+    .update({
+      nombre,
+      rol: rol as Rol,
+      activo,
+      // Un terapeuta tiene acceso clinico por su rol; el resto, solo si se le
+      // marca. Direccion lo tiene siempre por es_direccion().
+      acceso_clinico: rol === 'terapeuta' || formData.get('acceso_clinico') === 'on',
+    })
     .eq('id', perfilId);
   if (error) volver('equipo', { error: `No se pudo guardar: ${error.message}` });
 
@@ -562,12 +580,93 @@ export async function guardarParametros(formData: FormData) {
   }
   if (!plantilla) volver('parametros', { error: 'La plantilla del recordatorio no puede quedar vacía.' });
 
-  const filas = [
+  const filas: { clave: string; valor: Json }[] = [
     { clave: 'sla_primera_respuesta_minutos', valor: sla },
     { clave: 'alerta_presupuesto_dias', valor: alerta },
     { clave: 'cadencia_dias', valor: cadencia },
     { clave: 'plantilla_recordatorio_cita', valor: plantilla },
   ];
+
+  /**
+   * Parámetros de las fases 2 a 4. Van en el mismo formulario y en la misma
+   * tabla, pero cada uno solo se toca si viene en el envío: así este
+   * formulario puede crecer sin arriesgarse a borrar lo que no muestra.
+   */
+  const numero = (campo: string, minimo = 0) => {
+    if (!formData.has(campo)) return undefined;
+    const n = Number(String(formData.get(campo) ?? '').trim());
+    return Number.isFinite(n) && n >= minimo ? n : undefined;
+  };
+  const texto = (campo: string) =>
+    formData.has(campo) ? String(formData.get(campo) ?? '').trim() : undefined;
+
+  const reactivacion = numero('reactivacion_dias', 1);
+  if (reactivacion !== undefined) filas.push({ clave: 'reactivacion_dias', valor: reactivacion });
+
+  const faltas = numero('riesgo_recaida_faltas', 1);
+  if (faltas !== undefined) filas.push({ clave: 'riesgo_recaida_faltas', valor: faltas });
+
+  const lote = numero('marketing_lote', 1);
+  if (lote !== undefined) filas.push({ clave: 'marketing_lote', valor: lote });
+
+  const iva = numero('iva_porcentaje', 0);
+  if (iva !== undefined) filas.push({ clave: 'iva_porcentaje', valor: iva });
+
+  if (formData.has('resena_activa')) {
+    filas.push({ clave: 'resena_activa', valor: formData.get('resena_activa') === 'on' });
+  }
+  if (formData.has('ia_activa')) {
+    filas.push({ clave: 'ia_activa', valor: formData.get('ia_activa') === 'on' });
+  }
+
+  const resenaUrl = texto('resena_url');
+  if (resenaUrl !== undefined) filas.push({ clave: 'resena_url', valor: resenaUrl });
+
+  const remitente = texto('marketing_remitente');
+  if (remitente !== undefined) filas.push({ clave: 'marketing_remitente', valor: remitente });
+
+  const pie = texto('marketing_pie');
+  if (pie !== undefined) {
+    // El pie ES el enlace de baja: sin el marcador, una campaña saldría sin
+    // forma de darse de baja, que es una infracción por sí sola.
+    if (!pie.includes('{baja}')) {
+      volver('parametros', {
+        error: 'El pie de las campañas debe contener {baja}: es el enlace para darse de baja.',
+      });
+    }
+    filas.push({ clave: 'marketing_pie', valor: pie });
+  }
+
+  const razonSocial = texto('fiscal_razon_social');
+  if (razonSocial !== undefined) {
+    filas.push({
+      clave: 'datos_fiscales',
+      valor: {
+        razon_social: razonSocial,
+        nif: texto('fiscal_nif') ?? '',
+        direccion: texto('fiscal_direccion') ?? '',
+        email: texto('fiscal_email') ?? '',
+      },
+    });
+  }
+
+  const probabilidadesTexto = texto('prevision_probabilidad');
+  if (probabilidadesTexto !== undefined && probabilidadesTexto) {
+    try {
+      filas.push({ clave: 'prevision_probabilidad', valor: JSON.parse(probabilidadesTexto) });
+    } catch {
+      volver('parametros', { error: 'Las probabilidades de previsión no son un JSON válido.' });
+    }
+  }
+
+  const pesosTexto = texto('scoring_pesos');
+  if (pesosTexto !== undefined && pesosTexto) {
+    try {
+      filas.push({ clave: 'scoring_pesos', valor: JSON.parse(pesosTexto) });
+    } catch {
+      volver('parametros', { error: 'Los pesos del scoring no son un JSON válido.' });
+    }
+  }
 
   for (const fila of filas) {
     const { error } = await admin

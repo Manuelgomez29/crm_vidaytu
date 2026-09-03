@@ -29,6 +29,18 @@ export default async function AdminParametros({
       ? (valor.get('plantilla_recordatorio_cita') as string)
       : '';
 
+  const cadena = (clave: string) =>
+    typeof valor.get(clave) === 'string' ? (valor.get(clave) as string) : '';
+  const json = (clave: string) =>
+    valor.get(clave) ? JSON.stringify(valor.get(clave), null, 2) : '';
+
+  const fiscales = (valor.get('datos_fiscales') ?? {}) as {
+    razon_social?: string;
+    nif?: string;
+    direccion?: string;
+    email?: string;
+  };
+
   return (
     <AppShell
       seccion="admin"
@@ -97,8 +109,215 @@ export default async function AdminParametros({
             </span>
           </label>
 
+          <hr className="border-line" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">
+            Automatizacion
+          </h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Reactivar «no es el momento» (dias)
+              <input
+                name="reactivacion_dias"
+                type="number"
+                min="1"
+                defaultValue={Number(valor.get('reactivacion_dias') ?? 90)}
+                className={`${inputAdmin} w-40`}
+              />
+              <span className="text-xs font-normal text-ink2">
+                Un «ahora no» no es un no: pasado ese plazo se crea la tarea de retomar el contacto.
+              </span>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Faltas seguidas que avisan de riesgo
+              <input
+                name="riesgo_recaida_faltas"
+                type="number"
+                min="1"
+                defaultValue={Number(valor.get('riesgo_recaida_faltas') ?? 2)}
+                className={`${inputAdmin} w-40`}
+              />
+              <span className="text-xs font-normal text-ink2">
+                Area clinica. Es una senal para el terapeuta referente, nunca un diagnostico.
+              </span>
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+            Pesos del lead scoring (JSON)
+            <textarea
+              name="scoring_pesos"
+              rows={5}
+              defaultValue={json('scoring_pesos')}
+              className={`${inputAdmin} font-mono text-xs`}
+            />
+            <span className="text-xs font-normal text-ink2">
+              Cuanto suma cada senal a la puntuacion de un caso. Cambiarlos recalcula todo en la
+              siguiente pasada del motor. La puntuacion prioriza la cola: no oculta ni cierra nada.
+            </span>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+            Probabilidad de cierre por estado (JSON)
+            <textarea
+              name="prevision_probabilidad"
+              rows={4}
+              defaultValue={json('prevision_probabilidad')}
+              className={`${inputAdmin} font-mono text-xs`}
+            />
+            <span className="text-xs font-normal text-ink2">
+              Alimenta la prevision de ingresos del panel. Al principio es una estimacion; con
+              conversiones reales se puede recalibrar mirando que porcentaje cerro de verdad.
+            </span>
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="resena_activa"
+                  defaultChecked={valor.get('resena_activa') !== false}
+                />
+                Proponer resena tras conversion validada
+              </span>
+              <span className="text-xs font-normal text-ink2">
+                Crea una tarea para el comercial, no un envio: la plataforma nunca escribe sola a un
+                paciente.
+              </span>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Enlace de resenas de Google
+              <input
+                name="resena_url"
+                defaultValue={cadena('resena_url')}
+                placeholder="https://g.page/r/..."
+                className={inputAdmin}
+              />
+            </label>
+          </div>
+
+          <hr className="border-line" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">
+            Email marketing
+          </h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Remitente de las campanas
+              <input
+                name="marketing_remitente"
+                defaultValue={cadena('marketing_remitente')}
+                placeholder="Vida y Tu <hola@dominio.es>"
+                className={inputAdmin}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Destinatarios por lote
+              <input
+                name="marketing_lote"
+                type="number"
+                min="1"
+                defaultValue={Number(valor.get('marketing_lote') ?? 40)}
+                className={`${inputAdmin} w-40`}
+              />
+              <span className="text-xs font-normal text-ink2">
+                Cuantos correos salen en cada pasada del motor, para no chocar con el limite del
+                proveedor.
+              </span>
+            </label>
+          </div>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+            Pie obligatorio de las campanas
+            <textarea
+              name="marketing_pie"
+              rows={2}
+              defaultValue={cadena('marketing_pie')}
+              className={inputAdmin}
+            />
+            <span className="text-xs font-normal text-warn">
+              Debe contener el marcador de baja. Es el enlace para darse de baja en un clic, y sin
+              el la plataforma rechaza el cambio.
+            </span>
+          </label>
+
+          <hr className="border-line" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">Facturacion</h2>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Razon social
+              <input
+                name="fiscal_razon_social"
+                defaultValue={fiscales.razon_social ?? ''}
+                className={inputAdmin}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              NIF
+              <input name="fiscal_nif" defaultValue={fiscales.nif ?? ''} className={inputAdmin} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Direccion fiscal
+              <input
+                name="fiscal_direccion"
+                defaultValue={fiscales.direccion ?? ''}
+                className={inputAdmin}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Email de facturacion
+              <input
+                name="fiscal_email"
+                type="email"
+                defaultValue={fiscales.email ?? ''}
+                className={inputAdmin}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              IVA por defecto (%)
+              <input
+                name="iva_porcentaje"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={Number(valor.get('iva_porcentaje') ?? 0)}
+                className={`${inputAdmin} w-40`}
+              />
+              <span className="text-xs font-normal text-ink2">
+                Los servicios sanitarios suelen ir exentos. Confirmalo con la gestoria antes de
+                emitir en serie.
+              </span>
+            </label>
+          </div>
+
+          <hr className="border-line" />
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">
+            Asistente de IA
+          </h2>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+            <span className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="ia_activa"
+                defaultChecked={valor.get('ia_activa') === true}
+              />
+              Asistente encendido
+            </span>
+            <span className="text-xs font-normal text-warn">
+              Enciendelo solo despues de firmar el acuerdo de tratamiento de datos con el proveedor.
+              El asistente responde unicamente con lo que quien pregunta ya puede ver, y cada
+              consulta queda auditada.
+            </span>
+          </label>
+
           <button type="submit" className={`${botonAdmin} self-start`}>
-            Guardar parámetros
+            Guardar parametros
           </button>
         </form>
 

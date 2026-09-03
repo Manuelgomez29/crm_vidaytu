@@ -15,6 +15,7 @@ type FilaKanban = {
   nombre: string;
   estado: string;
   urgencia: string | null;
+  puntuacion: number | null;
   etapa_id: string;
   created_at: string;
   propietario_id: string | null;
@@ -76,7 +77,7 @@ export default async function LeadsPage({
   let consulta = supabase
     .from('leads')
     .select(
-      `id, nombre, estado, urgencia, etapa_id, created_at, propietario_id, subcanal,
+      `id, nombre, estado, urgencia, puntuacion, etapa_id, created_at, propietario_id, subcanal,
        centro:centros (nombre, slug, es_bandeja_grupo),
        canal:canales (nombre),
        propietario:perfiles!leads_propietario_id_fkey (nombre),
@@ -135,6 +136,7 @@ export default async function LeadsPage({
     nombre: fila.nombre,
     estado: fila.estado,
     urgencia: fila.urgencia,
+    puntuacion: fila.puntuacion ?? 0,
     etapaId: fila.etapa_id,
     centroNombre: fila.centro?.nombre ?? '—',
     centroSlug: fila.centro?.slug ?? '',

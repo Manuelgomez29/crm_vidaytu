@@ -36,6 +36,7 @@ type LeadMetrica = {
   adiccion_id: string | null;
   modalidad_interes_id: string | null;
   motivo_perdida_id: string | null;
+  utm_campaign: string | null;
 };
 
 function Tarjeta({
@@ -155,7 +156,7 @@ export default async function Panel({
   let consultaLeads = supabase
     .from('leads')
     .select(
-      'id, estado, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at, quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id',
+      'id, estado, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at, quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id, utm_campaign',
     )
     .gte('created_at', desdeIso)
     .lt('created_at', hastaIso);
@@ -192,6 +193,9 @@ export default async function Panel({
     { data: configSla },
     { data: leadsAbiertosSinTarea },
     { data: misCentros },
+    { data: presupuestosVivos },
+    { data: gastos },
+    { data: configPrevision },
   ] = await Promise.all([
     consultaLeads,
     consultaConversiones,
@@ -226,6 +230,22 @@ export default async function Panel({
       .not('estado', 'in', '(perdido,no_valido,convertido,derivado)')
       .is('tareas.completada_at', null),
     supabase.from('perfil_centros').select('centro_id').eq('perfil_id', user.id),
+    // Previsión: presupuestos vivos de casos abiertos.
+    supabase
+      .from('presupuestos')
+      .select('importe, lead_id, estado, lead:leads (estado, centro_id)')
+      .neq('estado', 'rechazado'),
+    // Coste por lead: gasto publicitario que solapa con el periodo.
+    supabase
+      .from('gasto_campanas')
+      .select('campana, importe, plataforma, centro_id, desde, hasta')
+      .lte('desde', hastaIso.slice(0, 10))
+      .gte('hasta', desdeIso.slice(0, 10)),
+    supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', 'prevision_probabilidad')
+      .maybeSingle(),
   ]);
 
   // Admisiones solo elige entre sus centros; dirección, entre todos.
@@ -414,6 +434,90 @@ export default async function Panel({
     const clave = `${nombreCentro.get(d.centro_origen_id) ?? '—'} → ${nombreCentro.get(d.centro_destino_id) ?? '—'}`;
     derivacionesInternas.set(clave, (derivacionesInternas.get(clave) ?? 0) + 1);
   }
+
+  /**
+   * PREVISIÓN DE INGRESOS. Pipeline ponderado: cada presupuesto vivo cuenta
+   * por su importe multiplicado por la probabilidad de cierre de la etapa en
+   * la que está el caso. Las probabilidades son configurables y salen de
+   * `configuracion.prevision_probabilidad` — al principio son una estimación
+   * de dirección; cuando haya conversiones reales se recalibran.
+   *
+   * No es una promesa: es lo que hay sobre la mesa, ponderado.
+   */
+  const PROBABILIDAD_POR_DEFECTO: Record<string, number> = {
+    nuevo: 5,
+    contactado: 10,
+    cita_agendada: 25,
+    cita_realizada: 40,
+    en_valoracion: 60,
+    reabierto: 15,
+    derivado: 30,
+  };
+  const probabilidades =
+    configPrevision?.valor && typeof configPrevision.valor === 'object'
+      ? { ...PROBABILIDAD_POR_DEFECTO, ...(configPrevision.valor as Record<string, number>) }
+      : PROBABILIDAD_POR_DEFECTO;
+
+  const centrosVisibles = new Set(centrosElegibles.map((c) => c.id));
+  const previsionPorEstado = new Map<string, { importe: number; ponderado: number; casos: number }>();
+
+  for (const p of presupuestosVivos ?? []) {
+    const estado = p.lead?.estado;
+    const centroId = p.lead?.centro_id;
+    if (!estado || !probabilidades[estado]) continue;
+    if (filtros.centro && centroId !== filtros.centro) continue;
+    if (!esDireccion && centroId && !centrosVisibles.has(centroId)) continue;
+
+    const actual = previsionPorEstado.get(estado) ?? { importe: 0, ponderado: 0, casos: 0 };
+    actual.importe += Number(p.importe ?? 0);
+    actual.ponderado += Number(p.importe ?? 0) * (probabilidades[estado] / 100);
+    actual.casos++;
+    previsionPorEstado.set(estado, actual);
+  }
+
+  const previsionTotal = Array.from(previsionPorEstado.values()).reduce(
+    (acc, v) => ({ importe: acc.importe + v.importe, ponderado: acc.ponderado + v.ponderado }),
+    { importe: 0, ponderado: 0 },
+  );
+
+  /**
+   * COSTE POR LEAD. Cruza el gasto anotado a mano con la utm_campaign de cada
+   * lead. Si una campaña gastó pero no trajo ningún lead atribuido, sale con
+   * cero: es justo el caso que hay que mirar.
+   */
+  const leadsPorCampana = new Map<string, { leads: number; conversiones: number }>();
+  for (const l of leads) {
+    const campana = (l.utm_campaign ?? '').trim().toLowerCase();
+    if (!campana) continue;
+    const actual = leadsPorCampana.get(campana) ?? { leads: 0, conversiones: 0 };
+    actual.leads++;
+    leadsPorCampana.set(campana, actual);
+  }
+  for (const c of validadas) {
+    const lead = leads.find((l) => l.id === c.lead_id);
+    const campana = (lead?.utm_campaign ?? '').trim().toLowerCase();
+    if (!campana) continue;
+    const actual = leadsPorCampana.get(campana) ?? { leads: 0, conversiones: 0 };
+    actual.conversiones++;
+    leadsPorCampana.set(campana, actual);
+  }
+
+  const costePorCampana = (gastos ?? []).map((g) => {
+    const clave = g.campana.trim().toLowerCase();
+    const datos = leadsPorCampana.get(clave) ?? { leads: 0, conversiones: 0 };
+    const importe = Number(g.importe);
+    return {
+      campana: g.campana,
+      plataforma: g.plataforma,
+      importe,
+      leads: datos.leads,
+      conversiones: datos.conversiones,
+      porLead: datos.leads > 0 ? importe / datos.leads : null,
+      porConversion: datos.conversiones > 0 ? importe / datos.conversiones : null,
+    };
+  });
+  const gastoTotal = costePorCampana.reduce((s, c) => s + c.importe, 0);
+  const leadsAtribuidos = costePorCampana.reduce((s, c) => s + c.leads, 0);
 
   const maxEmbudo = Math.max(1, ...EMBUDO.map((e) => porEstado.get(e) ?? 0));
 
@@ -783,6 +887,131 @@ export default async function Panel({
                 )}
               </div>
             </div>
+
+            {/* ---------- Previsión de ingresos ---------- */}
+            <Seccion titulo="Previsión de ingresos">
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-ink2">Sobre la mesa</p>
+                  <p className="num text-xl font-bold">{euros(previsionTotal.importe)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink2">Ponderado</p>
+                  <p className="num text-xl font-bold text-primary">
+                    {euros(Math.round(previsionTotal.ponderado))}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-ink2">Presupuestos vivos</p>
+                  <p className="num text-xl font-bold">
+                    {Array.from(previsionPorEstado.values()).reduce((s, v) => s + v.casos, 0)}
+                  </p>
+                </div>
+              </div>
+
+              {previsionPorEstado.size === 0 ? (
+                <p className="text-sm text-muted">No hay presupuestos vivos ahora mismo.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {Array.from(previsionPorEstado.entries())
+                    .sort((a, b) => b[1].ponderado - a[1].ponderado)
+                    .map(([estado, v]) => (
+                      <li key={estado} className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="truncate">
+                          {ETIQUETA_ESTADO[estado as EstadoLead]?.texto ?? estado}
+                          <span className="ml-1.5 text-xs text-muted">
+                            {v.casos} caso(s) · {probabilidades[estado]}%
+                          </span>
+                        </span>
+                        <span className="num shrink-0">
+                          <b>{euros(Math.round(v.ponderado))}</b>
+                          <span className="text-muted"> de {euros(v.importe)}</span>
+                        </span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+
+              <p className="mt-3 text-xs text-muted">
+                Cada presupuesto cuenta por su importe multiplicado por la probabilidad de su
+                etapa. No es una promesa: es lo que hay abierto, ponderado. Las probabilidades se
+                ajustan en Configuración → Parámetros.
+              </p>
+            </Seccion>
+
+            {/* ---------- Coste por lead ---------- */}
+            <Seccion titulo="Coste por lead y por conversión">
+              {costePorCampana.length === 0 ? (
+                <p className="text-sm text-muted">
+                  No hay gasto publicitario anotado en este periodo. Se registra en Configuración →
+                  Integraciones, y se cruza con la <code>utm_campaign</code> de cada lead.
+                </p>
+              ) : (
+                <>
+                  <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <p className="text-xs text-ink2">Invertido</p>
+                      <p className="num text-xl font-bold">{euros(Math.round(gastoTotal))}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ink2">Leads atribuidos</p>
+                      <p className="num text-xl font-bold">{leadsAtribuidos}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-ink2">Coste medio por lead</p>
+                      <p className="num text-xl font-bold text-primary">
+                        {leadsAtribuidos > 0 ? euros(Math.round(gastoTotal / leadsAtribuidos)) : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="tabla">
+                      <thead>
+                        <tr>
+                          <th>Campaña</th>
+                          <th className="text-right">Gasto</th>
+                          <th className="text-right">Leads</th>
+                          <th className="text-right">€/lead</th>
+                          <th className="text-right">Conv.</th>
+                          <th className="text-right">€/conversión</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {costePorCampana
+                          .sort((a, b) => b.importe - a.importe)
+                          .map((c) => (
+                            <tr key={`${c.plataforma}-${c.campana}`}>
+                              <td>
+                                {c.campana}
+                                <span className="ml-1.5 text-xs capitalize text-muted">
+                                  {c.plataforma}
+                                </span>
+                              </td>
+                              <td className="num text-right">{euros(Math.round(c.importe))}</td>
+                              <td className={`num text-right ${c.leads === 0 ? 'text-danger' : ''}`}>
+                                {c.leads}
+                              </td>
+                              <td className="num text-right font-semibold">
+                                {c.porLead === null ? '—' : euros(Math.round(c.porLead))}
+                              </td>
+                              <td className="num text-right">{c.conversiones}</td>
+                              <td className="num text-right font-semibold">
+                                {c.porConversion === null ? '—' : euros(Math.round(c.porConversion))}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="mt-3 text-xs text-muted">
+                    Una campaña con gasto y cero leads sale en rojo: o no está funcionando, o su
+                    UTM no coincide con el nombre anotado en el gasto.
+                  </p>
+                </>
+              )}
+            </Seccion>
 
             {!esDireccion && (
               <p className="text-xs text-muted">
