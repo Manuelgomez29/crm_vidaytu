@@ -10,11 +10,11 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="rounded-2xl bg-surface p-8 shadow-sm ring-1 ring-line">
-          <h1 className="text-center text-2xl font-semibold tracking-tight">
-            Vida y Tu <span className="text-primary">DATA</span>
+        <div className="panel p-8">
+          <h1 className="text-center text-2xl font-bold tracking-tight">
+            Vida y Tu <span className="text-coral">DATA</span>
           </h1>
-          <p className="mt-1 text-center text-sm text-ink2">Accede con tu cuenta</p>
+          <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">Grupo Vida y Tu</p>
 
           {error === 'credenciales' && (
             <p
@@ -33,7 +33,7 @@ export default async function LoginPage({
                 name="email"
                 required
                 autoComplete="email"
-                className="rounded-lg border border-line2 px-3 py-2 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                className="campo !text-base"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium">
@@ -43,12 +43,12 @@ export default async function LoginPage({
                 name="password"
                 required
                 autoComplete="current-password"
-                className="rounded-lg border border-line2 px-3 py-2 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                className="campo !text-base"
               />
             </label>
             <button
               type="submit"
-              className="mt-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="btn btn-primary mt-2 py-2.5"
             >
               Entrar
             </button>
