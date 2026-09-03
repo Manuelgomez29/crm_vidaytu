@@ -17,9 +17,9 @@ function Bloque({
   elementos: Elemento[];
 }) {
   return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{titulo}</h3>
-      <p className="mb-3 mt-0.5 text-xs text-slate-500">{descripcion}</p>
+    <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-ink2">{titulo}</h3>
+      <p className="mb-3 mt-0.5 text-xs text-ink2">{descripcion}</p>
 
       <form action={crearElementoCatalogo.bind(null, catalogo)} className="mb-3 flex flex-wrap gap-2">
         <input name="nombre" placeholder="Nuevo…" className={`${inputAdmin} min-w-40 flex-1`} />
@@ -36,7 +36,7 @@ function Bloque({
               className={`flex flex-wrap items-center gap-2 ${e.activo ? '' : 'opacity-60'}`}
             >
               <input name="nombre" defaultValue={e.nombre} className={`${inputAdmin} min-w-40 flex-1`} />
-              <label className="flex items-center gap-1.5 text-sm text-slate-600">
+              <label className="flex items-center gap-1.5 text-sm text-ink2">
                 <input type="checkbox" name="activo" defaultChecked={e.activo} /> Activo
               </label>
               <button type="submit" className={botonAdminSecundario}>
@@ -45,7 +45,7 @@ function Bloque({
             </form>
           </li>
         ))}
-        {elementos.length === 0 && <li className="text-sm text-slate-400">Vacío.</li>}
+        {elementos.length === 0 && <li className="text-sm text-muted">Vacío.</li>}
       </ul>
     </section>
   );
@@ -83,10 +83,9 @@ export default async function AdminCatalogos({
       subseccion="/admin/catalogos"
       titulo="Catálogos"
       descripcion="Los desplegables de toda la plataforma"
-      ancho="medio"
     >
         <Avisos error={errorMsg} aviso={aviso} />
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-ink2">
           Los desplegables de toda la plataforma salen de aquí. Desactivar un elemento lo retira de
           los formularios sin tocar los casos que ya lo usan.
         </p>

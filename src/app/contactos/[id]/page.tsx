@@ -15,11 +15,11 @@ import {
 } from '../actions';
 
 const inputClase =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 const botonClase =
-  'rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700';
+  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover';
 const botonSecundario =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface2';
 
 const TIPO_CONTACTO: Record<string, string> = {
   familiar: 'Familiar',
@@ -30,8 +30,8 @@ const TIPO_CONTACTO: Record<string, string> = {
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{titulo}</h3>
+    <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">{titulo}</h3>
       {children}
     </section>
   );
@@ -96,25 +96,24 @@ export default async function FichaContacto({
       seccion="contactos"
       subseccion="/contactos"
       titulo="Ficha de contacto"
-      ancho="medio"
     >
-        <Link href="/contactos" className="text-sm text-teal-700 hover:underline">
+        <Link href="/contactos" className="text-sm text-primary hover:underline">
           ← Volver al directorio
         </Link>
 
         {errorMsg && (
-          <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {errorMsg}
           </p>
         )}
         {aviso && (
-          <p className="mt-3 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200">
+          <p className="mt-3 rounded-lg bg-ok-soft px-4 py-2 text-sm text-ok ring-1 ring-ok/25">
             {aviso}
           </p>
         )}
 
         <h2 className="mt-3 text-2xl font-semibold">{contacto.nombre}</h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink2">
           {contacto.telefono}
           {contacto.email && ` · ${contacto.email}`} · en el directorio desde{' '}
           {fecha(contacto.created_at, false)}
@@ -124,28 +123,28 @@ export default async function FichaContacto({
           <Seccion titulo="Datos de la persona">
             <form action={guardarContacto.bind(null, contacto.id)} className="flex flex-col gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                   Nombre *
                   <input name="nombre" defaultValue={contacto.nombre} required className={inputClase} />
                 </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                   Teléfono *
                   <input name="telefono" defaultValue={contacto.telefono} required className={inputClase} />
                 </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                   Email
                   <input name="email" type="email" defaultValue={contacto.email ?? ''} className={inputClase} />
                 </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                   Zona
                   <input name="zona" defaultValue={contacto.zona ?? ''} className={inputClase} />
                 </label>
               </div>
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Notas
                 <textarea name="notas" rows={3} defaultValue={contacto.notas ?? ''} className={inputClase} />
               </label>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted">
                 Minimización de datos: aquí no se guardan diagnósticos ni documentos de identidad.
               </p>
               <button type="submit" className={`${botonClase} self-start`}>
@@ -159,12 +158,12 @@ export default async function FichaContacto({
               {contacto.consentimiento_marketing ? (
                 <div className="flex flex-col gap-3">
                   <p className="text-sm">
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                    <span className="rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok ring-1 ring-ok/25">
                       Concedido
                     </span>{' '}
                     el {fecha(contacto.consentimiento_marketing_at)}
                   </p>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-ink2">
                     Origen: {contacto.consentimiento_marketing_origen ?? '—'}
                   </p>
                   <form action={cambiarConsentimiento.bind(null, contacto.id)}>
@@ -177,7 +176,7 @@ export default async function FichaContacto({
               ) : (
                 <form action={cambiarConsentimiento.bind(null, contacto.id)} className="flex flex-col gap-2">
                   <input type="hidden" name="conceder" value="si" />
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-ink2">
                     Sin consentimiento: este contacto queda fuera de cualquier envío.
                   </p>
                   <input
@@ -204,7 +203,7 @@ export default async function FichaContacto({
                         <button
                           type="submit"
                           title="Quitar etiqueta"
-                          className={`rounded-full px-2.5 py-1 text-xs ring-1 transition hover:bg-red-50 hover:text-red-700 hover:ring-red-200 ${clasesEtiqueta(ce.etiqueta.color)}`}
+                          className={`rounded-full px-2.5 py-1 text-xs ring-1 transition hover:bg-danger-soft hover:text-danger hover:ring-danger/25 ${clasesEtiqueta(ce.etiqueta.color)}`}
                         >
                           {ce.etiqueta.nombre}
                           {ce.aplicada_por === null && ' (auto)'} ×
@@ -213,7 +212,7 @@ export default async function FichaContacto({
                     ),
                 )}
                 {(susEtiquetas ?? []).length === 0 && (
-                  <span className="text-sm text-slate-400">Sin etiquetas.</span>
+                  <span className="text-sm text-muted">Sin etiquetas.</span>
                 )}
               </div>
               <form action={anadirEtiqueta.bind(null, contacto.id)} className="flex flex-wrap gap-2">
@@ -240,7 +239,7 @@ export default async function FichaContacto({
                       <li key={l.lista.id} className="flex items-center justify-between gap-2 text-sm">
                         <span>{l.lista.nombre}</span>
                         <form action={quitarDeLista.bind(null, contacto.id, l.lista.id)}>
-                          <button type="submit" className="text-xs text-slate-500 hover:text-red-600 hover:underline">
+                          <button type="submit" className="text-xs text-ink2 hover:text-danger hover:underline">
                             Quitar
                           </button>
                         </form>
@@ -248,7 +247,7 @@ export default async function FichaContacto({
                     ),
                 )}
                 {(enListas ?? []).length === 0 && (
-                  <li className="text-sm text-slate-400">En ninguna lista estática.</li>
+                  <li className="text-sm text-muted">En ninguna lista estática.</li>
                 )}
               </ul>
               {listasDisponibles.length > 0 ? (
@@ -266,11 +265,11 @@ export default async function FichaContacto({
                   </button>
                 </form>
               ) : (
-                <Link href="/contactos/listas" className="text-sm text-teal-700 hover:underline">
+                <Link href="/contactos/listas" className="text-sm text-primary hover:underline">
                   Crear una lista
                 </Link>
               )}
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-muted">
                 Los segmentos dinámicos no se rellenan a mano: se calculan por sus criterios.
               </p>
             </Seccion>
@@ -285,13 +284,13 @@ export default async function FichaContacto({
                   c.lead && (
                     <li
                       key={c.lead.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
                     >
                       <div>
-                        <Link href={`/leads/${c.lead.id}`} className="font-medium hover:text-teal-700 hover:underline">
+                        <Link href={`/leads/${c.lead.id}`} className="font-medium hover:text-primary hover:underline">
                           {c.lead.nombre}
                         </Link>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-ink2">
                           {c.lead.centro?.nombre} · {TIPO_CONTACTO[c.tipo] ?? c.tipo}
                           {c.relacion && ` (${c.relacion})`}
                           {c.es_principal && ' · contacto principal'} · {fecha(c.lead.created_at, false)}
@@ -308,7 +307,7 @@ export default async function FichaContacto({
                   ),
               )}
               {(casos ?? []).length === 0 && (
-                <li className="text-sm text-slate-400">
+                <li className="text-sm text-muted">
                   Ningún caso visible para tu usuario. Puede tener casos en centros a los que no
                   tienes acceso.
                 </li>

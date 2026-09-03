@@ -41,16 +41,16 @@ const TIPO_CONTACTO: Record<string, string> = {
 };
 
 const inputClase =
-  'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 const botonClase =
-  'rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-teal-700';
+  'rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-hover';
 const botonSecundario =
-  'rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
+  'rounded-lg border border-line2 bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface2';
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+    <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
         {titulo}
       </h3>
       {children}
@@ -172,19 +172,18 @@ export default async function FichaLead({
     <AppShell
       seccion="leads"
       titulo="Ficha del caso"
-      ancho="ancho"
     >
-        <Link href="/leads" className="text-sm text-teal-700 hover:underline">
+        <Link href="/leads" className="text-sm text-primary hover:underline">
           ← Volver al tablero
         </Link>
 
         {errorMsg && (
-          <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {errorMsg}
           </p>
         )}
         {aviso && (
-          <p className="mt-3 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="mt-3 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
             {aviso}
           </p>
         )}
@@ -194,24 +193,24 @@ export default async function FichaLead({
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estado.clases}`}>
             {estado.texto}
           </span>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-ink2">
             {lead.centro?.nombre}
             {lead.centro?.es_bandeja_grupo && ' (bandeja de grupo)'}
           </span>
           {lead.propietario ? (
-            <span className="text-sm text-slate-500">Propietario: {lead.propietario.nombre}</span>
+            <span className="text-sm text-ink2">Propietario: {lead.propietario.nombre}</span>
           ) : (
-            <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+            <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn ring-1 ring-warn/25">
               Sin asignar
             </span>
           )}
           {lead.estado === 'perdido' && lead.motivo_perdida && (
-            <span className="text-sm text-red-600">Motivo: {lead.motivo_perdida.nombre}</span>
+            <span className="text-sm text-danger">Motivo: {lead.motivo_perdida.nombre}</span>
           )}
         </div>
 
         {!cerrado && tareasPendientes.length === 0 && (
-          <p className="mt-2 rounded-lg bg-orange-50 px-4 py-2 text-sm text-orange-700 ring-1 ring-orange-200">
+          <p className="mt-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
             ⚠ Este caso no tiene próxima acción con fecha. Crea una tarea.
           </p>
         )}
@@ -241,18 +240,18 @@ export default async function FichaLead({
 
               <ul className="mt-4 flex flex-col gap-2">
                 {(actividades ?? []).map((a) => (
-                  <li key={a.id} className="rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+                  <li key={a.id} className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
                     <p className="text-sm">
                       <span className="font-medium">{TIPO_ACTIVIDAD[a.tipo] ?? a.tipo}</span>{' '}
                       {a.contenido}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-400">
+                    <p className="mt-0.5 text-xs text-muted">
                       {a.usuario?.nombre ?? 'Sistema'} · {fecha(a.created_at)}
                     </p>
                   </li>
                 ))}
                 {(actividades ?? []).length === 0 && (
-                  <li className="text-sm text-slate-400">Sin actividad todavía.</li>
+                  <li className="text-sm text-muted">Sin actividad todavía.</li>
                 )}
               </ul>
             </Seccion>
@@ -273,19 +272,19 @@ export default async function FichaLead({
                 {(tareas ?? []).map((t) => (
                   <li
                     key={t.id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100"
+                    className="flex items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
                   >
                     <div>
                       <p
-                        className={`text-sm ${t.completada_at ? 'text-slate-400 line-through' : ''}`}
+                        className={`text-sm ${t.completada_at ? 'text-muted line-through' : ''}`}
                       >
                         {t.titulo}
                       </p>
                       <p
                         className={`text-xs ${
                           !t.completada_at && new Date(t.vence_at) < new Date()
-                            ? 'font-medium text-red-600'
-                            : 'text-slate-400'
+                            ? 'font-medium text-danger'
+                            : 'text-muted'
                         }`}
                       >
                         Vence: {fecha(t.vence_at)}
@@ -301,7 +300,7 @@ export default async function FichaLead({
                   </li>
                 ))}
                 {(tareas ?? []).length === 0 && (
-                  <li className="text-sm text-slate-400">Sin tareas.</li>
+                  <li className="text-sm text-muted">Sin tareas.</li>
                 )}
               </ul>
             </Seccion>
@@ -356,7 +355,7 @@ export default async function FichaLead({
                     Agendar
                   </button>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted">
                   El recordatorio irá al contacto con quien se agende, y nunca menciona el motivo de
                   consulta.
                 </p>
@@ -366,23 +365,23 @@ export default async function FichaLead({
                 {(citas ?? []).map((c) => {
                   const estadoCita = ESTADO_CITA[c.estado] ?? {
                     texto: c.estado,
-                    clases: 'bg-slate-100 text-slate-600 ring-slate-200',
+                    clases: 'bg-surface2 text-ink2 ring-line',
                   };
                   return (
                     <li
                       key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
                     >
                       <div>
                         <p className="text-sm font-medium">
                           {fecha(c.inicio)} · {TIPO_CITA[c.tipo] ?? c.tipo}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-ink2">
                           {MODALIDAD_CITA[c.modalidad_cita] ?? c.modalidad_cita} ·{' '}
                           {c.profesional?.nombre ?? '—'}
                           {c.contacto?.nombre && ` · con ${c.contacto.nombre}`}
                         </p>
-                        {c.notas && <p className="text-xs text-slate-500">{c.notas}</p>}
+                        {c.notas && <p className="text-xs text-ink2">{c.notas}</p>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span
@@ -402,7 +401,7 @@ export default async function FichaLead({
                   );
                 })}
                 {(citas ?? []).length === 0 && (
-                  <li className="text-sm text-slate-400">Sin citas todavía.</li>
+                  <li className="text-sm text-muted">Sin citas todavía.</li>
                 )}
               </ul>
             </Seccion>
@@ -436,7 +435,7 @@ export default async function FichaLead({
               </form>
               <ul className="mt-3 flex flex-col gap-2">
                 {(presupuestos ?? []).map((p) => (
-                  <li key={p.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
+                  <li key={p.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
                     <span className="font-medium">
                       {Number(p.importe).toLocaleString('es-ES', {
                         style: 'currency',
@@ -445,11 +444,11 @@ export default async function FichaLead({
                     </span>
                     {p.modalidad && ` · ${p.modalidad.nombre}`}
                     {p.descripcion && ` · ${p.descripcion}`}
-                    <span className="text-xs text-slate-400"> · {p.estado} · {fecha(p.created_at, false)}</span>
+                    <span className="text-xs text-muted"> · {p.estado} · {fecha(p.created_at, false)}</span>
                   </li>
                 ))}
                 {(presupuestos ?? []).length === 0 && (
-                  <li className="text-sm text-slate-400">Sin presupuestos.</li>
+                  <li className="text-sm text-muted">Sin presupuestos.</li>
                 )}
               </ul>
             </Seccion>
@@ -460,8 +459,8 @@ export default async function FichaLead({
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
                       conversion.estado === 'validada'
-                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                        : 'bg-amber-50 text-amber-700 ring-amber-200'
+                        ? 'bg-ok-soft text-ok ring-ok/25'
+                        : 'bg-warn-soft text-warn ring-warn/25'
                     }`}
                   >
                     {conversion.estado === 'validada' ? 'Validada' : 'Pendiente de validación'}
@@ -510,7 +509,7 @@ export default async function FichaLead({
                   <button type="submit" className={botonClase}>
                     Registrar conversión
                   </button>
-                  <p className="w-full text-xs text-slate-400">
+                  <p className="w-full text-xs text-muted">
                     Quedará pendiente hasta que dirección valide el pago; las métricas solo cuentan
                     conversiones validadas.
                   </p>
@@ -523,41 +522,41 @@ export default async function FichaLead({
           <div className="flex flex-col gap-4">
             <Seccion titulo="Datos del caso">
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                <dt className="text-slate-500">Teléfono</dt>
+                <dt className="text-ink2">Teléfono</dt>
                 <dd>{lead.telefono}</dd>
-                <dt className="text-slate-500">Quién contacta</dt>
+                <dt className="text-ink2">Quién contacta</dt>
                 <dd>
                   {TIPO_CONTACTO[lead.quien_contacta ?? ''] ?? '—'}
                   {lead.relacion_con_afectado && ` (${lead.relacion_con_afectado})`}
                 </dd>
                 {lead.nombre_afectado && (
                   <>
-                    <dt className="text-slate-500">Afectado</dt>
+                    <dt className="text-ink2">Afectado</dt>
                     <dd>{lead.nombre_afectado}</dd>
                   </>
                 )}
-                <dt className="text-slate-500">Adicción</dt>
+                <dt className="text-ink2">Adicción</dt>
                 <dd>{lead.adiccion?.nombre ?? '—'}</dd>
-                <dt className="text-slate-500">Modalidad</dt>
+                <dt className="text-ink2">Modalidad</dt>
                 <dd>{lead.modalidad_interes?.nombre ?? '—'}</dd>
-                <dt className="text-slate-500">Urgencia</dt>
+                <dt className="text-ink2">Urgencia</dt>
                 <dd>{lead.urgencia ?? '—'}</dd>
-                <dt className="text-slate-500">Zona</dt>
+                <dt className="text-ink2">Zona</dt>
                 <dd>{lead.zona ?? '—'}</dd>
-                <dt className="text-slate-500">Canal</dt>
+                <dt className="text-ink2">Canal</dt>
                 <dd>
                   {lead.canal?.nombre}
                   {lead.subcanal && ` · ${lead.subcanal}`}
                 </dd>
                 {lead.prescriptor_nombre && (
                   <>
-                    <dt className="text-slate-500">Prescriptor</dt>
+                    <dt className="text-ink2">Prescriptor</dt>
                     <dd>{lead.prescriptor_nombre}</dd>
                   </>
                 )}
-                <dt className="text-slate-500">Creado</dt>
+                <dt className="text-ink2">Creado</dt>
                 <dd>{fecha(lead.created_at)}</dd>
-                <dt className="text-slate-500">1ª respuesta</dt>
+                <dt className="text-ink2">1ª respuesta</dt>
                 <dd>{fecha(lead.primera_respuesta_at)}</dd>
               </dl>
             </Seccion>
@@ -565,12 +564,12 @@ export default async function FichaLead({
             <Seccion titulo="Contactos del caso">
               <ul className="flex flex-col gap-2">
                 {(contactosCaso ?? []).map((lc) => (
-                  <li key={lc.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
+                  <li key={lc.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
                     <p className="font-medium">
                       {lc.contacto ? (
                         <Link
                           href={`/contactos/${lc.contacto.id}`}
-                          className="hover:text-teal-700 hover:underline"
+                          className="hover:text-primary hover:underline"
                         >
                           {lc.contacto.nombre}
                         </Link>
@@ -578,12 +577,12 @@ export default async function FichaLead({
                         '—'
                       )}
                       {lc.es_principal && (
-                        <span className="ml-2 rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-teal-200">
+                        <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary ring-1 ring-primary/25">
                           Principal
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-ink2">
                       {lc.contacto?.telefono} · {TIPO_CONTACTO[lc.tipo]}
                       {lc.relacion && ` (${lc.relacion})`}
                     </p>
@@ -592,7 +591,7 @@ export default async function FichaLead({
               </ul>
               <form
                 action={anadirContacto.bind(null, lead.id)}
-                className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3"
+                className="mt-3 flex flex-col gap-2 border-t border-line pt-3"
               >
                 <div className="flex gap-2">
                   <input name="nombre" placeholder="Nombre" className={`${inputClase} min-w-0 flex-1`} />
@@ -607,7 +606,7 @@ export default async function FichaLead({
                     ))}
                   </select>
                   <input name="relacion" placeholder="Relación (madre…)" className={`${inputClase} min-w-0 flex-1`} />
-                  <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                  <label className="flex items-center gap-1.5 text-sm text-ink2">
                     <input type="checkbox" name="principal" /> Principal
                   </label>
                   <button type="submit" className={botonSecundario}>
@@ -679,8 +678,8 @@ export default async function FichaLead({
                 )}
 
                 {!lead.centro?.es_bandeja_grupo && (
-                  <form action={derivarLead.bind(null, lead.id)} className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-                    <p className="text-xs text-slate-500">
+                  <form action={derivarLead.bind(null, lead.id)} className="flex flex-col gap-2 border-t border-line pt-3">
+                    <p className="text-xs text-ink2">
                       Derivar (mismo caso, atribución al centro de origen):
                     </p>
                     <div className="flex gap-2">
@@ -703,7 +702,7 @@ export default async function FichaLead({
                 )}
 
                 {(derivaciones ?? []).length > 0 && (
-                  <ul className="text-xs text-slate-500">
+                  <ul className="text-xs text-ink2">
                     {(derivaciones ?? []).map((d) => (
                       <li key={d.id}>
                         {d.origen?.nombre} → {d.destino?.nombre} · {fecha(d.created_at, false)}
@@ -714,13 +713,13 @@ export default async function FichaLead({
                 )}
 
                 {cerrado ? (
-                  <form action={reabrirLead.bind(null, lead.id)} className="border-t border-slate-100 pt-3">
+                  <form action={reabrirLead.bind(null, lead.id)} className="border-t border-line pt-3">
                     <button type="submit" className={`${botonSecundario} w-full`}>
                       ♻️ Reabrir caso
                     </button>
                   </form>
                 ) : (
-                  <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
+                  <div className="flex flex-col gap-2 border-t border-line pt-3">
                     <form action={marcarPerdido.bind(null, lead.id)} className="flex gap-2">
                       <select name="motivo" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
                         <option value="">Motivo de pérdida…</option>
@@ -732,7 +731,7 @@ export default async function FichaLead({
                       </select>
                       <button
                         type="submit"
-                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition hover:bg-red-100"
+                        className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger-soft"
                       >
                         Perdido
                       </button>

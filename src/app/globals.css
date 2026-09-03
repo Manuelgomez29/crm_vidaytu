@@ -1,11 +1,151 @@
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: var(--font-geist-sans);
+/* ===========================================================================
+   Vida y Tu DATA — Sistema de diseño v1
+   Azules institucionales del grupo + acento coral + Kumbh Sans.
+   Tema claro único: no hay variante oscura.
+   =========================================================================== */
+@theme {
+  --font-sans: var(--font-kumbh), system-ui, sans-serif;
+
+  /* Superficies y líneas */
+  --color-ground: #f7f6f2;
+  --color-surface: #ffffff;
+  --color-surface2: #efede6;
+  --color-line: #e2dfd6;
+  --color-line2: #cbc7bb;
+
+  /* Tinta */
+  --color-ink: #242b3a;
+  --color-ink2: #5a6272;
+  --color-muted: #8a8fa0;
+
+  /* Primario (azul nuboso Bellamar) */
+  --color-primary: #384b71;
+  --color-primary-hover: #2c3c5c;
+  --color-primary-soft: #e7ebf4;
+
+  /* Acento cálido */
+  --color-coral: #e8836f;
+  --color-coral-hover: #de6e58;
+  --color-coral-ink: #b84a36;
+  --color-coral-soft: #fbe9e4;
+
+  /* Semánticos */
+  --color-ok: #2f9160;
+  --color-ok-soft: #e1f0e8;
+  --color-warn: #c08427;
+  --color-warn-soft: #f6ecd8;
+  --color-danger: #c4483f;
+  --color-danger-soft: #f7e3e1;
+
+  /* Código de color por centro (chips y bordes) */
+  --color-hz: #2e5c48;
+  --color-hz-bg: #e3ede6;
+  --color-ec: #4e506b;
+  --color-ec-bg: #e7e7f0;
+  --color-bm: #384b71;
+  --color-bm-bg: #e4eaf8;
+  --color-gr: #8a5f14;
+  --color-gr-bg: #f4e9d4;
+
+  /* Paleta de gráficos por centro (validada para daltonismo) */
+  --color-graf-hz: #2f9160;
+  --color-graf-ec: #5b54c0;
+  --color-graf-bm: #6e8af0;
+  --color-graf-gr: #c08427;
+
+  --radius-lg: 10px;
 }
 
-/* La interfaz v1 es siempre clara; el fondo y el color los ponen las
-   utilidades de Tailwind en el layout. */
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Cifras siempre tabulares: las columnas de números no bailan. */
+.num,
+table,
+input[type='number'] {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+  /* ---- Chips ------------------------------------------------------------ */
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold;
+  }
+  .chip-hz { background: var(--color-hz-bg); color: var(--color-hz); }
+  .chip-ec { background: var(--color-ec-bg); color: var(--color-ec); }
+  .chip-bm { background: var(--color-bm-bg); color: var(--color-bm); }
+  .chip-gr { background: var(--color-gr-bg); color: var(--color-gr); }
+  .chip-mut { background: var(--color-surface2); color: var(--color-ink2); }
+  .chip-ok { background: var(--color-ok-soft); color: var(--color-ok); }
+  .chip-warn { background: var(--color-warn-soft); color: var(--color-warn); }
+  .chip-danger { background: var(--color-danger-soft); color: var(--color-danger); }
+  .chip-primary { background: var(--color-primary-soft); color: var(--color-primary); }
+
+  /* ---- Superficies ------------------------------------------------------ */
+  .panel {
+    @apply overflow-hidden rounded-lg border border-line bg-surface;
+    box-shadow: 0 1px 3px rgba(36, 43, 58, 0.08), 0 4px 14px rgba(36, 43, 58, 0.06);
+  }
+  .tarjeta {
+    @apply rounded-lg border-l-[3px] border-l-transparent bg-surface p-3;
+    box-shadow: 0 1px 3px rgba(36, 43, 58, 0.08), 0 4px 14px rgba(36, 43, 58, 0.06);
+  }
+  .tarjeta:hover { box-shadow: 0 3px 10px rgba(36, 43, 58, 0.14); }
+  .borde-hz { border-left-color: var(--color-hz); }
+  .borde-ec { border-left-color: var(--color-ec); }
+  .borde-bm { border-left-color: var(--color-bm); }
+  .borde-gr { border-left-color: var(--color-gr); }
+
+  /* ---- Botones ---------------------------------------------------------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-[13.5px] font-semibold transition;
+  }
+  .btn-coral { @apply bg-coral text-white hover:bg-coral-hover; }
+  .btn-primary { @apply bg-primary text-white hover:bg-primary-hover; }
+  .btn-ghost {
+    @apply border border-line2 bg-surface text-ink2 hover:border-primary hover:text-primary;
+  }
+  .btn-mini { @apply rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover; }
+
+  /* ---- Formularios ------------------------------------------------------ */
+  .campo {
+    @apply rounded-lg border border-line2 bg-surface px-3 py-2 text-sm text-ink outline-none transition;
+  }
+  .campo:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+  .etiqueta-campo { @apply flex flex-col gap-1 text-sm font-medium text-ink2; }
+
+  /* ---- Tablas ----------------------------------------------------------- */
+  .tabla { @apply w-full border-collapse text-[13px]; }
+  .tabla th {
+    @apply border-b border-line bg-ground px-3.5 py-3 text-left text-[11px] uppercase tracking-[0.08em] text-muted;
+  }
+  .tabla td { @apply border-b border-line px-3.5 py-3 align-middle; }
+  .tabla tr:last-child td { @apply border-b-0; }
+  .tabla tbody tr:hover td { background: #fbfaf7; }
+
+  /* ---- Avatares --------------------------------------------------------- */
+  .avatar {
+    @apply inline-flex shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white;
+    width: 24px;
+    height: 24px;
+  }
+  .avatar-coral { background: var(--color-coral); }
+  .avatar-vacio {
+    background: var(--color-surface2);
+    color: var(--color-danger);
+    border: 1px dashed var(--color-danger);
+  }
+
+  /* ---- Barras de progreso ---------------------------------------------- */
+  .via { @apply h-3 overflow-hidden rounded bg-surface2; }
+  .via > span { @apply block h-full rounded-r; }
 }

@@ -34,17 +34,16 @@ export default async function AdminPipelines({
       subseccion="/admin/pipelines"
       titulo="Pipelines"
       descripcion="Etapas y su estado de sistema"
-      ancho="medio"
     >
         <Avisos error={errorMsg} aviso={aviso} />
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-ink2">
           Cada etapa se asocia a un <strong>estado de sistema</strong>: es lo que permite que las
           métricas se calculen igual con cualquier pipeline. Mover una tarjeta al kanban copia ese
           estado al lead.
         </p>
 
-        <section className="mb-6 rounded-xl bg-white p-4 ring-1 ring-slate-200">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
             Nuevo pipeline
           </h3>
           <form action={crearPipeline} className="flex flex-wrap gap-2">
@@ -61,7 +60,7 @@ export default async function AdminPipelines({
               Crear
             </button>
           </form>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-muted">
             Nace con cuatro etapas estándar que puedes renombrar, ampliar o reordenar.
           </p>
         </section>
@@ -72,17 +71,17 @@ export default async function AdminPipelines({
             return (
               <article
                 key={p.id}
-                className={`rounded-xl bg-white p-4 ring-1 ring-slate-200 ${p.activo ? '' : 'opacity-70'}`}
+                className={`rounded-xl bg-surface p-4 ring-1 ring-line ${p.activo ? '' : 'opacity-70'}`}
               >
                 <form
                   action={editarPipeline.bind(null, p.id)}
-                  className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3"
+                  className="mb-3 flex flex-wrap items-center gap-2 border-b border-line pb-3"
                 >
                   <input name="nombre" defaultValue={p.nombre} className={`${inputAdmin} min-w-48 flex-1`} />
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-muted">
                     {p.centro_id ? `Solo ${nombreCentro.get(p.centro_id) ?? '—'}` : 'Global'}
                   </span>
-                  <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                  <label className="flex items-center gap-1.5 text-sm text-ink2">
                     <input type="checkbox" name="activo" defaultChecked={p.activo} /> Activo
                   </label>
                   <button type="submit" className={botonAdminSecundario}>
@@ -93,7 +92,7 @@ export default async function AdminPipelines({
                 <ul className="flex flex-col gap-1.5">
                   {susEtapas.map((e) => (
                     <li key={e.id} className="flex flex-wrap items-center gap-2">
-                      <span className="w-6 text-xs text-slate-400">{e.orden}.</span>
+                      <span className="w-6 text-xs text-muted">{e.orden}.</span>
                       <form
                         action={editarEtapa.bind(null, e.id)}
                         className="flex flex-1 flex-wrap items-center gap-2"
@@ -110,7 +109,7 @@ export default async function AdminPipelines({
                             </option>
                           ))}
                         </select>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-muted">
                           {leadsPorEtapa.get(e.id) ?? 0} lead(s)
                         </span>
                         <button type="submit" className={botonAdminSecundario}>
@@ -120,7 +119,7 @@ export default async function AdminPipelines({
                       <form action={borrarEtapa.bind(null, e.id)}>
                         <button
                           type="submit"
-                          className="text-xs text-slate-400 hover:text-red-600 hover:underline"
+                          className="text-xs text-muted hover:text-danger hover:underline"
                         >
                           Borrar
                         </button>
@@ -131,7 +130,7 @@ export default async function AdminPipelines({
 
                 <form
                   action={anadirEtapa.bind(null, p.id)}
-                  className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3"
+                  className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3"
                 >
                   <input name="nombre" placeholder="Nueva etapa" className={`${inputAdmin} min-w-36 flex-1`} />
                   <select name="estado_sistema" defaultValue="contactado" className={inputAdmin}>

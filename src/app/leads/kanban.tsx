@@ -14,6 +14,8 @@ export type TarjetaLead = {
   urgencia: string | null;
   etapaId: string;
   centroNombre: string;
+  centroSlug: string;
+  esBandeja: boolean;
   canalNombre: string;
   subcanal: string | null;
   propietarioNombre: string | null;
@@ -40,6 +42,18 @@ type Arrastre = {
   activo: boolean;
 };
 
+/** Código de color del grupo: cada centro tiene el suyo en chips y borde. */
+const CLASES_CENTRO: Record<string, { borde: string; chip: string }> = {
+  horizonte: { borde: 'borde-hz', chip: 'chip-hz' },
+  eclipse: { borde: 'borde-ec', chip: 'chip-ec' },
+  bellamar: { borde: 'borde-bm', chip: 'chip-bm' },
+  'bandeja-grupo': { borde: 'borde-gr', chip: 'chip-gr' },
+};
+
+function colorCentro(slug: string) {
+  return CLASES_CENTRO[slug] ?? { borde: '', chip: 'chip-mut' };
+}
+
 function Tarjeta({
   lead,
   puedeAutoasignarse,
@@ -53,74 +67,64 @@ function Tarjeta({
   onEmpezarArrastre?: (e: React.PointerEvent, lead: TarjetaLead) => void;
   atenuada: boolean;
 }) {
-  const estado = etiquetaEstado(lead.estado);
+  const centro = colorCentro(lead.centroSlug);
+  const iniciales = (lead.propietarioNombre ?? '')
+    .split(/\s+/)
+    .map((p) => p[0] ?? '')
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <div
       onPointerDown={onEmpezarArrastre ? (e) => onEmpezarArrastre(e, lead) : undefined}
-      className={`rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200 transition ${
+      className={`tarjeta mb-2.5 ${centro.borde} ${
         onEmpezarArrastre ? 'cursor-grab active:cursor-grabbing' : ''
       } ${atenuada ? 'opacity-40' : ''}`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <Link
-          href={`/leads/${lead.id}`}
-          className="font-medium text-slate-900 hover:text-teal-700 hover:underline"
-          draggable={false}
-        >
-          {lead.nombre}
-        </Link>
-        {lead.urgencia === 'alta' && (
-          <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700 ring-1 ring-red-200">
-            Urgente
-          </span>
-        )}
+      <Link
+        href={`/leads/${lead.id}`}
+        className="mb-1.5 block text-[13.5px] font-bold text-ink hover:text-primary"
+        draggable={false}
+      >
+        {lead.nombre}
+      </Link>
+
+      <div className="mb-1.5 flex flex-wrap gap-1.5">
+        <span className={`chip ${centro.chip}`}>{lead.centroNombre}</span>
+        <span className="chip chip-mut">{lead.subcanal || lead.canalNombre}</span>
+        {lead.urgencia === 'alta' && <span className="chip chip-danger">Urgente</span>}
+        {lead.propietarioAusente && <span className="chip chip-warn">Propietario ausente</span>}
       </div>
 
-      <p className="mt-1 text-xs text-slate-500">
-        {lead.centroNombre}
-        {' · '}
-        {lead.subcanal || lead.canalNombre}
-        {' · '}
-        {lead.creado}
+      <p
+        className={`flex items-center gap-1.5 text-xs ${
+          lead.sinProximaAccion ? 'font-semibold text-danger' : 'text-ink2'
+        }`}
+      >
+        ◷ {lead.sinProximaAccion ? 'Sin próxima acción' : 'Con próxima acción'} · {lead.creado}
       </p>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${estado.clases}`}>
-          {estado.texto}
-        </span>
+      <div className="mt-2 flex items-center justify-between gap-2">
         {lead.propietarioNombre ? (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600 ring-1 ring-slate-200">
-            {lead.propietarioNombre}
+          <span className="avatar" title={lead.propietarioNombre}>
+            {iniciales}
           </span>
         ) : (
-          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
-            Sin asignar
+          <span className="avatar avatar-vacio" title="Sin propietario">
+            !
           </span>
         )}
-        {lead.propietarioAusente && (
-          <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700 ring-1 ring-purple-200">
-            Propietario ausente
-          </span>
-        )}
-        {lead.sinProximaAccion && (
-          <span
-            title="Ningún lead abierto debe quedarse sin próxima acción con fecha"
-            className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-700 ring-1 ring-orange-200"
+        {!lead.propietarioNombre && puedeAutoasignarse && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => onAsignarme(lead.id)}
+            className="btn-mini"
           >
-            ⚠ Sin próxima acción
-          </span>
+            Asignarme
+          </button>
         )}
       </div>
-
-      {!lead.propietarioNombre && puedeAutoasignarse && (
-        <button
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onAsignarme(lead.id)}
-          className="mt-2 w-full rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700 transition hover:bg-teal-100"
-        >
-          Asignármelo
-        </button>
-      )}
     </div>
   );
 }
@@ -227,24 +231,67 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrastre !== null, tarjetas]);
 
+  const enBandejaSinAsignar = tarjetas.filter((t) => t.esBandeja && !t.propietarioNombre);
+
   return (
     <div className={arrastre ? 'select-none' : ''}>
       {aviso && (
-        <p className="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+        <p className="mb-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
           {aviso}
         </p>
       )}
 
       {arrastre?.activo && (
         <div
-          className="pointer-events-none fixed z-50 rounded-lg bg-white px-3 py-2 text-sm font-medium shadow-lg ring-2 ring-teal-400"
+          className="pointer-events-none fixed z-50 rounded-lg bg-surface px-3 py-2 text-sm font-medium shadow-lg ring-2 ring-primary"
           style={{ left: arrastre.x + 8, top: arrastre.y + 8 }}
         >
           {arrastre.nombre}
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-4">
+      {/* La bandeja de grupo va destacada arriba: son los leads que aún no
+          tienen centro y compiten por atención (regla 2). */}
+      {enBandejaSinAsignar.length > 0 && (
+        <section
+          className="mb-4 rounded-lg border border-[#EAD9B0] p-3 px-4"
+          style={{ background: 'linear-gradient(90deg,#FBF4E3,#F7F1E2)' }}
+        >
+          <h3 className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-gr">
+            ◈ Bandeja de grupo · {enBandejaSinAsignar.length} sin asignar
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-ok">
+              ● en vivo
+            </span>
+          </h3>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {enBandejaSinAsignar.map((lead) => (
+              <div
+                key={lead.id}
+                className="flex shrink-0 items-center gap-2.5 rounded-lg border border-line bg-surface px-3 py-2 shadow-sm"
+              >
+                <div>
+                  <Link
+                    href={`/leads/${lead.id}`}
+                    className="block text-[13px] font-bold text-ink hover:text-primary"
+                  >
+                    {lead.nombre}
+                  </Link>
+                  <small className="block text-[11.5px] text-muted">
+                    {lead.subcanal || lead.canalNombre} · {lead.creado}
+                  </small>
+                </div>
+                {puedeAutoasignarse && (
+                  <button onClick={() => asignarme(lead.id)} className="btn-mini">
+                    Asignarme
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-start gap-3 overflow-x-auto pb-4">
         {etapas.map((etapa) => {
           const deEtapa = tarjetas.filter((t) => t.etapaId === etapa.id);
           const resaltada = arrastre?.activo && columnaDestino === etapa.id;
@@ -256,16 +303,14 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
                 else columnasRef.current.delete(etapa.id);
               }}
               className={`flex w-72 shrink-0 flex-col rounded-xl ring-1 transition ${
-                resaltada ? 'bg-teal-50 ring-teal-300' : 'bg-slate-100 ring-slate-200'
+                resaltada ? 'bg-primary-soft ring-primary/40' : 'bg-surface2 ring-line'
               }`}
             >
-              <header className="flex items-center justify-between px-3 py-2.5">
-                <h3 className="text-sm font-semibold text-slate-700">{etapa.nombre}</h3>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">
-                  {deEtapa.length}
-                </span>
+              <header className="mb-2.5 flex items-center justify-between text-[11.5px] font-semibold uppercase tracking-[0.08em] text-ink2">
+                <h3>{etapa.nombre}</h3>
+                <span className="num rounded-full bg-surface px-2 text-ink">{deEtapa.length}</span>
               </header>
-              <div className="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
+              <div className="flex min-h-24 flex-1 flex-col">
                 {deEtapa.map((lead) => (
                   <Tarjeta
                     key={lead.id}
@@ -282,10 +327,10 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
         })}
 
         {cerradas.length > 0 && (
-          <section className="flex w-72 shrink-0 flex-col rounded-xl bg-slate-200/60 ring-1 ring-slate-300">
+          <section className="flex w-72 shrink-0 flex-col rounded-xl bg-surface2 ring-1 ring-line2">
             <header className="flex items-center justify-between px-3 py-2.5">
-              <h3 className="text-sm font-semibold text-slate-500">Cerrados</h3>
-              <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">
+              <h3 className="text-sm font-semibold text-ink2">Cerrados</h3>
+              <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-ink2 ring-1 ring-line">
                 {cerradas.length}
               </span>
             </header>
@@ -304,7 +349,7 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
         )}
       </div>
 
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-muted">
         Arrastra las tarjetas entre etapas (en el móvil, cambia la etapa desde la ficha del caso).
         El movimiento es libre: la plataforma avisa, nunca bloquea.
       </p>

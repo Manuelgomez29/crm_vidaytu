@@ -2,67 +2,62 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { fechaCorta } from '@/lib/fechas';
-import {
-  IconoAdmin,
-  IconoAgenda,
-  IconoCampana,
-  IconoContactos,
-  IconoLeads,
-  IconoMas,
-  IconoMenu,
-  IconoPanel,
-  IconoSalir,
-} from './iconos';
+import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 
 export type Seccion = 'panel' | 'leads' | 'agenda' | 'contactos' | 'admin';
 
-type Enlace = { texto: string; href: string };
-type Grupo = {
-  clave: Seccion;
-  texto: string;
-  href: string;
-  icono: React.ReactNode;
-  hijos?: Enlace[];
-};
+type Entrada = { clave: Seccion; texto: string; href: string; icono: string };
+type Bloque = { titulo: string; entradas: Entrada[] };
 
-function grupos(rol: string | undefined): Grupo[] {
+function bloques(rol: string | undefined): Bloque[] {
   if (rol === 'terapeuta') {
-    return [{ clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: <IconoAgenda /> }];
+    return [
+      {
+        titulo: 'Mi trabajo',
+        entradas: [{ clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' }],
+      },
+    ];
   }
 
-  const base: Grupo[] = [
-    { clave: 'panel', texto: 'Panel', href: '/panel', icono: <IconoPanel /> },
-    { clave: 'leads', texto: 'Leads', href: '/leads', icono: <IconoLeads /> },
-    { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: <IconoAgenda /> },
-    {
-      clave: 'contactos',
-      texto: 'Contactos',
-      href: '/contactos',
-      icono: <IconoContactos />,
-      hijos: [
-        { texto: 'Directorio', href: '/contactos' },
-        { texto: 'Etiquetas', href: '/contactos/etiquetas' },
-        { texto: 'Listas y segmentos', href: '/contactos/listas' },
-      ],
-    },
-  ];
+  const comercial: Bloque = {
+    titulo: 'Área comercial',
+    entradas: [
+      { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
+      { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
+      { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
+      { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
+    ],
+  };
 
+  const salida = [comercial];
   if (rol === 'direccion') {
-    base.push({
-      clave: 'admin',
-      texto: 'Administración',
-      href: '/admin/equipo',
-      icono: <IconoAdmin />,
-      hijos: [
-        { texto: 'Equipo', href: '/admin/equipo' },
-        { texto: 'Centros', href: '/admin/centros' },
-        { texto: 'Catálogos', href: '/admin/catalogos' },
-        { texto: 'Pipelines', href: '/admin/pipelines' },
-        { texto: 'Parámetros', href: '/admin/parametros' },
-      ],
+    salida.push({
+      titulo: 'Gestión',
+      entradas: [{ clave: 'admin', texto: 'Administración', href: '/admin/equipo', icono: '⚙' }],
     });
   }
-  return base;
+  return salida;
+}
+
+/** Subsecciones de las áreas que las tienen. */
+const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> = {
+  contactos: [
+    { texto: 'Directorio', href: '/contactos' },
+    { texto: 'Etiquetas', href: '/contactos/etiquetas' },
+    { texto: 'Listas y segmentos', href: '/contactos/listas' },
+  ],
+  admin: [
+    { texto: 'Equipo', href: '/admin/equipo' },
+    { texto: 'Centros', href: '/admin/centros' },
+    { texto: 'Catálogos', href: '/admin/catalogos' },
+    { texto: 'Pipelines', href: '/admin/pipelines' },
+    { texto: 'Parámetros', href: '/admin/parametros' },
+  ],
+};
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/);
+  return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase() || '··';
 }
 
 function Navegacion({
@@ -75,44 +70,64 @@ function Navegacion({
   rol: string | undefined;
 }) {
   return (
-    <nav className="flex flex-col gap-0.5">
-      {grupos(rol).map((g) => {
-        const activo = g.clave === seccion;
-        return (
-          <div key={g.clave}>
-            <Link
-              href={g.href}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                activo
-                  ? 'bg-teal-50 text-teal-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <span className={activo ? 'text-teal-600' : 'text-slate-400'}>{g.icono}</span>
-              {g.texto}
-            </Link>
-
-            {/* Las subsecciones solo se despliegan dentro de su sección. */}
-            {activo && g.hijos && (
-              <div className="mb-1 ml-[1.4rem] flex flex-col gap-0.5 border-l border-slate-200 pl-3 pt-0.5">
-                {g.hijos.map((h) => (
-                  <Link
-                    key={h.href}
-                    href={h.href}
-                    className={`rounded-md px-2 py-1.5 text-sm transition ${
-                      subseccion === h.href
-                        ? 'font-medium text-teal-700'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    {h.texto}
-                  </Link>
-                ))}
+    <nav className="flex flex-col gap-0.5 px-2.5 py-3.5">
+      {bloques(rol).map((bloque) => (
+        <div key={bloque.titulo}>
+          <p className="px-3 pb-1.5 pt-3 text-[10.5px] uppercase tracking-[0.12em] text-[#93A2C2]">
+            {bloque.titulo}
+          </p>
+          {bloque.entradas.map((e) => {
+            const activo = e.clave === seccion;
+            const hijos = SUBSECCIONES[e.clave];
+            return (
+              <div key={e.clave}>
+                <Link
+                  href={e.href}
+                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition ${
+                    activo
+                      ? 'bg-white/15 font-semibold text-white'
+                      : 'font-medium text-[#D4DCEC] hover:bg-white/10'
+                  }`}
+                >
+                  <span className="w-[18px] text-center opacity-90">{e.icono}</span>
+                  {e.texto}
+                </Link>
+                {activo && hijos && (
+                  <div className="mb-1 ml-6 flex flex-col gap-0.5 border-l border-white/15 pl-3 pt-0.5">
+                    {hijos.map((h) => (
+                      <Link
+                        key={h.href}
+                        href={h.href}
+                        className={`rounded-md px-2 py-1.5 text-[12.5px] transition ${
+                          subseccion === h.href
+                            ? 'font-semibold text-white'
+                            : 'text-[#AEBBD6] hover:text-white'
+                        }`}
+                      >
+                        {h.texto}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
+
+      {/* El área clínica llega en la fase 3: visible para que se sepa que existe. */}
+      <p className="px-3 pb-1.5 pt-3 text-[10.5px] uppercase tracking-[0.12em] text-[#93A2C2]">
+        Centros
+      </p>
+      <span
+        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-[#D4DCEC] opacity-55"
+        title="Área clínica — Fase 3"
+      >
+        <span className="w-[18px] text-center">✚</span> Área clínica
+        <span className="ml-auto rounded-full bg-white/15 px-2 py-0.5 text-[10px] text-[#C9D3E6]">
+          Fase 3
+        </span>
+      </span>
     </nav>
   );
 }
@@ -121,25 +136,31 @@ function Campana({
   notificaciones,
   sinLeer,
 }: {
-  notificaciones: { id: string; mensaje: string; lead_id: string | null; leida_at: string | null; created_at: string }[];
+  notificaciones: {
+    id: string;
+    mensaje: string;
+    lead_id: string | null;
+    leida_at: string | null;
+    created_at: string;
+  }[];
   sinLeer: number;
 }) {
   return (
     <details className="relative">
-      <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-2.5 py-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 [&::-webkit-details-marker]:hidden">
+      <summary className="relative flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
         <IconoCampana />
         {sinLeer > 0 && (
-          <span className="rounded-full bg-red-600 px-1.5 text-xs font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
             {sinLeer}
           </span>
         )}
       </summary>
-      <div className="absolute right-0 z-30 mt-2 w-80 max-w-[85vw] rounded-xl bg-white p-2 shadow-lg ring-1 ring-slate-200">
+      <div className="panel absolute right-0 z-30 mt-2 w-80 max-w-[85vw] p-2">
         <div className="flex items-center justify-between px-2 py-1">
           <p className="text-sm font-semibold">Notificaciones</p>
           {sinLeer > 0 && (
             <form action={marcarNotificacionesLeidas}>
-              <button type="submit" className="text-xs text-teal-700 hover:underline">
+              <button type="submit" className="text-xs font-semibold text-primary hover:underline">
                 Marcar leídas
               </button>
             </form>
@@ -147,18 +168,18 @@ function Campana({
         </div>
         <ul className="max-h-80 overflow-y-auto">
           {notificaciones.length === 0 && (
-            <li className="px-2 py-3 text-sm text-slate-400">Nada por aquí.</li>
+            <li className="px-2 py-3 text-sm text-muted">Nada por aquí.</li>
           )}
           {notificaciones.map((n) => (
             <li key={n.id}>
               <Link
                 href={n.lead_id ? `/leads/${n.lead_id}` : '/leads'}
-                className={`block rounded-lg px-2 py-2 text-sm hover:bg-slate-50 ${
-                  n.leida_at ? 'text-slate-400' : 'text-slate-700'
+                className={`block rounded-lg px-2 py-2 text-[13px] hover:bg-ground ${
+                  n.leida_at ? 'text-muted' : 'text-ink2'
                 }`}
               >
                 {n.mensaje}
-                <span className="block text-xs text-slate-400">{fechaCorta(n.created_at)}</span>
+                <span className="block text-[11px] text-muted">{fechaCorta(n.created_at)}</span>
               </Link>
             </li>
           ))}
@@ -169,8 +190,8 @@ function Campana({
 }
 
 /**
- * Estructura común de la aplicación: barra lateral fija con las secciones,
- * cabecera de página con título y acciones, y el contenido debajo.
+ * Estructura común: barra lateral azul del grupo, topbar con búsqueda global y
+ * CTA coral, y cabecera de página con título y subtítulo.
  */
 export async function AppShell({
   seccion,
@@ -178,7 +199,6 @@ export async function AppShell({
   titulo,
   descripcion,
   acciones,
-  ancho = 'ancho',
   children,
 }: {
   seccion: Seccion;
@@ -186,7 +206,6 @@ export async function AppShell({
   titulo: string;
   descripcion?: string;
   acciones?: React.ReactNode;
-  ancho?: 'ancho' | 'medio' | 'estrecho';
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
@@ -206,98 +225,100 @@ export async function AppShell({
 
   const sinLeer = (notificaciones ?? []).filter((n) => n.leida_at === null).length;
   const esTerapeuta = perfil?.rol === 'terapeuta';
-  const maxAncho =
-    ancho === 'estrecho' ? 'max-w-3xl' : ancho === 'medio' ? 'max-w-5xl' : 'max-w-7xl';
+  const nombre = perfil?.nombre ?? user.email ?? '';
+  const rolTexto =
+    perfil?.rol === 'direccion' ? 'Dirección' : perfil?.rol === 'admisiones' ? 'Admisiones' : 'Terapeuta';
 
   const marca = (
-    <Link href={esTerapeuta ? '/agenda' : '/panel'} className="text-lg font-semibold tracking-tight">
-      Vida y Tu <span className="text-teal-600">DATA</span>
+    <Link href={esTerapeuta ? '/agenda' : '/leads'} className="block">
+      <b className="block text-[17px] font-bold tracking-[0.02em] text-white">
+        Vida y Tu <span className="text-[#F08F7E]">DATA</span>
+      </b>
+      <span className="text-[11px] uppercase tracking-[0.14em] text-[#AEBBD6]">
+        Grupo Vida y Tu
+      </span>
     </Link>
   );
 
+  const lateral = (
+    <>
+      <div className="border-b border-white/12 px-5 pb-4 pt-5">{marca}</div>
+      <div className="flex-1 overflow-y-auto">
+        <Navegacion seccion={seccion} subseccion={subseccion} rol={perfil?.rol} />
+      </div>
+      <div className="flex items-center gap-2.5 border-t border-white/12 px-4 py-3.5">
+        <span className="avatar avatar-coral !h-8 !w-8 !text-xs">{iniciales(nombre)}</span>
+        <div className="min-w-0 flex-1">
+          <b className="block truncate text-[13px] text-white">{nombre}</b>
+          <small className="block text-[11px] text-[#AEBBD6]">{rolTexto}</small>
+        </div>
+        <form action={cerrarSesion}>
+          <button
+            type="submit"
+            title="Cerrar sesión"
+            className="rounded-lg p-1.5 text-[#AEBBD6] transition hover:bg-white/10 hover:text-white"
+          >
+            <IconoSalir />
+          </button>
+        </form>
+      </div>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Barra lateral fija (a partir de lg) */}
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col border-r border-slate-200 bg-white lg:flex">
-        <div className="px-5 py-4">{marca}</div>
-
-        {!esTerapeuta && (
-          <div className="px-3 pb-3">
-            <Link
-              href="/leads/nuevo"
-              className="flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-teal-700"
-            >
-              <IconoMas /> Nuevo lead
-            </Link>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-3">
-          <Navegacion seccion={seccion} subseccion={subseccion} rol={perfil?.rol} />
-        </div>
-
-        <div className="border-t border-slate-200 p-3">
-          <p className="truncate px-2 text-sm font-medium text-slate-700">
-            {perfil?.nombre ?? user.email}
-          </p>
-          <p className="truncate px-2 text-xs text-slate-400">{user.email}</p>
-          <form action={cerrarSesion}>
-            <button
-              type="submit"
-              className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              <IconoSalir /> Cerrar sesión
-            </button>
-          </form>
-        </div>
+    <div className="flex min-h-screen">
+      <aside
+        className="sticky top-0 hidden h-screen w-[216px] shrink-0 flex-col text-[#E9EDF5] lg:flex"
+        style={{ background: 'linear-gradient(180deg,#2C3C5C 0%,#384B71 100%)' }}
+      >
+        {lateral}
       </aside>
 
-      <div className="lg:pl-60">
-        {/* Cabecera de página */}
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-          <div className={`mx-auto flex ${maxAncho} items-center gap-3 px-4 py-3 sm:px-6`}>
-            {/* Menú desplegable en pantallas estrechas */}
-            <details className="relative lg:hidden">
-              <summary className="flex cursor-pointer list-none items-center rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 [&::-webkit-details-marker]:hidden">
-                <IconoMenu />
-              </summary>
-              <div className="absolute left-0 z-30 mt-2 w-64 rounded-xl bg-white p-3 shadow-lg ring-1 ring-slate-200">
-                <div className="mb-2">{marca}</div>
-                <Navegacion seccion={seccion} subseccion={subseccion} rol={perfil?.rol} />
-                {!esTerapeuta && (
-                  <Link
-                    href="/leads/nuevo"
-                    className="mt-2 flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white"
-                  >
-                    <IconoMas /> Nuevo lead
-                  </Link>
-                )}
-                <form action={cerrarSesion}>
-                  <button
-                    type="submit"
-                    className="mt-2 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
-                  >
-                    <IconoSalir /> Cerrar sesión
-                  </button>
-                </form>
-              </div>
-            </details>
-
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-semibold text-slate-900">{titulo}</h1>
-              {descripcion && (
-                <p className="hidden truncate text-sm text-slate-500 sm:block">{descripcion}</p>
-              )}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex items-center gap-3.5 border-b border-line bg-surface px-4 py-3 sm:px-6">
+          <details className="relative lg:hidden">
+            <summary className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
+              <IconoMenu />
+            </summary>
+            <div
+              className="absolute left-0 z-30 mt-2 flex w-64 flex-col rounded-lg shadow-lg"
+              style={{ background: 'linear-gradient(180deg,#2C3C5C 0%,#384B71 100%)' }}
+            >
+              {lateral}
             </div>
+          </details>
 
-            <div className="flex shrink-0 items-center gap-2">
-              {acciones}
-              <Campana notificaciones={notificaciones ?? []} sinLeer={sinLeer} />
-            </div>
+          <form action="/contactos" className="hidden max-w-[420px] flex-1 sm:flex">
+            <label className="flex w-full items-center gap-2 rounded-lg border border-line bg-ground px-3 py-1.5 text-muted focus-within:border-primary">
+              <IconoLupa />
+              <input
+                name="q"
+                placeholder="Buscar por nombre o teléfono…"
+                className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
+              />
+            </label>
+          </form>
+
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {acciones}
+            <Campana notificaciones={notificaciones ?? []} sinLeer={sinLeer} />
+            {!esTerapeuta && (
+              <Link href="/leads/nuevo" className="btn btn-coral">
+                + Nuevo lead
+              </Link>
+            )}
           </div>
         </header>
 
-        <main className={`mx-auto ${maxAncho} px-4 py-6 sm:px-6`}>{children}</main>
+        <div className="px-4 pb-16 pt-5 sm:px-6">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-[19px] font-bold">{titulo}</h1>
+              {descripcion && <p className="mt-0.5 text-[13px] text-ink2">{descripcion}</p>}
+            </div>
+          </div>
+          {children}
+        </div>
       </div>
     </div>
   );

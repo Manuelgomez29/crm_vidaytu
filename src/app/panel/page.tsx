@@ -45,25 +45,25 @@ function Tarjeta({
 }) {
   const color =
     acento === 'verde'
-      ? 'text-emerald-700'
+      ? 'text-ok'
       : acento === 'ambar'
-        ? 'text-amber-700'
+        ? 'text-warn'
         : acento === 'rojo'
-          ? 'text-red-700'
-          : 'text-slate-900';
+          ? 'text-danger'
+          : 'text-ink';
   return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{titulo}</p>
+    <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink2">{titulo}</p>
       <p className={`mt-1 text-2xl font-semibold ${color}`}>{valor}</p>
-      {pie && <p className="mt-0.5 text-xs text-slate-500">{pie}</p>}
+      {pie && <p className="mt-0.5 text-xs text-ink2">{pie}</p>}
     </div>
   );
 }
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{titulo}</h3>
+    <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">{titulo}</h3>
       {children}
     </section>
   );
@@ -72,7 +72,7 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
 function Barra({ valor, maximo, clases }: { valor: number; maximo: number; clases: string }) {
   const ancho = maximo > 0 ? Math.max(2, Math.round((valor / maximo) * 100)) : 0;
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+    <div className="h-2 w-full overflow-hidden rounded-full bg-surface2">
       <div className={`h-full rounded-full ${clases}`} style={{ width: `${ancho}%` }} />
     </div>
   );
@@ -246,12 +246,11 @@ export default async function Panel({
   return (
     <AppShell
       seccion="panel"
-      titulo="Panel"
-      descripcion="Métricas del área comercial"
-      ancho="ancho"
+      titulo="Dashboard de dirección"
+      descripcion={`${periodo.titulo} · solo cuentan las conversiones validadas`}
     >
         <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
-          <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+          <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
             {[
               ['mes', 'Este mes'],
               ['mes_anterior', 'Mes anterior'],
@@ -264,8 +263,8 @@ export default async function Panel({
                 href={enlacePeriodo(clave)}
                 className={`rounded-md px-3 py-1.5 font-medium transition ${
                   (filtros.periodo ?? 'mes') === clave
-                    ? 'bg-white text-teal-700 shadow-sm'
-                    : 'text-slate-600 hover:bg-white/60'
+                    ? 'bg-surface text-primary shadow-sm'
+                    : 'text-ink2 hover:bg-surface/60'
                 }`}
               >
                 {texto}
@@ -282,21 +281,21 @@ export default async function Panel({
                 type="date"
                 name="desde"
                 defaultValue={filtros.desde || periodo.desde}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
               />
-              <span className="text-slate-400">→</span>
+              <span className="text-muted">→</span>
               <input
                 type="date"
                 name="hasta"
                 defaultValue={filtros.hasta || periodo.desde}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
               />
             </>
           )}
           <select
             name="centro"
             defaultValue={filtros.centro ?? ''}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+            className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
           >
             <option value="">Todos los centros</option>
             {centrosElegibles.map((c) => (
@@ -307,17 +306,17 @@ export default async function Panel({
           </select>
           <button
             type="submit"
-            className="rounded-lg bg-teal-600 px-3 py-1.5 font-medium text-white transition hover:bg-teal-700"
+            className="rounded-lg bg-primary px-3 py-1.5 font-medium text-white transition hover:bg-primary-hover"
           >
             Aplicar
           </button>
-          <span className="text-slate-500">
-            <span className="font-medium capitalize text-slate-700">{periodo.titulo}</span>
+          <span className="text-ink2">
+            <span className="font-medium capitalize text-ink">{periodo.titulo}</span>
           </span>
         </form>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
             No se pudieron cargar las métricas: {error.message}
           </p>
         ) : (
@@ -368,16 +367,16 @@ export default async function Panel({
                       <li key={estado}>
                         <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
                           <span>{ETIQUETA_ESTADO[estado].texto}</span>
-                          <span className="text-slate-500">
+                          <span className="text-ink2">
                             {numero} · {porcentaje(numero, leads.length)}
                           </span>
                         </div>
-                        <Barra valor={numero} maximo={maxEmbudo} clases="bg-teal-500" />
+                        <Barra valor={numero} maximo={maxEmbudo} clases="bg-primary-soft0" />
                       </li>
                     );
                   })}
                 </ul>
-                <p className="mt-3 text-xs text-slate-400">
+                <p className="mt-3 text-xs text-muted">
                   Cada lead cuenta en su estado actual. Perdidos: {porEstado.get('perdido') ?? 0} ·
                   No válidos: {porEstado.get('no_valido') ?? 0} · Derivados:{' '}
                   {porEstado.get('derivado') ?? 0}
@@ -392,7 +391,7 @@ export default async function Panel({
                       <li key={canalId}>
                         <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
                           <span>{nombreCanal.get(canalId) ?? '—'}</span>
-                          <span className="text-slate-500">
+                          <span className="text-ink2">
                             {fila.total} · {fila.convertidos} convertido
                             {fila.convertidos === 1 ? '' : 's'}
                           </span>
@@ -400,12 +399,12 @@ export default async function Panel({
                         <Barra
                           valor={fila.total}
                           maximo={Math.max(1, ...[...porCanal.values()].map((f) => f.total))}
-                          clases="bg-indigo-400"
+                          clases="bg-graf-ec"
                         />
                       </li>
                     ))}
                   {porCanal.size === 0 && (
-                    <li className="text-sm text-slate-400">Sin leads en el periodo.</li>
+                    <li className="text-sm text-muted">Sin leads en el periodo.</li>
                   )}
                 </ul>
               </Seccion>
@@ -414,7 +413,7 @@ export default async function Panel({
             <Seccion titulo="Por centro">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[420px] text-left text-sm">
-                  <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
                     <tr>
                       <th className="py-2 font-medium">Centro</th>
                       <th className="py-2 font-medium">Leads</th>
@@ -422,7 +421,7 @@ export default async function Panel({
                       <th className="py-2 font-medium">Tasa</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-line">
                     {[...porCentro.entries()]
                       .sort((a, b) => b[1].total - a[1].total)
                       .map(([centroId, fila]) => (
@@ -430,14 +429,14 @@ export default async function Panel({
                           <td className="py-2">{nombreCentro.get(centroId) ?? '—'}</td>
                           <td className="py-2">{fila.total}</td>
                           <td className="py-2">{fila.convertidos}</td>
-                          <td className="py-2 text-slate-500">
+                          <td className="py-2 text-ink2">
                             {porcentaje(fila.convertidos, fila.total)}
                           </td>
                         </tr>
                       ))}
                     {porCentro.size === 0 && (
                       <tr>
-                        <td colSpan={4} className="py-3 text-slate-400">
+                        <td colSpan={4} className="py-3 text-muted">
                           Sin leads en el periodo.
                         </td>
                       </tr>
@@ -450,7 +449,7 @@ export default async function Panel({
             <Seccion titulo="Equipo comercial y objetivos del mes">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
                     <tr>
                       <th className="py-2 font-medium">Comercial</th>
                       <th className="py-2 font-medium">Leads</th>
@@ -459,7 +458,7 @@ export default async function Panel({
                       <th className="py-2 font-medium">Ingresos</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-line">
                     {(comerciales ?? []).map((c) => {
                       const objetivo = objetivoDe.get(c.id);
                       const citasReales = citasPorComercial.get(c.id) ?? 0;
@@ -471,19 +470,19 @@ export default async function Panel({
                           <td className="py-2">
                             {citasReales}
                             {objetivo?.meta_citas ? (
-                              <span className="text-slate-400"> / {objetivo.meta_citas}</span>
+                              <span className="text-muted"> / {objetivo.meta_citas}</span>
                             ) : null}
                           </td>
                           <td className="py-2">
                             {conv.numero}
                             {objetivo?.meta_conversiones ? (
-                              <span className="text-slate-400"> / {objetivo.meta_conversiones}</span>
+                              <span className="text-muted"> / {objetivo.meta_conversiones}</span>
                             ) : null}
                           </td>
                           <td className="py-2">
                             {euros(conv.importe)}
                             {objetivo?.meta_ingresos ? (
-                              <span className="text-slate-400">
+                              <span className="text-muted">
                                 {' '}
                                 / {euros(Number(objetivo.meta_ingresos))}
                               </span>
@@ -496,7 +495,7 @@ export default async function Panel({
                 </table>
               </div>
               {objetivoDe.size === 0 && (
-                <p className="mt-3 text-xs text-slate-400">
+                <p className="mt-3 text-xs text-muted">
                   No hay objetivos definidos para este mes. Se fijarán desde el panel de
                   administración; mientras tanto, la tabla muestra solo los datos reales.
                 </p>
@@ -504,7 +503,7 @@ export default async function Panel({
             </Seccion>
 
             {!esDireccion && (
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-muted">
                 Ves únicamente los datos de los centros que tienes asignados.
               </p>
             )}

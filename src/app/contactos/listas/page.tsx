@@ -6,7 +6,7 @@ import { contactosDelSegmento, describirFiltro, type FiltroSegmento } from '@/li
 import { borrarLista, crearLista, editarLista } from '../actions';
 
 const inputClase =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 /** Criterios de segmento, reutilizados por el formulario de alta y el de edición. */
 function CriteriosSegmento({
@@ -21,11 +21,11 @@ function CriteriosSegmento({
   const consentimiento =
     filtro?.consentimiento === true ? 'si' : filtro?.consentimiento === false ? 'no' : '';
   return (
-    <fieldset className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3">
-      <legend className="px-1 text-xs font-medium text-slate-500">
+    <fieldset className="flex flex-col gap-2 rounded-lg border border-line p-3">
+      <legend className="px-1 text-xs font-medium text-ink2">
         Criterios (solo para segmentos)
       </legend>
-      <label className="flex flex-col gap-1 text-xs text-slate-600" htmlFor={`${idPrefijo}-etiquetas`}>
+      <label className="flex flex-col gap-1 text-xs text-ink2" htmlFor={`${idPrefijo}-etiquetas`}>
         Etiquetas (debe tenerlas todas)
         <select
           id={`${idPrefijo}-etiquetas`}
@@ -42,11 +42,11 @@ function CriteriosSegmento({
           ))}
         </select>
       </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
+      <label className="flex flex-col gap-1 text-xs text-ink2">
         Zona contiene
         <input name="zona" defaultValue={filtro?.zona ?? ''} className={inputClase} />
       </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
+      <label className="flex flex-col gap-1 text-xs text-ink2">
         Consentimiento de marketing
         <select name="consentimiento" defaultValue={consentimiento} className={inputClase}>
           <option value="">Indiferente</option>
@@ -54,7 +54,7 @@ function CriteriosSegmento({
           <option value="no">Solo sin consentimiento</option>
         </select>
       </label>
-      <label className="flex items-center gap-2 text-xs text-slate-600">
+      <label className="flex items-center gap-2 text-xs text-ink2">
         <input type="checkbox" name="con_email" defaultChecked={filtro?.conEmail ?? false} /> Solo
         contactos con email
       </label>
@@ -116,16 +116,15 @@ export default async function ListasYSegmentos({
       subseccion="/contactos/listas"
       titulo="Listas y segmentos"
       descripcion="Estáticas por selección, dinámicas por criterios"
-      ancho="medio"
     >
-        <p className="mt-3 text-sm text-slate-500">
+        <p className="mt-3 text-sm text-ink2">
           Una <strong>lista estática</strong> tiene los contactos que le añades a mano. Un{' '}
           <strong>segmento dinámico</strong> no guarda miembros: se calcula cada vez a partir de sus
           criterios.
         </p>
 
         {errorMsg && (
-          <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {errorMsg}
           </p>
         )}
@@ -133,7 +132,7 @@ export default async function ListasYSegmentos({
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
           <section className="flex flex-col gap-2">
             {(listas ?? []).length === 0 && (
-              <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+              <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
                 Todavía no hay listas ni segmentos. Crea el primero en el panel de la derecha.
               </p>
             )}
@@ -142,15 +141,15 @@ export default async function ListasYSegmentos({
               const enEdicion = editar === lista.id;
               const filtro = (lista.filtro ?? {}) as FiltroSegmento;
               return (
-                <article key={lista.id} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
+                <article key={lista.id} className="rounded-xl bg-surface p-4 ring-1 ring-line">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium">{lista.nombre}</h3>
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${
                           lista.tipo === 'dinamica'
-                            ? 'bg-violet-50 text-violet-700 ring-violet-200'
-                            : 'bg-slate-100 text-slate-600 ring-slate-200'
+                            ? 'bg-ec-bg text-ec ring-ec/25'
+                            : 'bg-surface2 text-ink2 ring-line'
                         }`}
                       >
                         {lista.tipo === 'dinamica' ? 'Segmento dinámico' : 'Lista estática'}
@@ -159,21 +158,21 @@ export default async function ListasYSegmentos({
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/contactos?lista=${lista.id}`}
-                        className="text-sm text-teal-700 hover:underline"
+                        className="text-sm text-primary hover:underline"
                       >
                         Ver {recuentos.get(lista.id) ?? 0} contacto
                         {(recuentos.get(lista.id) ?? 0) === 1 ? '' : 's'}
                       </Link>
                       <Link
                         href={enEdicion ? '/contactos/listas' : `/contactos/listas?editar=${lista.id}`}
-                        className="text-xs text-slate-500 hover:text-teal-700 hover:underline"
+                        className="text-xs text-ink2 hover:text-primary hover:underline"
                       >
                         {enEdicion ? 'Cancelar' : 'Editar'}
                       </Link>
                       <form action={borrarLista.bind(null, lista.id)}>
                         <button
                           type="submit"
-                          className="text-xs text-slate-400 hover:text-red-600 hover:underline"
+                          className="text-xs text-muted hover:text-danger hover:underline"
                         >
                           Borrar
                         </button>
@@ -182,10 +181,10 @@ export default async function ListasYSegmentos({
                   </div>
 
                   {!enEdicion && lista.descripcion && (
-                    <p className="mt-1 text-sm text-slate-600">{lista.descripcion}</p>
+                    <p className="mt-1 text-sm text-ink2">{lista.descripcion}</p>
                   )}
                   {!enEdicion && lista.tipo === 'dinamica' && (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-ink2">
                       Criterios: {describirFiltro(filtro, nombresEtiquetas)}
                     </p>
                   )}
@@ -193,14 +192,14 @@ export default async function ListasYSegmentos({
                   {enEdicion && (
                     <form
                       action={editarLista.bind(null, lista.id)}
-                      className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3"
+                      className="mt-3 flex flex-col gap-3 border-t border-line pt-3"
                     >
                       <input type="hidden" name="tipo" value={lista.tipo} />
-                      <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                      <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                         Nombre *
                         <input name="nombre" defaultValue={lista.nombre} required className={inputClase} />
                       </label>
-                      <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+                      <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                         Descripción
                         <input
                           name="descripcion"
@@ -217,7 +216,7 @@ export default async function ListasYSegmentos({
                       )}
                       <button
                         type="submit"
-                        className="self-start rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
+                        className="self-start rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
                       >
                         Guardar cambios
                       </button>
@@ -228,20 +227,20 @@ export default async function ListasYSegmentos({
             })}
           </section>
 
-          <aside className="h-fit rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
               Nueva lista o segmento
             </h3>
             <form action={crearLista} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Nombre *
                 <input name="nombre" required className={inputClase} />
               </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Descripción
                 <input name="descripcion" className={inputClase} />
               </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Tipo
                 <select name="tipo" defaultValue="estatica" className={inputClase}>
                   <option value="estatica">Lista estática (se añade a mano)</option>
@@ -250,9 +249,9 @@ export default async function ListasYSegmentos({
               </label>
 
               {(etiquetas ?? []).length === 0 ? (
-                <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                <p className="rounded-lg bg-ground px-3 py-2 text-xs text-ink2">
                   Aún no hay etiquetas.{' '}
-                  <Link href="/contactos/etiquetas" className="text-teal-700 hover:underline">
+                  <Link href="/contactos/etiquetas" className="text-primary hover:underline">
                     Crea alguna
                   </Link>{' '}
                   para poder segmentar por ellas.
@@ -263,12 +262,12 @@ export default async function ListasYSegmentos({
 
               <button
                 type="submit"
-                className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
               >
                 Crear
               </button>
             </form>
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="mt-3 text-xs text-muted">
               Los criterios son siempre comerciales (etiqueta, zona, consentimiento). Nunca clínicos:
               ninguna lista puede revelar el motivo de consulta de nadie.
             </p>

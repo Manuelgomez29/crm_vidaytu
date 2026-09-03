@@ -18,7 +18,7 @@ type FilaKanban = {
   created_at: string;
   propietario_id: string | null;
   subcanal: string | null;
-  centro: { nombre: string; es_bandeja_grupo: boolean } | null;
+  centro: { nombre: string; slug: string; es_bandeja_grupo: boolean } | null;
   canal: { nombre: string } | null;
   propietario: { nombre: string } | null;
   tareas: { completada_at: string | null }[];
@@ -58,7 +58,7 @@ export default async function LeadsPage({
     .from('leads')
     .select(
       `id, nombre, estado, urgencia, etapa_id, created_at, propietario_id, subcanal,
-       centro:centros (nombre, es_bandeja_grupo),
+       centro:centros (nombre, slug, es_bandeja_grupo),
        canal:canales (nombre),
        propietario:perfiles!leads_propietario_id_fkey (nombre),
        tareas (completada_at)`,
@@ -90,6 +90,8 @@ export default async function LeadsPage({
     urgencia: fila.urgencia,
     etapaId: fila.etapa_id,
     centroNombre: fila.centro?.nombre ?? '—',
+    centroSlug: fila.centro?.slug ?? '',
+    esBandeja: fila.centro?.es_bandeja_grupo ?? false,
     canalNombre: fila.canal?.nombre ?? '—',
     subcanal: fila.subcanal,
     propietarioNombre: fila.propietario?.nombre ?? null,
@@ -110,9 +112,8 @@ export default async function LeadsPage({
   return (
     <AppShell
       seccion="leads"
-      titulo="Leads"
-      descripcion="Tablero de casos por etapa"
-      ancho="ancho"
+      titulo="Kanban comercial"
+      descripcion={`Pipeline: ${pipelines?.find((p) => p.id === pipelineId)?.nombre ?? "—"} · ${tarjetas.length} casos abiertos`}
     >
         <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
           <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
@@ -120,7 +121,7 @@ export default async function LeadsPage({
               <select
                 name="pipeline"
                 defaultValue={pipelineId}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
               >
                 {pipelines.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -132,7 +133,7 @@ export default async function LeadsPage({
             <select
               name="centro"
               defaultValue={filtros.centro ?? ''}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
             >
               <option value="">Todos los centros</option>
               {(centros ?? []).map((c) => (
@@ -143,12 +144,12 @@ export default async function LeadsPage({
             </select>
             <button
               type="submit"
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 transition hover:bg-slate-100"
+              className="rounded-lg border border-line2 bg-surface px-3 py-1.5 font-medium text-ink transition hover:bg-surface2"
             >
               Filtrar
             </button>
             {(filtros.centro || filtros.pipeline) && (
-              <Link href="/leads" className="text-teal-700 hover:underline">
+              <Link href="/leads" className="text-primary hover:underline">
                 Limpiar
               </Link>
             )}
@@ -156,7 +157,7 @@ export default async function LeadsPage({
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
             No se pudieron cargar los leads: {error.message}
           </p>
         ) : (

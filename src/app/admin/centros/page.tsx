@@ -31,16 +31,15 @@ export default async function AdminCentros({
       subseccion="/admin/centros"
       titulo="Centros"
       descripcion="Centros del grupo y bandeja compartida"
-      ancho="medio"
     >
         <Avisos error={errorMsg} aviso={aviso} />
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-ink2">
           Los centros no se borran (sus leads e historial dependen de ellos): se desactivan, y así
           dejan de ofrecerse en los formularios sin perder nada.
         </p>
 
-        <section className="mb-6 rounded-xl bg-white p-4 ring-1 ring-slate-200">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
             Nuevo centro
           </h3>
           <form action={crearCentro} className="flex flex-wrap gap-2">
@@ -56,16 +55,16 @@ export default async function AdminCentros({
           {(centros ?? []).map((c) => (
             <article
               key={c.id}
-              className={`rounded-xl bg-white p-4 ring-1 ring-slate-200 ${c.activo ? '' : 'opacity-70'}`}
+              className={`rounded-xl bg-surface p-4 ring-1 ring-line ${c.activo ? '' : 'opacity-70'}`}
             >
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <h3 className="font-medium">{c.nombre}</h3>
                 {c.es_bandeja_grupo && (
-                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-200">
+                  <span className="rounded-full bg-ec-bg px-2 py-0.5 text-[11px] font-medium text-ec ring-1 ring-ec/25">
                     Bandeja de grupo
                   </span>
                 )}
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-muted">
                   {leadsPorCentro.get(c.id) ?? 0} lead(s) · slug: {c.slug}
                 </span>
               </div>
@@ -77,7 +76,7 @@ export default async function AdminCentros({
                   placeholder="Ciudad"
                   className={inputAdmin}
                 />
-                <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                <label className="flex items-center gap-1.5 text-sm text-ink2">
                   <input type="checkbox" name="activo" defaultChecked={c.activo} /> Activo
                 </label>
                 <button type="submit" className={botonAdminSecundario}>
@@ -88,7 +87,7 @@ export default async function AdminCentros({
           ))}
         </div>
 
-        <p className="mt-4 text-xs text-slate-400">
+        <p className="mt-4 text-xs text-muted">
           La bandeja de grupo es un pseudo-centro donde nacen los leads sin centro claro. Asignar uno
           de esos leads a un centro real no es una derivación: es un cambio de centro auditado.
         </p>

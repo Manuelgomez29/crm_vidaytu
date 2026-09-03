@@ -4,13 +4,13 @@
  * clases construidas en tiempo de ejecución.
  */
 export const COLORES_ETIQUETA = {
-  gris: { nombre: 'Gris', clases: 'bg-slate-100 text-slate-700 ring-slate-200' },
-  verde: { nombre: 'Verde', clases: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  azul: { nombre: 'Azul', clases: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  violeta: { nombre: 'Violeta', clases: 'bg-violet-50 text-violet-700 ring-violet-200' },
-  ambar: { nombre: 'Ámbar', clases: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  rojo: { nombre: 'Rojo', clases: 'bg-red-50 text-red-700 ring-red-200' },
-  turquesa: { nombre: 'Turquesa', clases: 'bg-teal-50 text-teal-700 ring-teal-200' },
+  gris: { nombre: 'Gris', clases: 'bg-surface2 text-ink ring-line' },
+  verde: { nombre: 'Verde', clases: 'bg-ok-soft text-ok ring-ok/25' },
+  azul: { nombre: 'Azul', clases: 'bg-bm-bg text-bm ring-bm/25' },
+  violeta: { nombre: 'Violeta', clases: 'bg-ec-bg text-ec ring-ec/25' },
+  ambar: { nombre: 'Ámbar', clases: 'bg-warn-soft text-warn ring-warn/25' },
+  rojo: { nombre: 'Rojo', clases: 'bg-danger-soft text-danger ring-danger/25' },
+  turquesa: { nombre: 'Turquesa', clases: 'bg-primary-soft text-primary ring-primary/25' },
 } as const;
 
 export type ColorEtiqueta = keyof typeof COLORES_ETIQUETA;

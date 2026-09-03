@@ -40,6 +40,20 @@ Detrás de los centros está la marca personal del CEO (**Lolo Drago**, divulgad
 13. **NADA CABLEADO:** usuarios, roles, centros, disponibilidades, ausencias, catálogos, etiquetas, reglas, pipelines y parámetros (SLA, cadencia, alertas, horarios) viven en base de datos, gestionables desde un futuro panel de administración. Nada de esto hardcodeado.
 14. **Roles v1:** `direccion` (todo), `admisiones` (sus centros), `terapeuta` (SOLO sus citas, y de ellas solo nombre y teléfono del lead).
 
+## Sistema de diseño (v1)
+
+Tema claro único. Tipografía **Kumbh Sans** (la que ya comparten Eclipse y Bellamar), con números tabulares en cifras, tablas y KPIs. Los tokens viven en `src/app/globals.css` (`@theme`) y las clases de componente (`.chip`, `.panel`, `.tarjeta`, `.btn`, `.campo`, `.tabla`, `.avatar`, `.via`) en su capa `components`.
+
+- Superficies: fondo `#F7F6F2` · superficie `#FFFFFF` · superficie 2 `#EFEDE6` · líneas `#E2DFD6`/`#CBC7BB`.
+- Tinta: `#242B3A` · secundaria `#5A6272` · muted `#8A8FA0`.
+- Primario `#384B71` (azul institucional del grupo): barra lateral, botones de acción, enlaces.
+- Acento coral `#E8836F`: CTA principal, destacados, avatar propio.
+- Semánticos: éxito `#2F9160` · aviso `#C08427` · peligro `#C4483F`, siempre con su fondo suave.
+- **Color por centro** en chips y borde izquierdo de tarjeta: Horizonte `#2E5C48`/`#E3EDE6`, Eclipse `#4E506B`/`#E7E7F0`, Bellamar `#384B71`/`#E4EAF8`, Bandeja de grupo `#8A5F14`/`#F4E9D4`.
+- **Paleta de gráficos** por centro (validada para daltonismo): Horizonte `#2F9160` · Eclipse `#5B54C0` · Bellamar `#6E8AF0` · Bandeja `#C08427`. El color sigue al centro, nunca al ranking; leyenda siempre que haya dos o más series; el texto va en tinta, nunca en el color de la serie.
+
+Estructura: barra lateral azul con gradiente (`#2C3C5C`→`#384B71`) agrupada en Área comercial / Gestión / Centros, con el área clínica visible pero bloqueada («Fase 3»); topbar con búsqueda global por nombre o teléfono, notificaciones y CTA coral «+ Nuevo lead»; cabecera de página con título y subtítulo.
+
 ## Convenciones técnicas
 
 - Dominio en español (snake_case) / infraestructura en inglés.

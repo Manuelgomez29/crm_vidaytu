@@ -35,16 +35,15 @@ export default async function AdminParametros({
       subseccion="/admin/parametros"
       titulo="Parámetros"
       descripcion="SLA, cadencia, alertas y plantillas"
-      ancho="estrecho"
     >
         <Avisos error={errorMsg} aviso={aviso} />
-        <p className="mb-4 text-sm text-slate-500">
+        <p className="mb-4 text-sm text-ink2">
           Estos valores no están escritos en el código: la plataforma los lee de aquí cada vez que
           los necesita, así que cualquier cambio se aplica de inmediato.
         </p>
 
-        <form action={guardarParametros} className="flex flex-col gap-5 rounded-xl bg-white p-5 ring-1 ring-slate-200">
-          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+        <form action={guardarParametros} className="flex flex-col gap-5 rounded-xl bg-surface p-5 ring-1 ring-line">
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             SLA de primera respuesta (minutos)
             <input
               name="sla_primera_respuesta_minutos"
@@ -53,22 +52,22 @@ export default async function AdminParametros({
               defaultValue={sla}
               className={`${inputAdmin} w-40`}
             />
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-ink2">
               Tiempo máximo para dar la primera respuesta a un lead. Marca el vencimiento de la tarea
               inicial y el cumplimiento que se ve en el panel.
             </span>
           </label>
 
-          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Cadencia de contacto (días)
             <input name="cadencia_dias" defaultValue={cadencia} className={`${inputAdmin} w-64`} />
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-ink2">
               Días de los intentos, separados por comas. Cinco intentos en dos semanas alternando
               llamada y WhatsApp; tras el último sin respuesta se propone perdido «no respondió».
             </span>
           </label>
 
-          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Alerta de presupuesto sin respuesta (días)
             <input
               name="alerta_presupuesto_dias"
@@ -79,7 +78,7 @@ export default async function AdminParametros({
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Plantilla del recordatorio de cita
             <textarea
               name="plantilla_recordatorio_cita"
@@ -87,11 +86,11 @@ export default async function AdminParametros({
               defaultValue={plantilla}
               className={inputAdmin}
             />
-            <span className="text-xs font-normal text-slate-500">
+            <span className="text-xs font-normal text-ink2">
               Marcadores disponibles: <code>{'{nombre}'}</code> <code>{'{dia}'}</code>{' '}
               <code>{'{hora}'}</code> <code>{'{lugar}'}</code> <code>{'{profesional}'}</code>.
             </span>
-            <span className="text-xs font-normal text-amber-700">
+            <span className="text-xs font-normal text-warn">
               Discreción obligatoria: el mensaje va a un teléfono que puede leer cualquiera de la
               familia. No puede mencionar adicciones ni motivos clínicos — la plataforma rechaza la
               plantilla si lo hace.
@@ -103,7 +102,7 @@ export default async function AdminParametros({
           </button>
         </form>
 
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-xs text-muted">
           Última modificación del SLA: {fecha(actualizado.get('sla_primera_respuesta_minutos') ?? null)}
         </p>
       </AppShell>

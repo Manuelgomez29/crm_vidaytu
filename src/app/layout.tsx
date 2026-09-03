@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google';
+import { Kumbh_Sans } from 'next/font/google';
 import './globals.css';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+// Kumbh Sans: la tipografía que ya comparten Eclipse y Bellamar.
+const kumbh = Kumbh_Sans({
+  variable: '--font-kumbh',
   subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -19,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} font-sans antialiased bg-slate-50 text-slate-900`}>
-        {children}
-      </body>
+      <body className={`${kumbh.variable} font-sans antialiased`}>{children}</body>
     </html>
   );
 }

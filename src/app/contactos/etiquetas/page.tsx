@@ -6,7 +6,7 @@ import { COLORES_ETIQUETA, clasesEtiqueta } from '@/lib/colores';
 import { borrarEtiqueta, crearEtiqueta, editarEtiqueta } from '../actions';
 
 const inputClase =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 export default async function GestionEtiquetas({
   searchParams,
@@ -48,16 +48,15 @@ export default async function GestionEtiquetas({
       subseccion="/contactos/etiquetas"
       titulo="Etiquetas"
       descripcion="Organización del directorio"
-      ancho="medio"
     >
 
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-ink2">
           Las etiquetas organizan el directorio (zona, origen, tipo de contacto…). Nunca deben
           describir la situación clínica de nadie: cualquiera con acceso al directorio las ve.
         </p>
 
         {errorMsg && (
-          <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {errorMsg}
           </p>
         )}
@@ -65,7 +64,7 @@ export default async function GestionEtiquetas({
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
           <section className="flex flex-col gap-2">
             {(etiquetas ?? []).length === 0 && (
-              <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+              <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
                 Todavía no hay etiquetas. Crea la primera en el panel de la derecha.
               </p>
             )}
@@ -73,7 +72,7 @@ export default async function GestionEtiquetas({
             {(etiquetas ?? []).map((e) => (
               <article
                 key={e.id}
-                className={`rounded-xl bg-white p-3 ring-1 ring-slate-200 ${e.activa ? '' : 'opacity-60'}`}
+                className={`rounded-xl bg-surface p-3 ring-1 ring-line ${e.activa ? '' : 'opacity-60'}`}
               >
                 <form
                   action={editarEtiqueta.bind(null, e.id)}
@@ -102,12 +101,12 @@ export default async function GestionEtiquetas({
                       </option>
                     ))}
                   </select>
-                  <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                  <label className="flex items-center gap-1.5 text-sm text-ink2">
                     <input type="checkbox" name="activa" defaultChecked={e.activa} /> Activa
                   </label>
                   <button
                     type="submit"
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                    className="rounded-lg border border-line2 bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface2"
                   >
                     Guardar
                   </button>
@@ -116,14 +115,14 @@ export default async function GestionEtiquetas({
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <Link
                     href={`/contactos?etiqueta=${e.id}`}
-                    className="text-xs text-teal-700 hover:underline"
+                    className="text-xs text-primary hover:underline"
                   >
                     {recuento.get(e.id) ?? 0} contacto{(recuento.get(e.id) ?? 0) === 1 ? '' : 's'}
                   </Link>
                   <form action={borrarEtiqueta.bind(null, e.id)}>
                     <button
                       type="submit"
-                      className="text-xs text-slate-400 hover:text-red-600 hover:underline"
+                      className="text-xs text-muted hover:text-danger hover:underline"
                       title="Borrarla la quita también de todos los contactos que la llevan"
                     >
                       Borrar
@@ -134,16 +133,16 @@ export default async function GestionEtiquetas({
             ))}
           </section>
 
-          <aside className="h-fit rounded-xl bg-white p-4 ring-1 ring-slate-200">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
               Nueva etiqueta
             </h3>
             <form action={crearEtiqueta} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Nombre *
                 <input name="nombre" required placeholder="p. ej. Zona Reus" className={inputClase} />
               </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
                 Color
                 <select name="color" defaultValue="gris" className={inputClase}>
                   {Object.entries(COLORES_ETIQUETA).map(([clave, c]) => (
@@ -155,12 +154,12 @@ export default async function GestionEtiquetas({
               </label>
               <button
                 type="submit"
-                className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
               >
                 Crear etiqueta
               </button>
             </form>
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="mt-3 text-xs text-muted">
               Desactivar una etiqueta la retira de los desplegables sin perder las que ya están
               puestas. Borrarla sí la quita de todos los contactos.
             </p>

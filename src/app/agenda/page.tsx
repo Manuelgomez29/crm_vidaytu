@@ -175,20 +175,20 @@ export default async function Agenda({
     });
     return (
       <details className="mt-2">
-        <summary className="cursor-pointer text-xs text-teal-700 hover:underline">
+        <summary className="cursor-pointer text-xs text-primary hover:underline">
           Recordatorio
         </summary>
-        <p className="mt-1 rounded-lg bg-slate-50 p-2 text-xs text-slate-700 ring-1 ring-slate-100">
+        <p className="mt-1 rounded-lg bg-ground p-2 text-xs text-ink ring-1 ring-line">
           {texto}
         </p>
-        <p className="mt-1 text-[11px] text-slate-400">
+        <p className="mt-1 text-[11px] text-muted">
           Para {destinatario} ({telefono}). Nunca menciona el motivo de consulta.
         </p>
         <a
           href={`https://wa.me/${telefono.replace('+', '')}?text=${encodeURIComponent(texto)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-1 inline-block text-xs text-teal-700 hover:underline"
+          className="mt-1 inline-block text-xs text-primary hover:underline"
         >
           Abrir en WhatsApp →
         </a>
@@ -200,9 +200,9 @@ export default async function Agenda({
     if (cita.estado !== 'programada') return null;
     const destino = { agenda: `vista=${vista}&dia=${filtros.dia ?? desde}` };
     const botones: [string, string, string][] = [
-      ['realizada', 'Realizada', 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'],
-      ['no_show', 'No vino', 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'],
-      ['cancelada', 'Cancelar', 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'],
+      ['realizada', 'Realizada', 'border-ok/25 bg-ok-soft text-ok hover:bg-ok-soft'],
+      ['no_show', 'No vino', 'border-warn/25 bg-warn-soft text-warn hover:bg-warn-soft'],
+      ['cancelada', 'Cancelar', 'border-line2 bg-surface text-ink2 hover:bg-surface2'],
     ];
     return (
       <div className="mt-2 flex flex-wrap gap-1.5">
@@ -223,10 +223,10 @@ export default async function Agenda({
   function TarjetaCita({ cita }: { cita: CitaAgenda }) {
     const estado = ESTADO_CITA[cita.estado] ?? {
       texto: cita.estado,
-      clases: 'bg-slate-100 text-slate-600 ring-slate-200',
+      clases: 'bg-surface2 text-ink2 ring-line',
     };
     return (
-      <article className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-200">
+      <article className="rounded-lg bg-surface p-3 shadow-sm ring-1 ring-line">
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-semibold">
             {hora(cita.inicio)}–{hora(cita.fin)}
@@ -241,19 +241,19 @@ export default async function Agenda({
           {esTerapeuta ? (
             cita.lead_nombre
           ) : (
-            <Link href={`/leads/${cita.lead_id}`} className="hover:text-teal-700 hover:underline">
+            <Link href={`/leads/${cita.lead_id}`} className="hover:text-primary hover:underline">
               {cita.lead_nombre}
             </Link>
           )}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink2">
           {cita.lead_telefono} · {TIPO_CITA[cita.tipo] ?? cita.tipo} ·{' '}
           {MODALIDAD_CITA[cita.modalidad_cita] ?? cita.modalidad_cita}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink2">
           {cita.centro_nombre} · {cita.profesional_nombre}
         </p>
-        {cita.notas && <p className="mt-1 text-xs text-slate-600">{cita.notas}</p>}
+        {cita.notas && <p className="mt-1 text-xs text-ink2">{cita.notas}</p>}
         <Recordatorio cita={cita} />
         <Acciones cita={cita} />
       </article>
@@ -290,16 +290,15 @@ export default async function Agenda({
       seccion="agenda"
       titulo="Agenda"
       descripcion="Citas por mes, semana o rango de fechas"
-      ancho="ancho"
     >
         <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
-          <nav className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+          <nav className="flex items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
             {(['mes', 'semana', 'rango'] as Vista[]).map((v) => (
               <Link
                 key={v}
                 href={enlaceVista(v)}
                 className={`rounded-md px-3 py-1.5 font-medium transition ${
-                  vista === v ? 'bg-white text-teal-700 shadow-sm' : 'text-slate-600 hover:bg-white/60'
+                  vista === v ? 'bg-surface text-primary shadow-sm' : 'text-ink2 hover:bg-surface/60'
                 }`}
               >
                 {v === 'mes' ? 'Mes' : v === 'semana' ? 'Semana' : 'Fechas'}
@@ -309,12 +308,12 @@ export default async function Agenda({
         </div>
 
         {filtros.error && (
-          <p className="mb-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mb-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {filtros.error}
           </p>
         )}
         {filtros.aviso && (
-          <p className="mb-3 rounded-lg bg-amber-50 px-4 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p className="mb-3 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
             {filtros.aviso}
           </p>
         )}
@@ -325,26 +324,26 @@ export default async function Agenda({
               <>
                 <Link
                   href={anteriorHref}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-lg border border-line2 bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface2"
                 >
                   ←
                 </Link>
                 <Link
                   href={`/agenda?vista=${vista}${cola}`}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-lg border border-line2 bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface2"
                 >
                   Hoy
                 </Link>
                 <Link
                   href={siguienteHref}
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                  className="rounded-lg border border-line2 bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface2"
                 >
                   →
                 </Link>
               </>
             )}
-            <p className="text-sm text-slate-500">
-              <span className="font-medium capitalize text-slate-700">{titulo}</span> ·{' '}
+            <p className="text-sm text-ink2">
+              <span className="font-medium capitalize text-ink">{titulo}</span> ·{' '}
               {visibles.length} cita{visibles.length === 1 ? '' : 's'}
             </p>
           </div>
@@ -358,21 +357,21 @@ export default async function Agenda({
                   type="date"
                   name="desde"
                   defaultValue={filtros.desde || desde}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                  className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
                 />
-                <span className="text-slate-400">→</span>
+                <span className="text-muted">→</span>
                 <input
                   type="date"
                   name="hasta"
                   defaultValue={filtros.hasta || desde}
-                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                  className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
                 />
               </>
             )}
             <select
               name="centro"
               defaultValue={filtros.centro ?? ''}
-              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
             >
               <option value="">Todos los centros</option>
               {(centros ?? []).map((c) => (
@@ -385,7 +384,7 @@ export default async function Agenda({
               <select
                 name="profesional"
                 defaultValue={filtros.profesional ?? ''}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"
+                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
               >
                 <option value="">Todos los profesionales</option>
                 {(profesionales ?? []).map((p) => (
@@ -397,12 +396,12 @@ export default async function Agenda({
             )}
             <button
               type="submit"
-              className="rounded-lg bg-teal-600 px-3 py-1.5 font-medium text-white transition hover:bg-teal-700"
+              className="rounded-lg bg-primary px-3 py-1.5 font-medium text-white transition hover:bg-primary-hover"
             >
               Aplicar
             </button>
             {(filtros.centro || filtros.profesional) && (
-              <Link href={`/agenda?vista=${vista}`} className="text-teal-700 hover:underline">
+              <Link href={`/agenda?vista=${vista}`} className="text-primary hover:underline">
                 Limpiar
               </Link>
             )}
@@ -410,7 +409,7 @@ export default async function Agenda({
         </div>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
             No se pudo cargar la agenda: {error.message}
           </p>
         ) : vista === 'mes' ? (
@@ -418,7 +417,7 @@ export default async function Agenda({
             <div>
               <div className="mb-1 grid grid-cols-7 gap-1 sm:gap-2">
                 {DIAS_CORTOS.map((d, i) => (
-                  <p key={d} className="px-1 text-xs font-medium uppercase text-slate-500">
+                  <p key={d} className="px-1 text-xs font-medium uppercase text-ink2">
                     <span className="lg:hidden">{d}</span>
                     <span className="hidden lg:inline">{DIAS[i]}</span>
                   </p>
@@ -435,26 +434,26 @@ export default async function Agenda({
                       key={k}
                       className={`flex min-h-16 flex-col rounded-xl p-1.5 ring-1 sm:min-h-28 sm:p-2 ${
                         esHoy
-                          ? 'bg-teal-50/60 ring-teal-200'
+                          ? 'bg-primary-soft/60 ring-primary/25'
                           : esDeEsteMes
-                            ? 'bg-white ring-slate-200'
-                            : 'bg-slate-50 ring-slate-100'
+                            ? 'bg-surface ring-line'
+                            : 'bg-ground ring-line'
                       }`}
                     >
                       <Link
                         href={`/agenda?vista=rango&desde=${k}&hasta=${k}${cola}`}
-                        className={`text-xs font-semibold hover:text-teal-700 hover:underline ${
-                          esDeEsteMes ? 'text-slate-700' : 'text-slate-400'
+                        className={`text-xs font-semibold hover:text-primary hover:underline ${
+                          esDeEsteMes ? 'text-ink' : 'text-muted'
                         }`}
                       >
                         {dia.getDate()}
-                        {esHoy && <span className="ml-1 font-normal text-teal-700">hoy</span>}
+                        {esHoy && <span className="ml-1 font-normal text-primary">hoy</span>}
                       </Link>
                       {/* En pantallas estrechas la celda no cabe: solo el número de citas. */}
                       {delDia.length > 0 && (
                         <Link
                           href={`/agenda?vista=rango&desde=${k}&hasta=${k}${cola}`}
-                          className="mt-1 self-start rounded-full bg-teal-600 px-1.5 text-[11px] font-medium text-white sm:hidden"
+                          className="mt-1 self-start rounded-full bg-primary px-1.5 text-[11px] font-medium text-white sm:hidden"
                         >
                           {delDia.length}
                         </Link>
@@ -467,7 +466,7 @@ export default async function Agenda({
                               key={cita.id}
                               href={`/agenda?vista=rango&desde=${k}&hasta=${k}${cola}`}
                               className={`truncate rounded px-1.5 py-0.5 text-[11px] ring-1 ${
-                                estado?.clases ?? 'bg-slate-100 text-slate-600 ring-slate-200'
+                                estado?.clases ?? 'bg-surface2 text-ink2 ring-line'
                               }`}
                               title={`${hora(cita.inicio)} ${cita.lead_nombre} · ${cita.centro_nombre}`}
                             >
@@ -478,7 +477,7 @@ export default async function Agenda({
                         {delDia.length > 3 && (
                           <Link
                             href={`/agenda?vista=rango&desde=${k}&hasta=${k}${cola}`}
-                            className="px-1.5 text-[11px] text-teal-700 hover:underline"
+                            className="px-1.5 text-[11px] text-primary hover:underline"
                           >
                             +{delDia.length - 3} más
                           </Link>
@@ -501,15 +500,15 @@ export default async function Agenda({
                   <section
                     key={k}
                     className={`flex flex-col rounded-xl ring-1 ${
-                      esHoy ? 'bg-teal-50/50 ring-teal-200' : 'bg-slate-100 ring-slate-200'
+                      esHoy ? 'bg-primary-soft/50 ring-primary/25' : 'bg-surface2 ring-line'
                     }`}
                   >
                     <header className="flex items-baseline justify-between px-3 py-2.5">
-                      <h3 className="text-sm font-semibold text-slate-700">
+                      <h3 className="text-sm font-semibold text-ink">
                         {DIAS[i]} {dia.getDate()}
-                        {esHoy && <span className="ml-1 text-xs font-normal text-teal-700">hoy</span>}
+                        {esHoy && <span className="ml-1 text-xs font-normal text-primary">hoy</span>}
                       </h3>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500 ring-1 ring-slate-200">
+                      <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-ink2 ring-1 ring-line">
                         {delDia.length}
                       </span>
                     </header>
@@ -518,7 +517,7 @@ export default async function Agenda({
                         <TarjetaCita key={cita.id} cita={cita} />
                       ))}
                       {delDia.length === 0 && (
-                        <p className="px-1 py-2 text-xs text-slate-400">Sin citas.</p>
+                        <p className="px-1 py-2 text-xs text-muted">Sin citas.</p>
                       )}
                     </div>
                   </section>
@@ -529,7 +528,7 @@ export default async function Agenda({
         ) : (
           <div className="flex flex-col gap-4">
             {visibles.length === 0 && (
-              <p className="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+              <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
                 No hay citas en estas fechas con los filtros elegidos.
               </p>
             )}
@@ -537,14 +536,14 @@ export default async function Agenda({
               .sort(([a], [b]) => (a < b ? -1 : 1))
               .map(([k, delDia]) => (
                 <section key={k}>
-                  <h3 className="mb-2 text-sm font-semibold capitalize text-slate-700">
+                  <h3 className="mb-2 text-sm font-semibold capitalize text-ink">
                     {new Date(`${k}T12:00:00`).toLocaleDateString('es-ES', {
                       weekday: 'long',
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',
                     })}
-                    {k === hoy && <span className="ml-2 text-xs font-normal text-teal-700">hoy</span>}
+                    {k === hoy && <span className="ml-2 text-xs font-normal text-primary">hoy</span>}
                   </h3>
                   <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                     {delDia.map((cita) => (

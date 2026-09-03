@@ -18,10 +18,10 @@ export const MODALIDAD_CITA: Record<string, string> = {
 };
 
 export const ESTADO_CITA: Record<string, { texto: string; clases: string }> = {
-  programada: { texto: 'Programada', clases: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  realizada: { texto: 'Realizada', clases: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  no_show: { texto: 'No se presentó', clases: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  cancelada: { texto: 'Cancelada', clases: 'bg-slate-100 text-slate-600 ring-slate-200' },
+  programada: { texto: 'Programada', clases: 'bg-primary-soft text-primary ring-primary/25' },
+  realizada: { texto: 'Realizada', clases: 'bg-ok-soft text-ok ring-ok/25' },
+  no_show: { texto: 'No se presentó', clases: 'bg-warn-soft text-warn ring-warn/25' },
+  cancelada: { texto: 'Cancelada', clases: 'bg-surface2 text-ink2 ring-line' },
 };
 
 /**

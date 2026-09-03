@@ -5,11 +5,11 @@ import { AppShell } from '@/components/app-shell';
 import { crearLead } from './actions';
 
 const inputClase =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 function Campo({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
+    <label className="flex flex-col gap-1 text-sm font-medium text-ink">
       {etiqueta}
       {children}
     </label>
@@ -58,20 +58,19 @@ export default async function NuevoLead({
       seccion="leads"
       titulo="Nuevo lead"
       descripcion="Alta manual de un caso"
-      ancho="estrecho"
     >
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-ink2">
           Si el teléfono ya existe en el directorio, no se creará un duplicado: te llevaré a su
           caso (reabriéndolo si estaba cerrado).
         </p>
 
         {error && (
-          <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
             {error}
           </p>
         )}
 
-        <form action={crearLead} className="mt-4 flex flex-col gap-4 rounded-xl bg-white p-5 ring-1 ring-slate-200">
+        <form action={crearLead} className="mt-4 flex flex-col gap-4 rounded-xl bg-surface p-5 ring-1 ring-line">
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo etiqueta="Nombre de quien contacta *">
               <input name="nombre" required className={inputClase} />
@@ -160,7 +159,7 @@ export default async function NuevoLead({
 
           <button
             type="submit"
-            className="rounded-lg bg-teal-600 px-4 py-2.5 font-medium text-white transition hover:bg-teal-700"
+            className="rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition hover:bg-primary-hover"
           >
             Crear lead
           </button>

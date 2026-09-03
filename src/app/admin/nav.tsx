@@ -2,12 +2,12 @@ export function Avisos({ error, aviso }: { error?: string; aviso?: string }) {
   return (
     <>
       {error && (
-        <p className="mt-3 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700 ring-1 ring-red-200">
+        <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
           {error}
         </p>
       )}
       {aviso && (
-        <p className="mt-3 rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-800 ring-1 ring-emerald-200">
+        <p className="mt-3 rounded-lg bg-ok-soft px-4 py-2 text-sm text-ok ring-1 ring-ok/25">
           {aviso}
         </p>
       )}
@@ -16,8 +16,8 @@ export function Avisos({ error, aviso }: { error?: string; aviso?: string }) {
 }
 
 export const inputAdmin =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-200';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 export const botonAdmin =
-  'rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-teal-700';
+  'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover';
 export const botonAdminSecundario =
-  'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100';
+  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface2';

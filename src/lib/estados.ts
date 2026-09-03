@@ -3,16 +3,16 @@ import type { Database } from '@/lib/database.types';
 export type EstadoLead = Database['public']['Enums']['estado_lead'];
 
 export const ETIQUETA_ESTADO: Record<EstadoLead, { texto: string; clases: string }> = {
-  nuevo: { texto: 'Nuevo', clases: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  contactado: { texto: 'Contactado', clases: 'bg-sky-50 text-sky-700 ring-sky-200' },
-  cita_agendada: { texto: 'Cita agendada', clases: 'bg-indigo-50 text-indigo-700 ring-indigo-200' },
-  cita_realizada: { texto: 'Cita realizada', clases: 'bg-violet-50 text-violet-700 ring-violet-200' },
-  en_valoracion: { texto: 'En valoración', clases: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  convertido: { texto: 'Convertido', clases: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  derivado: { texto: 'Derivado', clases: 'bg-cyan-50 text-cyan-700 ring-cyan-200' },
-  perdido: { texto: 'Perdido', clases: 'bg-red-50 text-red-700 ring-red-200' },
-  no_valido: { texto: 'No válido', clases: 'bg-slate-100 text-slate-600 ring-slate-200' },
-  reabierto: { texto: 'Reabierto', clases: 'bg-orange-50 text-orange-700 ring-orange-200' },
+  nuevo: { texto: 'Nuevo', clases: 'bg-primary-soft text-primary ring-primary/25' },
+  contactado: { texto: 'Contactado', clases: 'bg-bm-bg text-bm ring-bm/25' },
+  cita_agendada: { texto: 'Cita agendada', clases: 'bg-ec-bg text-ec ring-ec/25' },
+  cita_realizada: { texto: 'Cita realizada', clases: 'bg-gr-bg text-gr ring-gr/25' },
+  en_valoracion: { texto: 'En valoración', clases: 'bg-warn-soft text-warn ring-warn/25' },
+  convertido: { texto: 'Convertido', clases: 'bg-ok-soft text-ok ring-ok/25' },
+  derivado: { texto: 'Derivado', clases: 'bg-hz-bg text-hz ring-hz/25' },
+  perdido: { texto: 'Perdido', clases: 'bg-danger-soft text-danger ring-danger/25' },
+  no_valido: { texto: 'No válido', clases: 'bg-surface2 text-ink2 ring-line' },
+  reabierto: { texto: 'Reabierto', clases: 'bg-coral-soft text-coral-ink ring-coral/30' },
 };
 
 // Estados en los que el caso se considera cerrado a efectos de trabajo comercial.
@@ -22,7 +22,7 @@ export function etiquetaEstado(estado: string) {
   return (
     ETIQUETA_ESTADO[estado as EstadoLead] ?? {
       texto: estado,
-      clases: 'bg-slate-100 text-slate-600 ring-slate-200',
+      clases: 'bg-surface2 text-ink2 ring-line',
     }
   );
 }

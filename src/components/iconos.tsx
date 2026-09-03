@@ -11,6 +11,15 @@ const base = {
   strokeLinejoin: 'round' as const,
 };
 
+export function IconoLupa() {
+  return (
+    <svg {...base} aria-hidden>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
 export function IconoPanel() {
   return (
     <svg {...base} aria-hidden>

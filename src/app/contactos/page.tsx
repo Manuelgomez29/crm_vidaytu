@@ -156,7 +156,6 @@ function Pagina({
       subseccion="/contactos"
       titulo="Contactos"
       descripcion="Directorio único de personas"
-      ancho="ancho"
     >
 
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
@@ -164,12 +163,12 @@ function Pagina({
             name="q"
             defaultValue={filtros.q ?? ''}
             placeholder="Nombre, teléfono o email…"
-            className="min-w-56 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2"
+            className="min-w-56 flex-1 rounded-lg border border-line2 bg-surface px-3 py-2"
           />
           <select
             name="etiqueta"
             defaultValue={filtros.etiqueta ?? ''}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-2"
+            className="rounded-lg border border-line2 bg-surface px-2 py-2"
           >
             <option value="">Cualquier etiqueta</option>
             {etiquetas.map((e) => (
@@ -181,7 +180,7 @@ function Pagina({
           <select
             name="lista"
             defaultValue={filtros.lista ?? ''}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-2"
+            className="rounded-lg border border-line2 bg-surface px-2 py-2"
           >
             <option value="">Cualquier lista</option>
             {listas.map((l) => (
@@ -193,7 +192,7 @@ function Pagina({
           <select
             name="consent"
             defaultValue={filtros.consent ?? ''}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-2"
+            className="rounded-lg border border-line2 bg-surface px-2 py-2"
           >
             <option value="">Consentimiento: indiferente</option>
             <option value="si">Con consentimiento</option>
@@ -201,34 +200,34 @@ function Pagina({
           </select>
           <button
             type="submit"
-            className="rounded-lg bg-teal-600 px-3 py-2 font-medium text-white transition hover:bg-teal-700"
+            className="rounded-lg bg-primary px-3 py-2 font-medium text-white transition hover:bg-primary-hover"
           >
             Buscar
           </button>
           {hayFiltros && (
-            <Link href="/contactos" className="px-2 py-2 text-teal-700 hover:underline">
+            <Link href="/contactos" className="px-2 py-2 text-primary hover:underline">
               Limpiar
             </Link>
           )}
         </form>
 
         {error ? (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
+          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
             No se pudo cargar el directorio: {error}
           </p>
         ) : contactos.length === 0 ? (
-          <p className="rounded-lg bg-white px-4 py-8 text-center text-sm text-slate-500 ring-1 ring-slate-200">
+          <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
             Ningún contacto coincide con la búsqueda.
           </p>
         ) : (
           <>
-            <p className="mb-2 text-sm text-slate-500">
+            <p className="mb-2 text-sm text-ink2">
               {contactos.length} contacto{contactos.length === 1 ? '' : 's'}
               {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
             </p>
-            <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-slate-200">
+            <div className="overflow-x-auto rounded-xl bg-surface ring-1 ring-line">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
                   <tr>
                     <th className="px-4 py-3 font-medium">Nombre</th>
                     <th className="px-4 py-3 font-medium">Teléfono</th>
@@ -239,17 +238,17 @@ function Pagina({
                     <th className="px-4 py-3 font-medium">Marketing</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-line">
                   {contactos.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50">
+                    <tr key={c.id} className="hover:bg-ground">
                       <td className="px-4 py-3 font-medium">
-                        <Link href={`/contactos/${c.id}`} className="hover:text-teal-700 hover:underline">
+                        <Link href={`/contactos/${c.id}`} className="hover:text-primary hover:underline">
                           {c.nombre}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{c.telefono}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.email ?? '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{c.zona ?? '—'}</td>
+                      <td className="px-4 py-3 text-ink2">{c.telefono}</td>
+                      <td className="px-4 py-3 text-ink2">{c.email ?? '—'}</td>
+                      <td className="px-4 py-3 text-ink2">{c.zona ?? '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {c.contacto_etiquetas.map(
@@ -264,18 +263,18 @@ function Pagina({
                               ),
                           )}
                           {c.contacto_etiquetas.length === 0 && (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-muted">—</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{c.lead_contactos.length}</td>
+                      <td className="px-4 py-3 text-ink2">{c.lead_contactos.length}</td>
                       <td className="px-4 py-3">
                         {c.consentimiento_marketing ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                          <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok ring-1 ring-ok/25">
                             Sí
                           </span>
                         ) : (
-                          <span className="text-slate-400">No</span>
+                          <span className="text-muted">No</span>
                         )}
                       </td>
                     </tr>
