@@ -303,6 +303,38 @@ export async function AppShell({
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {acciones}
+
+            {/* Exportar: solo dirección, y cada descarga queda auditada. */}
+            {perfil?.rol === 'direccion' && (
+              <details className="relative hidden sm:block">
+                <summary className="btn btn-ghost cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  Exportar
+                </summary>
+                <div className="panel absolute right-0 z-30 mt-2 w-56 p-2">
+                  <p className="px-2 py-1 text-[11px] uppercase tracking-[0.1em] text-muted">
+                    Descargar CSV
+                  </p>
+                  {[
+                    ['leads', 'Casos'],
+                    ['contactos', 'Contactos'],
+                    ['conversiones', 'Conversiones'],
+                    ['citas', 'Citas'],
+                  ].map(([clave, texto]) => (
+                    <a
+                      key={clave}
+                      href={`/api/exportar?que=${clave}`}
+                      className="block rounded-lg px-2 py-2 text-[13px] text-ink2 hover:bg-ground"
+                    >
+                      {texto}
+                    </a>
+                  ))}
+                  <p className="px-2 pb-1 pt-2 text-[11px] text-muted">
+                    Cada exportación queda registrada en la auditoría.
+                  </p>
+                </div>
+              </details>
+            )}
+
             <Campana notificaciones={notificaciones ?? []} sinLeer={sinLeer} />
             {!esTerapeuta && (
               <Link href="/leads/nuevo" className="btn btn-coral">

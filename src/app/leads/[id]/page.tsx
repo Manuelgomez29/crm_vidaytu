@@ -19,6 +19,8 @@ import {
   reabrirLead,
   registrarActividad,
   registrarConversion,
+  subirAdjunto,
+  borrarAdjunto,
   validarConversion,
 } from './actions';
 import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
@@ -112,6 +114,7 @@ export default async function FichaLead({
     { data: derivaciones },
     { data: citas },
     { data: profesionales },
+    { data: adjuntos },
   ] = await Promise.all([
     supabase
       .from('lead_contactos')
@@ -153,6 +156,11 @@ export default async function FichaLead({
       .eq('lead_id', id)
       .order('inicio', { ascending: false }),
     supabase.rpc('profesionales_agendables'),
+    supabase
+      .from('caso_adjuntos')
+      .select('id, nombre_archivo, mime_type, tamano_bytes, created_at, subido:perfiles (nombre)')
+      .eq('lead_id', id)
+      .order('created_at', { ascending: false }),
   ]);
 
   const { data: comerciales } = esDireccion
@@ -402,6 +410,58 @@ export default async function FichaLead({
                 })}
                 {(citas ?? []).length === 0 && (
                   <li className="text-sm text-muted">Sin citas todavía.</li>
+                )}
+              </ul>
+            </Seccion>
+
+            <Seccion titulo="Adjuntos del caso">
+              <form action={subirAdjunto.bind(null, lead.id)} className="flex flex-wrap gap-2">
+                <input
+                  type="file"
+                  name="archivo"
+                  accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                  required
+                  className="min-w-0 flex-1 text-sm text-ink2 file:mr-3 file:rounded-lg file:border-0 file:bg-surface2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink"
+                />
+                <button type="submit" className={botonClase}>
+                  Subir
+                </button>
+              </form>
+              <p className="mt-1 text-xs text-muted">
+                Capturas de WhatsApp, justificantes de pago o informes. Imágenes y PDF, hasta 10 MB.
+                Se guardan cifrados y solo los ve quien pueda ver este caso.
+              </p>
+
+              <ul className="mt-3 flex flex-col gap-2">
+                {(adjuntos ?? []).map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface2 px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <a
+                        href={`/api/adjuntos/${a.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {a.nombre_archivo}
+                      </a>
+                      <p className="text-xs text-muted">
+                        {Math.round((a.tamano_bytes ?? 0) / 1024)} KB · {a.subido?.nombre ?? 'Sistema'}{' '}
+                        · {fecha(a.created_at, false)}
+                      </p>
+                    </div>
+                    <form action={borrarAdjunto.bind(null, lead.id, a.id)}>
+                      <button
+                        type="submit"
+                        className="text-xs text-muted hover:text-danger hover:underline"
+                      >
+                        Borrar
+                      </button>
+                    </form>
+                  </li>
+                ))}
+                {(adjuntos ?? []).length === 0 && (
+                  <li className="text-sm text-muted">Sin adjuntos.</li>
                 )}
               </ul>
             </Seccion>

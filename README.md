@@ -115,6 +115,12 @@ Cada rol ve lo que le permite RLS: dirección todo, admisiones solo sus centros.
 - **Avisos, nunca bloqueos**: al agendar se comprueba la disponibilidad del profesional, sus ausencias y los solapes; si algo no cuadra la cita se crea igual y se avisa.
 - **Rol terapeuta**: solo ve las citas en las que es el profesional, y de ellas solo el nombre y el teléfono del lead (nunca las notas ni la ficha). La agenda se sirve con la función `agenda_citas()`, que aplica esa regla en la base de datos.
 
+## Adjuntos y exportaciones
+
+**Adjuntos por caso** — desde la ficha se suben capturas de WhatsApp, justificantes de pago o informes (imágenes y PDF, hasta 10 MB). Van al bucket privado `adjuntos-casos`, con la ruta `<lead_id>/<archivo>`: la política de Storage usa esa carpeta para dar acceso exactamente a quien puede ver el caso. La descarga pasa por `/api/adjuntos/[id]`, que comprueba permisos y firma una URL de un minuto — el fichero nunca se expone directamente. Subir y borrar quedan anotados en el historial del caso.
+
+**Exportaciones** — `GET /api/exportar?que=leads|contactos|conversiones|citas` (con `desde`/`hasta` opcionales) devuelve CSV listo para Excel en español (punto y coma y BOM). Solo dirección, y **cada descarga se registra en la auditoría** con quién, qué y cuántas filas (regla 11). Está en el botón «Exportar» de la barra superior.
+
 ## Verificación en dos pasos (obligatoria)
 
 La plataforma trata datos de categoría especial, así que el 2FA no es opcional: sin él no se entra.

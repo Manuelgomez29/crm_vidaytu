@@ -310,6 +310,82 @@ export async function asignarCentro(leadId: string, formData: FormData) {
   volver(leadId);
 }
 
+// ---------------------------------------------------------------------------
+// Adjuntos del caso (capturas de WhatsApp, justificantes, informes)
+// ---------------------------------------------------------------------------
+
+const MAX_BYTES = 10 * 1024 * 1024;
+const TIPOS_PERMITIDOS = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'application/pdf',
+];
+
+export async function subirAdjunto(leadId: string, formData: FormData) {
+  const archivo = formData.get('archivo');
+  if (!(archivo instanceof File) || archivo.size === 0) {
+    volver(leadId, { error: 'Elige un archivo.' });
+  }
+  if (archivo.size > MAX_BYTES) {
+    volver(leadId, { error: 'El archivo supera los 10 MB.' });
+  }
+  if (!TIPOS_PERMITIDOS.includes(archivo.type)) {
+    volver(leadId, { error: 'Solo se admiten imágenes (JPG, PNG, WEBP, HEIC) y PDF.' });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // La ruta empieza por el id del caso: es lo que usa la política de Storage
+  // para decidir quién puede leerlo y escribirlo.
+  const extension = archivo.name.split('.').pop()?.toLowerCase() ?? 'bin';
+  const ruta = `${leadId}/${crypto.randomUUID()}.${extension}`;
+
+  const { error: errorSubida } = await supabase.storage
+    .from('adjuntos-casos')
+    .upload(ruta, archivo, { contentType: archivo.type, upsert: false });
+  if (errorSubida) volver(leadId, { error: `No se pudo subir: ${errorSubida.message}` });
+
+  const { error } = await supabase.from('caso_adjuntos').insert({
+    lead_id: leadId,
+    nombre_archivo: archivo.name,
+    storage_path: ruta,
+    mime_type: archivo.type,
+    tamano_bytes: archivo.size,
+    subido_por: user?.id ?? null,
+  });
+  if (error) {
+    // Si no se puede registrar, no dejamos el archivo huérfano en el bucket.
+    await supabase.storage.from('adjuntos-casos').remove([ruta]);
+    volver(leadId, { error: `No se pudo registrar el adjunto: ${error.message}` });
+  }
+
+  await registrarEnHistorial(leadId, 'nota', `Adjunto añadido: ${archivo.name}`);
+  volver(leadId);
+}
+
+export async function borrarAdjunto(leadId: string, adjuntoId: string) {
+  const supabase = await createClient();
+
+  const { data: adjunto } = await supabase
+    .from('caso_adjuntos')
+    .select('storage_path, nombre_archivo')
+    .eq('id', adjuntoId)
+    .maybeSingle();
+  if (!adjunto) volver(leadId, { error: 'Ese adjunto ya no existe.' });
+
+  const { error } = await supabase.from('caso_adjuntos').delete().eq('id', adjuntoId);
+  if (error) volver(leadId, { error: `No se pudo borrar: ${error.message}` });
+
+  await supabase.storage.from('adjuntos-casos').remove([adjunto.storage_path]);
+  await registrarEnHistorial(leadId, 'nota', `Adjunto eliminado: ${adjunto.nombre_archivo}`);
+  volver(leadId);
+}
+
 export async function crearPresupuesto(leadId: string, formData: FormData) {
   const importe = Number(String(formData.get('importe') ?? '').replace(',', '.'));
   const modalidadId = String(formData.get('modalidad') ?? '') || null;
