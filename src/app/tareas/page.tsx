@@ -3,14 +3,17 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { fecha, hoyMadrid } from '@/lib/fechas';
-import { completarTareaDesdeLista } from './actions';
+import { completarTareaDesdeLista, reabrirTarea } from './actions';
 
 type FilaTarea = {
   id: string;
   titulo: string;
   vence_at: string;
+  completada_at: string | null;
   lead_id: string;
   lead: { nombre: string; estado: string; centro: { nombre: string; slug: string } | null } | null;
+  responsable: { nombre: string } | null;
+  cerrada_por: { nombre: string } | null;
 };
 
 const CHIP_CENTRO: Record<string, string> = {
@@ -19,6 +22,23 @@ const CHIP_CENTRO: Record<string, string> = {
   bellamar: 'chip-bm',
   'bandeja-grupo': 'chip-gr',
 };
+
+const SELECCION = `id, titulo, vence_at, completada_at, lead_id,
+  lead:leads (nombre, estado, centro:centros (nombre, slug)),
+  responsable:perfiles!tareas_responsable_id_fkey (nombre),
+  cerrada_por:perfiles!tareas_completada_por_fkey (nombre)`;
+
+/** Periodos del historial. Se cambia desde la propia pantalla. */
+const PERIODOS = [
+  { dias: 30, texto: '30 días' },
+  { dias: 90, texto: '90 días' },
+  { dias: 365, texto: '1 año' },
+];
+
+function ChipCentro({ centro }: { centro: { nombre: string; slug: string } | null }) {
+  if (!centro) return null;
+  return <span className={`chip ${CHIP_CENTRO[centro.slug] ?? 'chip-mut'}`}>{centro.nombre}</span>;
+}
 
 function Grupo({
   titulo,
@@ -48,11 +68,7 @@ function Grupo({
                 <Link href={`/leads/${t.lead_id}`} className="font-medium text-primary hover:underline">
                   {t.lead?.nombre ?? 'Caso'}
                 </Link>
-                {t.lead?.centro && (
-                  <span className={`chip ${CHIP_CENTRO[t.lead.centro.slug] ?? 'chip-mut'}`}>
-                    {t.lead.centro.nombre}
-                  </span>
-                )}
+                <ChipCentro centro={t.lead?.centro ?? null} />
                 <span className={acento === 'rojo' ? 'font-semibold text-danger' : ''}>
                   ◷ {fecha(t.vence_at)}
                 </span>
@@ -70,13 +86,19 @@ function Grupo({
   );
 }
 
-/** Bandeja personal: lo que cada comercial tiene que hacer hoy. */
+/** Bandeja personal: lo que cada comercial tiene que hacer hoy, y lo que ya hizo. */
 export default async function MisTareas({
   searchParams,
 }: {
-  searchParams: Promise<{ todas?: string }>;
+  searchParams: Promise<{
+    todas?: string;
+    ver?: string;
+    dias?: string;
+    aviso?: string;
+    error?: string;
+  }>;
 }) {
-  const { todas } = await searchParams;
+  const { todas, ver, dias, aviso, error: errorParam } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -91,13 +113,34 @@ export default async function MisTareas({
     .maybeSingle();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
 
-  const verTodas = todas === '1' && perfil?.rol === 'direccion';
+  const esDireccion = perfil?.rol === 'direccion';
+  const verTodas = todas === '1' && esDireccion;
+  const verHechas = ver === 'hechas';
+  const diasHistorial = PERIODOS.some((p) => String(p.dias) === dias) ? Number(dias) : 90;
 
-  let consulta = supabase
-    .from('tareas')
-    .select('id, titulo, vence_at, lead_id, lead:leads (nombre, estado, centro:centros (nombre, slug))')
-    .is('completada_at', null)
-    .order('vence_at');
+  /** Conserva el resto de pestañas al cambiar una de ellas. */
+  const enlace = (cambios: { todas?: boolean; hechas?: boolean; dias?: number }) => {
+    const p = new URLSearchParams();
+    if (cambios.todas ?? verTodas) p.set('todas', '1');
+    const hechas = cambios.hechas ?? verHechas;
+    if (hechas) p.set('ver', 'hechas');
+    const d = cambios.dias ?? diasHistorial;
+    if (hechas && d !== 90) p.set('dias', String(d));
+    const q = p.toString();
+    return `/tareas${q ? `?${q}` : ''}`;
+  };
+
+  let consulta = supabase.from('tareas').select(SELECCION);
+  if (verHechas) {
+    const desde = new Date(Date.now() - diasHistorial * 24 * 60 * 60 * 1000).toISOString();
+    consulta = consulta
+      .not('completada_at', 'is', null)
+      .gte('completada_at', desde)
+      .order('completada_at', { ascending: false })
+      .limit(300);
+  } else {
+    consulta = consulta.is('completada_at', null).order('vence_at');
+  }
   if (!verTodas) consulta = consulta.eq('responsable_id', user.id);
 
   const { data, error } = await consulta;
@@ -114,37 +157,131 @@ export default async function MisTareas({
   });
   const proximas = tareas.filter((t) => new Date(t.vence_at).getTime() > finDeHoy);
 
+  /**
+   * Cerrada antes de vencer. Es el indicador de disciplina comercial (regla 9)
+   * y por eso se ve aquí, no escondido en el dashboard.
+   */
+  const enPlazo = tareas.filter(
+    (t) => t.completada_at && new Date(t.completada_at).getTime() <= new Date(t.vence_at).getTime(),
+  ).length;
+  const porcentaje = tareas.length > 0 ? Math.round((enPlazo / tareas.length) * 100) : 0;
+  const textoPeriodo = diasHistorial === 365 ? '12 meses' : `${diasHistorial} días`;
+
+  const pestana = (activa: boolean) =>
+    `rounded-md px-3 py-1.5 font-medium transition ${
+      activa ? 'bg-surface text-primary shadow-sm' : 'text-ink2 hover:bg-surface/60'
+    }`;
+
   return (
     <AppShell
       seccion="tareas"
       titulo={verTodas ? 'Tareas del equipo' : 'Mis tareas'}
-      descripcion={`${tareas.length} pendiente${tareas.length === 1 ? '' : 's'} · ${vencidas.length} vencida${vencidas.length === 1 ? '' : 's'}`}
+      descripcion={
+        verHechas
+          ? `${tareas.length} completada${tareas.length === 1 ? '' : 's'} en los últimos ${textoPeriodo}${
+              tareas.length > 0 ? ` · ${porcentaje}% dentro de plazo` : ''
+            }`
+          : `${tareas.length} pendiente${tareas.length === 1 ? '' : 's'} · ${vencidas.length} vencida${
+              vencidas.length === 1 ? '' : 's'
+            }`
+      }
     >
-      {perfil?.rol === 'direccion' && (
-        <nav className="mb-4 flex items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
-          <Link
-            href="/tareas"
-            className={`rounded-md px-3 py-1.5 font-medium transition ${
-              !verTodas ? 'bg-surface text-primary shadow-sm' : 'text-ink2 hover:bg-surface/60'
-            }`}
-          >
-            Mías
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <nav className="flex items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
+          <Link href={enlace({ hechas: false })} className={pestana(!verHechas)}>
+            Pendientes
           </Link>
-          <Link
-            href="/tareas?todas=1"
-            className={`rounded-md px-3 py-1.5 font-medium transition ${
-              verTodas ? 'bg-surface text-primary shadow-sm' : 'text-ink2 hover:bg-surface/60'
-            }`}
-          >
-            Del equipo
+          <Link href={enlace({ hechas: true })} className={pestana(verHechas)}>
+            Completadas
           </Link>
         </nav>
+
+        {esDireccion && (
+          <nav className="flex items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
+            <Link href={enlace({ todas: false })} className={pestana(!verTodas)}>
+              Mías
+            </Link>
+            <Link href={enlace({ todas: true })} className={pestana(verTodas)}>
+              Del equipo
+            </Link>
+          </nav>
+        )}
+
+        {verHechas && (
+          <nav className="flex items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
+            {PERIODOS.map((p) => (
+              <Link
+                key={p.dias}
+                href={enlace({ dias: p.dias })}
+                className={pestana(diasHistorial === p.dias)}
+              >
+                {p.texto}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </div>
+
+      {aviso && (
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+      )}
+      {errorParam && (
+        <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
+          {errorParam}
+        </p>
       )}
 
       {error ? (
         <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
           No se pudieron cargar las tareas: {error.message}
         </p>
+      ) : verHechas ? (
+        tareas.length === 0 ? (
+          <p className="panel px-4 py-8 text-center text-sm text-ink2">
+            Ninguna tarea completada en este periodo. Prueba a ampliar el rango.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {tareas.map((t) => {
+              const cerrada = t.completada_at as string;
+              const tarde = new Date(cerrada).getTime() > new Date(t.vence_at).getTime();
+              return (
+                <article key={t.id} className="panel flex flex-wrap items-center gap-3 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13.5px] font-semibold text-ink2 line-through decoration-line2">
+                      {t.titulo}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink2">
+                      <Link
+                        href={`/leads/${t.lead_id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {t.lead?.nombre ?? 'Caso'}
+                      </Link>
+                      <ChipCentro centro={t.lead?.centro ?? null} />
+                      <span className={`chip ${tarde ? 'chip-warn' : 'chip-ok'}`}>
+                        {tarde ? 'Fuera de plazo' : 'En plazo'}
+                      </span>
+                      <span>✓ {fecha(cerrada)}</span>
+                      {t.cerrada_por?.nombre && <span>por {t.cerrada_por.nombre}</span>}
+                      {verTodas &&
+                        t.responsable?.nombre &&
+                        t.responsable.nombre !== t.cerrada_por?.nombre && (
+                          <span className="text-muted">· asignada a {t.responsable.nombre}</span>
+                        )}
+                      <span className="text-muted">· vencía {fecha(t.vence_at)}</span>
+                    </p>
+                  </div>
+                  <form action={reabrirTarea.bind(null, t.id)}>
+                    <button type="submit" className="btn btn-ghost" title="Devolver a pendientes">
+                      Reabrir
+                    </button>
+                  </form>
+                </article>
+              );
+            })}
+          </div>
+        )
       ) : tareas.length === 0 ? (
         <p className="panel px-4 py-8 text-center text-sm text-ink2">
           Nada pendiente. Recuerda que ningún caso abierto debería quedarse sin próxima acción.

@@ -126,7 +126,11 @@ export default async function FichaLead({
       .select('id, tipo, contenido, created_at, usuario:perfiles (nombre)')
       .eq('lead_id', id)
       .order('created_at', { ascending: false }),
-    supabase.from('tareas').select('*').eq('lead_id', id).order('vence_at'),
+    supabase
+      .from('tareas')
+      .select('*, cerrada_por:perfiles!tareas_completada_por_fkey (nombre)')
+      .eq('lead_id', id)
+      .order('vence_at'),
     supabase
       .from('presupuestos')
       .select('id, importe, descripcion, estado, created_at, modalidad:modalidades (nombre)')
@@ -308,15 +312,23 @@ export default async function FichaLead({
                       >
                         {t.titulo}
                       </p>
-                      <p
-                        className={`text-xs ${
-                          !t.completada_at && new Date(t.vence_at) < new Date()
-                            ? 'font-medium text-danger'
-                            : 'text-muted'
-                        }`}
-                      >
-                        Vence: {fecha(t.vence_at)}
-                      </p>
+                      {t.completada_at ? (
+                        <p className="text-xs text-muted">
+                          {`✓ Completada ${fecha(t.completada_at)}`}
+                          {t.cerrada_por?.nombre ? ` por ${t.cerrada_por.nombre}` : ''}
+                          {new Date(t.completada_at) > new Date(t.vence_at)
+                            ? ` · fuera de plazo (vencía ${fecha(t.vence_at)})`
+                            : ''}
+                        </p>
+                      ) : (
+                        <p
+                          className={`text-xs ${
+                            new Date(t.vence_at) < new Date() ? 'font-medium text-danger' : 'text-muted'
+                          }`}
+                        >
+                          Vence: {fecha(t.vence_at)}
+                        </p>
+                      )}
                     </div>
                     {!t.completada_at && (
                       <form action={completarTarea.bind(null, lead.id, t.id)}>

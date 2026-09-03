@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
+import { BotonAtras } from './boton-atras';
 
 export type Seccion = 'panel' | 'leads' | 'tareas' | 'agenda' | 'contactos' | 'admin';
 
@@ -346,9 +347,12 @@ export async function AppShell({
 
         <div className="px-4 pb-16 pt-5 sm:px-6">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-[19px] font-bold">{titulo}</h1>
-              {descripcion && <p className="mt-0.5 text-[13px] text-ink2">{descripcion}</p>}
+            <div className="flex items-center gap-3">
+              <BotonAtras />
+              <div>
+                <h1 className="text-[19px] font-bold">{titulo}</h1>
+                {descripcion && <p className="mt-0.5 text-[13px] text-ink2">{descripcion}</p>}
+              </div>
             </div>
           </div>
           {children}

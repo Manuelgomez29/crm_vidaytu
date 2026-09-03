@@ -84,9 +84,12 @@ export async function crearTarea(leadId: string, formData: FormData) {
 
 export async function completarTarea(leadId: string, tareaId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const { error } = await supabase
     .from('tareas')
-    .update({ completada_at: new Date().toISOString() })
+    .update({ completada_at: new Date().toISOString(), completada_por: user?.id ?? null })
     .eq('id', tareaId);
   if (error) volver(leadId, { error: `No se pudo completar: ${error.message}` });
   volver(leadId);

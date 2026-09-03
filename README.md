@@ -84,6 +84,23 @@ npm run alertas
 
 **Correo (opcional).** Si defines `RESEND_API_KEY` y `EMAIL_REMITENTE`, los avisos se envían también por email y se marca `email_enviado_at`. Sin esas variables la plataforma funciona igual: los avisos se quedan en la campana. Ningún correo menciona el motivo de consulta (regla 12), ni siquiera los internos.
 
+## Bandeja de tareas
+
+`/tareas` tiene dos pestañas:
+
+- **Pendientes**, agrupadas en vencidas / para hoy / próximas.
+- **Completadas**, el historial de los últimos 30 días, 90 días o un año, con quién cerró cada tarea, cuándo, y si lo hizo **en plazo o fuera de plazo**. El porcentaje dentro de plazo aparece en la cabecera: es el indicador de disciplina comercial (regla 9), y por eso se ve aquí y no escondido en el panel de dirección.
+
+Una tarea cerrada por error se puede **reabrir**: vuelve a pendientes sin inventar una tarea nueva, que rompería el rastro de lo que pasó de verdad. La ficha del caso muestra lo mismo en su lista de tareas.
+
+Dirección alterna además entre «Mías» y «Del equipo».
+
+Quien cierra una tarea no siempre es su responsable (dirección puede cerrar la de alguien ausente, o un traspaso cambia el responsable después), así que se guardan las dos personas.
+
+## Navegación
+
+Todas las pantallas de la aplicación llevan un botón **Atrás** junto al título. Vuelve a la pantalla anterior real, no a una ruta fija: si llegas a una ficha desde la búsqueda, vuelves a la búsqueda. No está en el login, el segundo factor ni el alta de contraseña, donde retroceder solo llevaría a una sesión muerta o sacaría del alta obligatoria del segundo factor.
+
 ## Panel de administración
 
 `/admin` (solo dirección) hace realidad el «nada cableado»: cinco pestañas donde vive todo lo que la plataforma lee en tiempo de ejecución.
