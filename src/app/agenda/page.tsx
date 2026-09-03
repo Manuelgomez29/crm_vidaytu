@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -14,6 +15,7 @@ import {
 import { cambiarEstadoCita } from './actions';
 
 const DIAS_CORTOS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const DIAS_CORTOS_LARGOS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 type Vista = 'mes' | 'semana' | 'rango';
@@ -132,7 +134,7 @@ export default async function Agenda({
     await Promise.all([
       supabase.rpc('agenda_citas', { desde: inicioDelDia(desde), hasta: inicioDelDia(hasta) }),
       esTerapeuta ? Promise.resolve({ data: [] }) : supabase.rpc('profesionales_agendables'),
-      supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
+      supabase.from('centros').select('id, nombre, slug').eq('activo', true).order('nombre'),
       supabase
         .from('configuracion')
         .select('valor')
@@ -156,6 +158,23 @@ export default async function Agenda({
     const k = clave(new Date(cita.inicio));
     porDia.set(k, [...(porDia.get(k) ?? []), cita]);
   }
+
+  // Código de color del grupo aplicado a los eventos de la semana.
+  const slugDeCentro = new Map((centros ?? []).map((c) => [c.id, c.slug]));
+  const CLASES_EVENTO: Record<string, string> = {
+    horizonte: 'bg-hz-bg text-hz border-hz',
+    eclipse: 'bg-ec-bg text-ec border-ec',
+    bellamar: 'bg-bm-bg text-bm border-bm',
+    'bandeja-grupo': 'bg-gr-bg text-gr border-gr',
+  };
+  const claseEvento = (centroId: string) =>
+    CLASES_EVENTO[slugDeCentro.get(centroId) ?? ''] ?? 'bg-surface2 text-ink2 border-line2';
+
+  /** Hora de inicio (0–23) en Madrid, para colocar el evento en su franja. */
+  const horaDe = (iso: string) =>
+    Number(
+      new Date(iso).toLocaleString('en-GB', { hour: '2-digit', hour12: false, timeZone: ZONA }),
+    );
 
   // ---- Componentes de tarjeta ---------------------------------------------
   function Recordatorio({ cita }: { cita: CitaAgenda }) {
@@ -490,41 +509,81 @@ export default async function Agenda({
             </div>
           </div>
         ) : vista === 'semana' ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 7 }, (_, i) => sumarDias(new Date(`${desde}T12:00:00`), i)).map(
-              (dia, i) => {
-                const k = clave(dia);
-                const delDia = porDia.get(k) ?? [];
-                const esHoy = k === hoy;
-                return (
-                  <section
-                    key={k}
-                    className={`flex flex-col rounded-xl ring-1 ${
-                      esHoy ? 'bg-primary-soft/50 ring-primary/25' : 'bg-surface2 ring-line'
-                    }`}
+          (() => {
+            const dias = Array.from({ length: 7 }, (_, i) =>
+              sumarDias(new Date(`${desde}T12:00:00`), i),
+            );
+            // La rejilla se ajusta a las citas de la semana, con 9–20 de suelo.
+            const horas = visibles.map((c) => horaDe(c.inicio));
+            const primera = Math.min(9, ...(horas.length ? horas : [9]));
+            const ultima = Math.max(20, ...(horas.length ? horas : [20]));
+            const franjas = Array.from({ length: ultima - primera + 1 }, (_, i) => primera + i);
+
+            return (
+              <div className="panel overflow-x-auto">
+                <div className="min-w-[820px]">
+                  <div
+                    className="grid border-t border-line"
+                    style={{ gridTemplateColumns: '54px repeat(7, minmax(0, 1fr))' }}
                   >
-                    <header className="flex items-baseline justify-between px-3 py-2.5">
-                      <h3 className="text-sm font-semibold text-ink">
-                        {DIAS[i]} {dia.getDate()}
-                        {esHoy && <span className="ml-1 text-xs font-normal text-primary">hoy</span>}
-                      </h3>
-                      <span className="rounded-full bg-surface px-2 py-0.5 text-xs text-ink2 ring-1 ring-line">
-                        {delDia.length}
-                      </span>
-                    </header>
-                    <div className="flex min-h-16 flex-col gap-2 px-2 pb-2">
-                      {delDia.map((cita) => (
-                        <TarjetaCita key={cita.id} cita={cita} />
-                      ))}
-                      {delDia.length === 0 && (
-                        <p className="px-1 py-2 text-xs text-muted">Sin citas.</p>
-                      )}
-                    </div>
-                  </section>
-                );
-              },
-            )}
-          </div>
+                    <div className="border-b border-line bg-ground" />
+                    {dias.map((dia, i) => {
+                      const esHoy = clave(dia) === hoy;
+                      return (
+                        <div
+                          key={clave(dia)}
+                          className={`border-b border-line px-1.5 py-2 text-center text-xs font-semibold ${
+                            esHoy ? 'bg-primary-soft text-primary' : 'bg-ground text-ink'
+                          }`}
+                        >
+                          {DIAS_CORTOS_LARGOS[i]}
+                          <small className="block text-[11px] font-normal text-muted">
+                            {dia.getDate()}
+                          </small>
+                        </div>
+                      );
+                    })}
+
+                    {franjas.map((hora) => (
+                      <Fragment key={hora}>
+                        <div className="num border-b border-line px-1.5 pt-1 text-right text-[10.5px] text-muted">
+                          {String(hora).padStart(2, '0')}:00
+                        </div>
+                        {dias.map((dia) => {
+                          const k = clave(dia);
+                          const enFranja = (porDia.get(k) ?? []).filter(
+                            (c) => horaDe(c.inicio) === hora,
+                          );
+                          return (
+                            <div
+                              key={`${k}-${hora}`}
+                              className="min-h-[52px] border-b border-l border-line p-1"
+                            >
+                              {enFranja.map((cita) => (
+                                <Link
+                                  key={cita.id}
+                                  href={`/agenda?vista=rango&desde=${k}&hasta=${k}${cola}`}
+                                  className={`mb-1 block rounded border-l-[3px] px-1.5 py-1 text-[11.5px] font-semibold ${claseEvento(
+                                    cita.centro_id,
+                                  )} ${cita.estado === 'cancelada' ? 'line-through opacity-60' : ''}`}
+                                  title={`${hora}:00 · ${cita.lead_nombre} · ${cita.centro_nombre}`}
+                                >
+                                  {cita.lead_nombre}
+                                  <small className="block text-[10.5px] font-normal">
+                                    {TIPO_CITA[cita.tipo] ?? cita.tipo} · {cita.profesional_nombre}
+                                  </small>
+                                </Link>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </Fragment>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()
         ) : (
           <div className="flex flex-col gap-4">
             {visibles.length === 0 && (
@@ -552,6 +611,27 @@ export default async function Agenda({
                   </div>
                 </section>
               ))}
+          </div>
+        )}
+
+        {vista !== 'rango' && (
+          <div className="mt-3 flex flex-wrap items-center gap-3.5 text-xs text-ink2">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-hz" /> Horizonte
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-ec" /> Eclipse
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-bm" /> Bellamar
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-gr" /> Bandeja de grupo
+            </span>
+            <span className="text-muted">
+              · El recordatorio discreto se envía al contacto con quien se agendó · Los terapeutas
+              ven solo su propia agenda
+            </span>
           </div>
         )}
       </AppShell>
