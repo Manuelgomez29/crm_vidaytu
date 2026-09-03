@@ -8,8 +8,10 @@ import {
   euros,
   mesDelPeriodo,
   minutosEntre,
+  periodoAnterior,
   periodoDesdeFiltros,
   porcentaje,
+  variacion,
 } from '@/lib/metricas';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
@@ -37,11 +39,16 @@ function Tarjeta({
   valor,
   pie,
   acento,
+  delta,
+  contra,
 }: {
   titulo: string;
   valor: string;
   pie?: string;
   acento?: 'verde' | 'ambar' | 'rojo';
+  /** Variación porcentual frente al periodo anterior. */
+  delta?: number | null;
+  contra?: string;
 }) {
   const color =
     acento === 'verde'
@@ -54,7 +61,16 @@ function Tarjeta({
   return (
     <div className="rounded-xl bg-surface p-4 ring-1 ring-line">
       <p className="text-xs font-medium uppercase tracking-wide text-ink2">{titulo}</p>
-      <p className={`mt-1 text-2xl font-semibold ${color}`}>{valor}</p>
+      <p className={`num mt-1 text-2xl font-bold tracking-tight ${color}`}>{valor}</p>
+      {delta !== undefined && delta !== null && (
+        <p
+          className={`mt-0.5 text-[11.5px] font-semibold ${
+            delta > 0 ? 'text-ok' : delta < 0 ? 'text-danger' : 'text-ink2'
+          }`}
+        >
+          {delta > 0 ? '▲' : delta < 0 ? '▼' : '='} {Math.abs(delta)}% vs {contra}
+        </p>
+      )}
       {pie && <p className="mt-0.5 text-xs text-ink2">{pie}</p>}
     </div>
   );
@@ -167,6 +183,31 @@ export default async function Panel({
     ? (centros ?? [])
     : (centros ?? []).filter((c) => (misCentros ?? []).some((m) => m.centro_id === c.id));
 
+  // Comparativa con el periodo anterior de la misma duración.
+  const anterior = periodoAnterior(periodo);
+  const anteriorDesde = desdeDatetimeLocal(`${anterior.desde}T00:00`)!;
+  const anteriorHasta = desdeDatetimeLocal(`${anterior.hasta}T00:00`)!;
+
+  let leadsAnteriores = supabase
+    .from('leads')
+    .select('id, estado', { count: 'exact' })
+    .gte('created_at', anteriorDesde)
+    .lt('created_at', anteriorHasta);
+  if (filtros.centro) leadsAnteriores = leadsAnteriores.eq('centro_id', filtros.centro);
+
+  let conversionesAnteriores = supabase
+    .from('conversiones')
+    .select('id, estado, importe_primer_pago')
+    .eq('estado', 'validada')
+    .gte('created_at', anteriorDesde)
+    .lt('created_at', anteriorHasta);
+  if (filtros.centro) conversionesAnteriores = conversionesAnteriores.eq('centro_id', filtros.centro);
+
+  const [{ data: leadsPrevios }, { data: conversionesPrevias }] = await Promise.all([
+    leadsAnteriores,
+    conversionesAnteriores,
+  ]);
+
   const leads = (leadsData ?? []) as LeadMetrica[];
   const slaMinutos = Number(configSla?.valor) || 60;
   const mesActual = mesDelPeriodo(periodo);
@@ -178,6 +219,15 @@ export default async function Panel({
   const validadas = (conversiones ?? []).filter((c) => c.estado === 'validada');
   const pendientes = (conversiones ?? []).filter((c) => c.estado !== 'validada');
   const ingresos = validadas.reduce((suma, c) => suma + Number(c.importe_primer_pago ?? 0), 0);
+
+  const totalPrevio = (leadsPrevios ?? []).length;
+  const validadasPrevias = (conversionesPrevias ?? []).length;
+  const ingresosPrevios = (conversionesPrevias ?? []).reduce(
+    (suma, c) => suma + Number(c.importe_primer_pago ?? 0),
+    0,
+  );
+  const tasaActual = leads.length > 0 ? (validadas.length / leads.length) * 100 : 0;
+  const tasaPrevia = totalPrevio > 0 ? (validadasPrevias / totalPrevio) * 100 : 0;
 
   // --- SLA de primera respuesta -------------------------------------------
   const respondidos = leads.filter((l) => l.primera_respuesta_at !== null);
@@ -321,29 +371,49 @@ export default async function Panel({
           </p>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Tarjeta titulo="Leads nuevos" valor={String(leads.length)} pie="Entradas del periodo" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Tarjeta
-                titulo="Conversiones validadas"
-                valor={String(validadas.length)}
-                pie={`${porcentaje(validadas.length, leads.length)} de los leads · ${pendientes.length} pendiente${pendientes.length === 1 ? '' : 's'} de validar`}
-                acento="verde"
+                titulo="Leads nuevos"
+                valor={String(leads.length)}
+                delta={variacion(leads.length, totalPrevio)}
+                contra={anterior.titulo}
+              />
+              <Tarjeta
+                titulo="Sin atender ahora"
+                valor={String(sinResponder)}
+                pie={`SLA ${slaMinutos} min`}
+                acento={sinResponder > 0 ? 'rojo' : 'verde'}
+              />
+              <Tarjeta
+                titulo="Conversión"
+                valor={porcentaje(validadas.length, leads.length)}
+                delta={Math.round(tasaActual - tasaPrevia)}
+                contra={anterior.titulo}
+                pie="Solo conversiones validadas"
               />
               <Tarjeta
                 titulo="Ingresos validados"
                 valor={euros(ingresos)}
-                pie="Solo primeros pagos ya validados por dirección"
+                delta={variacion(ingresos, ingresosPrevios)}
+                contra={anterior.titulo}
                 acento="verde"
               />
               <Tarjeta
-                titulo={`SLA de 1ª respuesta (${slaMinutos} min)`}
-                valor={porcentaje(dentroDeSla.length, respondidos.length)}
-                pie={`${sinResponder} sin primera respuesta`}
-                acento={sinResponder > 0 ? 'ambar' : 'verde'}
+                titulo="Pend. validación"
+                valor={String(pendientes.length)}
+                pie={euros(
+                  pendientes.reduce((suma, c) => suma + Number(c.importe_primer_pago ?? 0), 0),
+                )}
+                acento={pendientes.length > 0 ? 'ambar' : undefined}
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Tarjeta
+                titulo="Cumplimiento del SLA"
+                valor={porcentaje(dentroDeSla.length, respondidos.length)}
+                pie={`De los ${respondidos.length} leads ya respondidos`}
+              />
               <Tarjeta
                 titulo="Leads sin asignar"
                 valor={String(sinAsignar)}

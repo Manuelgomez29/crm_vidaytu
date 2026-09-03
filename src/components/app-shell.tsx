@@ -33,7 +33,7 @@ function bloques(rol: string | undefined): Bloque[] {
   if (rol === 'direccion') {
     salida.push({
       titulo: 'Gestión',
-      entradas: [{ clave: 'admin', texto: 'Administración', href: '/admin/equipo', icono: '⚙' }],
+      entradas: [{ clave: 'admin', texto: 'Administración', href: '/admin', icono: '⚙' }],
     });
   }
   return salida;
@@ -47,6 +47,7 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Listas y segmentos', href: '/contactos/listas' },
   ],
   admin: [
+    { texto: 'Resumen', href: '/admin' },
     { texto: 'Equipo', href: '/admin/equipo' },
     { texto: 'Centros', href: '/admin/centros' },
     { texto: 'Catálogos', href: '/admin/catalogos' },

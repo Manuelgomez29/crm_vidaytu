@@ -21,6 +21,8 @@ export type TarjetaLead = {
   propietarioNombre: string | null;
   propietarioAusente: boolean;
   sinProximaAccion: boolean;
+  importe: number | null;
+  conversionPendiente: boolean;
   creado: string;
 };
 
@@ -96,6 +98,7 @@ function Tarjeta({
         <span className="chip chip-mut">{lead.subcanal || lead.canalNombre}</span>
         {lead.urgencia === 'alta' && <span className="chip chip-danger">Urgente</span>}
         {lead.propietarioAusente && <span className="chip chip-warn">Propietario ausente</span>}
+        {lead.conversionPendiente && <span className="chip chip-warn">Pendiente validación</span>}
       </div>
 
       <p
@@ -116,7 +119,7 @@ function Tarjeta({
             !
           </span>
         )}
-        {!lead.propietarioNombre && puedeAutoasignarse && (
+        {!lead.propietarioNombre && puedeAutoasignarse ? (
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => onAsignarme(lead.id)}
@@ -124,6 +127,16 @@ function Tarjeta({
           >
             Asignarme
           </button>
+        ) : (
+          lead.importe !== null && (
+            <span className="num text-[12.5px] font-bold text-ink">
+              {Number(lead.importe).toLocaleString('es-ES', {
+                style: 'currency',
+                currency: 'EUR',
+                maximumFractionDigits: 0,
+              })}
+            </span>
+          )
         )}
       </div>
     </div>

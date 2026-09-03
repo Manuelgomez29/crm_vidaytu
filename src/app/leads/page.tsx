@@ -23,6 +23,8 @@ type FilaKanban = {
   canal: { nombre: string } | null;
   propietario: { nombre: string } | null;
   tareas: { completada_at: string | null }[];
+  presupuestos: { importe: number }[];
+  conversiones: { importe_primer_pago: number | null; estado: string }[];
 };
 
 export default async function LeadsPage({
@@ -68,7 +70,9 @@ export default async function LeadsPage({
        centro:centros (nombre, slug, es_bandeja_grupo),
        canal:canales (nombre),
        propietario:perfiles!leads_propietario_id_fkey (nombre),
-       tareas (completada_at)`,
+       tareas (completada_at),
+       presupuestos (importe),
+       conversiones (importe_primer_pago, estado)`,
     )
     // Solo tareas PENDIENTES: basta para el aviso y evita arrastrar el histórico.
     .is('tareas.completada_at', null)
@@ -106,6 +110,12 @@ export default async function LeadsPage({
     sinProximaAccion:
       !ESTADOS_SIN_AVISO_ACCION.includes(fila.estado) &&
       fila.tareas.length === 0,
+    importe:
+      fila.conversiones[0]?.importe_primer_pago ??
+      (fila.presupuestos.length > 0
+        ? Math.max(...fila.presupuestos.map((p) => Number(p.importe)))
+        : null),
+    conversionPendiente: fila.conversiones[0]?.estado === 'pendiente_validacion',
     creado: hace(fila.created_at),
   });
 

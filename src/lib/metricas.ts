@@ -3,7 +3,7 @@ import { ZONA } from '@/lib/fechas';
 /** Rango de fechas de un periodo, en clave YYYY-MM-DD de Madrid. */
 export type Periodo = { desde: string; hasta: string; titulo: string };
 
-function clave(fecha: Date): string {
+export function clave(fecha: Date): string {
   return fecha.toLocaleDateString('sv-SE', { timeZone: ZONA });
 }
 
@@ -92,4 +92,38 @@ export function porcentaje(parte: number, total: number): string {
 /** Minutos transcurridos entre dos instantes. */
 export function minutosEntre(desde: string, hasta: string): number {
   return (new Date(hasta).getTime() - new Date(desde).getTime()) / 60_000;
+}
+
+/**
+ * Periodo inmediatamente anterior y de la misma duración, para comparar.
+ * Un mes se compara con el mes anterior; un rango de N días, con los N días
+ * previos.
+ */
+export function periodoAnterior(periodo: Periodo): { desde: string; hasta: string; titulo: string } {
+  const desde = new Date(`${periodo.desde}T12:00:00`);
+  const hasta = new Date(`${periodo.hasta}T12:00:00`);
+
+  // Si el periodo es un mes natural completo, el anterior es el mes previo.
+  const esMesNatural =
+    desde.getDate() === 1 && hasta.getDate() === 1 && hasta.getMonth() !== desde.getMonth();
+
+  if (esMesNatural) {
+    const inicio = new Date(desde.getFullYear(), desde.getMonth() - 1, 1, 12);
+    return {
+      desde: clave(inicio),
+      hasta: periodo.desde,
+      titulo: inicio.toLocaleDateString('es-ES', { month: 'long' }),
+    };
+  }
+
+  const dias = Math.round((hasta.getTime() - desde.getTime()) / 86_400_000);
+  const inicio = new Date(desde);
+  inicio.setDate(inicio.getDate() - dias);
+  return { desde: clave(inicio), hasta: periodo.desde, titulo: `los ${dias} días previos` };
+}
+
+/** Variación porcentual entre dos cifras, o null si no hay base con la que comparar. */
+export function variacion(actual: number, anterior: number): number | null {
+  if (anterior === 0) return actual === 0 ? 0 : null;
+  return Math.round(((actual - anterior) / anterior) * 100);
 }
