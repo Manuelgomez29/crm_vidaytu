@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ejecutarAlertas } from '@/lib/alertas';
+import { ejecutarAutomatizaciones } from '@/lib/automatizacion';
+import { procesarCampanas } from '@/lib/campanas';
 
 /**
- * Motor de alertas. Pensado para llamarse cada 15–30 minutos desde un cron
+ * Motor periódico de la plataforma. Pensado para llamarse cada 15–30 minutos
+ * desde un cron
  * (Vercel Cron, GitHub Actions, cron-job.org…), protegido por secreto.
  *
  *   POST /api/tareas-programadas   con cabecera `x-cron-secret` o `?token=`
@@ -19,8 +22,18 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const resultado = await ejecutarAlertas(createAdminClient());
-    return NextResponse.json({ ok: true, ...resultado }, { status: 200 });
+    const admin = createAdminClient();
+
+    // En serie y en este orden: el etiquetado y el scoring dejan datos que
+    // las alertas y las campañas usan en la misma pasada.
+    const automatizacion = await ejecutarAutomatizaciones(admin);
+    const alertas = await ejecutarAlertas(admin);
+    const campanas = await procesarCampanas(admin);
+
+    return NextResponse.json(
+      { ok: true, ...alertas, ...automatizacion, ...campanas },
+      { status: 200 },
+    );
   } catch (e) {
     const mensaje = e instanceof Error ? e.message : 'Error desconocido';
     return NextResponse.json({ error: mensaje }, { status: 500 });

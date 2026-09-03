@@ -8,6 +8,7 @@ import { desdeDatetimeLocal } from '@/lib/fechas';
 import { centroDeAtribucion, reabrirCaso, ultimoCasoPorTelefono } from '@/lib/casos';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { asignarmeLead, moverLeadDeEtapa } from '../actions';
+import { crearPacienteDesdeCaso } from '@/lib/pacientes';
 
 type TipoActividad = 'llamada' | 'whatsapp' | 'email' | 'nota';
 const TIPOS_CONTACTO_SALIENTE: TipoActividad[] = ['llamada', 'whatsapp', 'email'];
@@ -463,5 +464,19 @@ export async function validarConversion(leadId: string, conversionId: string) {
     volver(leadId, { error: 'Solo dirección puede validar el pago de una conversión.' });
   }
   await registrarEnHistorial(leadId, 'cambio_estado', 'Conversión validada por dirección');
+
+  /**
+   * La conversión validada es el momento en que nace el paciente (fase 3).
+   * Se hace con la service role porque quien valida es dirección, que sí ve
+   * el área clínica, pero la ficha debe crearse igual aunque en el futuro
+   * valide alguien sin ese acceso.
+   */
+  const alta = await crearPacienteDesdeCaso(createAdminClient(), leadId, user?.id ?? null);
+  if (alta.creado) {
+    volver(leadId, {
+      aviso: 'Conversión validada. Se ha creado la ficha de paciente: falta asignarle terapeuta referente.',
+    });
+  }
+
   volver(leadId);
 }

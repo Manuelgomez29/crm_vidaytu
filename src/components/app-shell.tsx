@@ -5,39 +5,85 @@ import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 import { BotonAtras } from './boton-atras';
 
-export type Seccion = 'panel' | 'leads' | 'tareas' | 'agenda' | 'contactos' | 'admin';
+export type Seccion =
+  | 'panel'
+  | 'leads'
+  | 'tareas'
+  | 'agenda'
+  | 'contactos'
+  | 'marketing'
+  | 'clinica'
+  | 'chat'
+  | 'facturacion'
+  | 'admin';
 
 type Entrada = { clave: Seccion; texto: string; href: string; icono: string };
 type Bloque = { titulo: string; entradas: Entrada[] };
 
-function bloques(rol: string | undefined): Bloque[] {
-  if (rol === 'terapeuta') {
-    return [
-      {
-        titulo: 'Mi trabajo',
-        entradas: [{ clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' }],
-      },
-    ];
-  }
+export type PerfilNav = { rol: string | undefined; accesoClinico: boolean };
 
-  const comercial: Bloque = {
-    titulo: 'Área comercial',
-    entradas: [
-      { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
-      { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
-      { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
-      { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
-      { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
-    ],
-  };
+/**
+ * La navegación es el muro hecho visible: un comercial no ve el área clínica,
+ * y un terapeuta no ve pipeline ni dinero. Ocultarlo no es la seguridad —de
+ * eso se encargan las políticas de la base de datos— pero sí evita que nadie
+ * pierda el tiempo llamando a una puerta cerrada.
+ */
+function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
+  const salida: Bloque[] = [];
 
-  const salida = [comercial];
-  if (rol === 'direccion') {
+  const esComercial = rol === 'direccion' || rol === 'admisiones';
+  const esClinico = rol === 'direccion' || rol === 'terapeuta' || accesoClinico;
+  const esEconomico = rol === 'direccion' || rol === 'administracion';
+
+  if (esComercial) {
     salida.push({
-      titulo: 'Gestión',
-      entradas: [{ clave: 'admin', texto: 'Administración', href: '/admin', icono: '⚙' }],
+      titulo: 'Área comercial',
+      entradas: [
+        { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
+        { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
+        { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
+        { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
+        ...(rol === 'direccion'
+          ? [{ clave: 'marketing' as const, texto: 'Marketing', href: '/marketing', icono: '✉' }]
+          : []),
+        { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
+      ],
     });
   }
+
+  if (esClinico) {
+    salida.push({
+      titulo: 'Área clínica',
+      entradas: [
+        { clave: 'clinica', texto: 'Pacientes', href: '/clinica', icono: '✚' },
+        { clave: 'chat', texto: 'Chat interno', href: '/clinica/chat', icono: '💬' },
+        ...(rol === 'terapeuta' && !esComercial
+          ? [{ clave: 'agenda' as const, texto: 'Agenda', href: '/agenda', icono: '▤' }]
+          : []),
+      ],
+    });
+  }
+
+  if (esEconomico) {
+    salida.push({
+      titulo: 'Administración',
+      entradas: [
+        { clave: 'facturacion', texto: 'Facturación', href: '/facturacion', icono: '€' },
+        ...(rol === 'direccion'
+          ? [{ clave: 'admin' as const, texto: 'Configuración', href: '/admin', icono: '⚙' }]
+          : []),
+      ],
+    });
+  }
+
+  // Un terapeuta puro solo tiene su agenda y su área clínica.
+  if (salida.length === 0) {
+    salida.push({
+      titulo: 'Mi trabajo',
+      entradas: [{ clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' }],
+    });
+  }
+
   return salida;
 }
 
@@ -48,12 +94,28 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Etiquetas', href: '/contactos/etiquetas' },
     { texto: 'Listas y segmentos', href: '/contactos/listas' },
   ],
+  marketing: [
+    { texto: 'Campañas', href: '/marketing' },
+    { texto: 'Plantillas', href: '/marketing/plantillas' },
+  ],
+  clinica: [
+    { texto: 'Pacientes', href: '/clinica' },
+    { texto: 'Ocupación', href: '/clinica/ocupacion' },
+    { texto: 'Asistente', href: '/clinica/asistente' },
+  ],
+  facturacion: [
+    { texto: 'Facturas', href: '/facturacion' },
+    { texto: 'Cobros', href: '/facturacion/cobros' },
+    { texto: 'Informe', href: '/facturacion/informe' },
+  ],
   admin: [
     { texto: 'Resumen', href: '/admin' },
     { texto: 'Equipo', href: '/admin/equipo' },
     { texto: 'Centros', href: '/admin/centros' },
     { texto: 'Catálogos', href: '/admin/catalogos' },
     { texto: 'Pipelines', href: '/admin/pipelines' },
+    { texto: 'Clínica', href: '/admin/clinica' },
+    { texto: 'Integraciones', href: '/admin/integraciones' },
     { texto: 'Parámetros', href: '/admin/parametros' },
   ],
 };
@@ -66,15 +128,15 @@ function iniciales(nombre: string): string {
 function Navegacion({
   seccion,
   subseccion,
-  rol,
+  perfil,
 }: {
   seccion: Seccion;
   subseccion?: string;
-  rol: string | undefined;
+  perfil: PerfilNav;
 }) {
   return (
     <nav className="flex flex-col gap-0.5 px-2.5 py-3.5">
-      {bloques(rol).map((bloque) => (
+      {bloques(perfil).map((bloque) => (
         <div key={bloque.titulo}>
           <p className="px-3 pb-1.5 pt-3 text-[10.5px] uppercase tracking-[0.12em] text-[#93A2C2]">
             {bloque.titulo}
@@ -118,19 +180,6 @@ function Navegacion({
         </div>
       ))}
 
-      {/* El área clínica llega en la fase 3: visible para que se sepa que existe. */}
-      <p className="px-3 pb-1.5 pt-3 text-[10.5px] uppercase tracking-[0.12em] text-[#93A2C2]">
-        Centros
-      </p>
-      <span
-        className="flex cursor-not-allowed items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-[#D4DCEC] opacity-55"
-        title="Área clínica — Fase 3"
-      >
-        <span className="w-[18px] text-center">✚</span> Área clínica
-        <span className="ml-auto rounded-full bg-white/15 px-2 py-0.5 text-[10px] text-[#C9D3E6]">
-          Fase 3
-        </span>
-      </span>
     </nav>
   );
 }
@@ -223,17 +272,32 @@ export async function AppShell({
       .select('id, mensaje, lead_id, leida_at, created_at')
       .order('created_at', { ascending: false })
       .limit(15),
-    supabase.from('perfiles').select('nombre, rol').eq('id', user.id).maybeSingle(),
+    supabase
+      .from('perfiles')
+      .select('nombre, rol, acceso_clinico')
+      .eq('id', user.id)
+      .maybeSingle(),
   ]);
 
   const sinLeer = (notificaciones ?? []).filter((n) => n.leida_at === null).length;
-  const esTerapeuta = perfil?.rol === 'terapeuta';
+  const esComercial = perfil?.rol === 'direccion' || perfil?.rol === 'admisiones';
+  const inicio =
+    perfil?.rol === 'terapeuta'
+      ? '/agenda'
+      : perfil?.rol === 'administracion'
+        ? '/facturacion'
+        : '/leads';
   const nombre = perfil?.nombre ?? user.email ?? '';
-  const rolTexto =
-    perfil?.rol === 'direccion' ? 'Dirección' : perfil?.rol === 'admisiones' ? 'Admisiones' : 'Terapeuta';
+  const ROL_TEXTO: Record<string, string> = {
+    direccion: 'Dirección',
+    admisiones: 'Admisiones',
+    terapeuta: 'Terapeuta',
+    administracion: 'Administración',
+  };
+  const rolTexto = ROL_TEXTO[perfil?.rol ?? ''] ?? 'Sin rol';
 
   const marca = (
-    <Link href={esTerapeuta ? '/agenda' : '/leads'} className="block">
+    <Link href={inicio} className="block">
       <b className="block text-[17px] font-bold tracking-[0.02em] text-white">
         Vida y Tu <span className="text-[#F08F7E]">DATA</span>
       </b>
@@ -247,7 +311,11 @@ export async function AppShell({
     <>
       <div className="border-b border-white/12 px-5 pb-4 pt-5">{marca}</div>
       <div className="flex-1 overflow-y-auto">
-        <Navegacion seccion={seccion} subseccion={subseccion} rol={perfil?.rol} />
+        <Navegacion
+          seccion={seccion}
+          subseccion={subseccion}
+          perfil={{ rol: perfil?.rol, accesoClinico: perfil?.acceso_clinico ?? false }}
+        />
       </div>
       <div className="flex items-center gap-2.5 border-t border-white/12 px-4 py-3.5">
         <span className="avatar avatar-coral !h-8 !w-8 !text-xs">{iniciales(nombre)}</span>
@@ -291,6 +359,7 @@ export async function AppShell({
             </div>
           </details>
 
+          {esComercial && (
           <form action="/buscar" className="hidden max-w-[420px] flex-1 sm:flex">
             <label className="flex w-full items-center gap-2 rounded-lg border border-line bg-ground px-3 py-1.5 text-muted focus-within:border-primary">
               <IconoLupa />
@@ -301,6 +370,7 @@ export async function AppShell({
               />
             </label>
           </form>
+          )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             {acciones}
@@ -337,7 +407,7 @@ export async function AppShell({
             )}
 
             <Campana notificaciones={notificaciones ?? []} sinLeer={sinLeer} />
-            {!esTerapeuta && (
+            {esComercial && (
               <Link href="/leads/nuevo" className="btn btn-coral">
                 + Nuevo lead
               </Link>

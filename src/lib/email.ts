@@ -12,6 +12,11 @@ export type Correo = {
   para: string;
   asunto: string;
   cuerpo: string;
+  /** Versión HTML opcional. El texto plano SIEMPRE viaja: es el que ven los
+   *  clientes que bloquean HTML, y sin él muchos filtros marcan spam. */
+  html?: string;
+  /** Remitente distinto del de la plataforma (campañas de marketing). */
+  remitente?: string;
 };
 
 export function emailConfigurado(): boolean {
@@ -31,10 +36,11 @@ export async function enviarCorreo(correo: Correo): Promise<{ enviado: boolean; 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_REMITENTE,
+        from: correo.remitente || process.env.EMAIL_REMITENTE,
         to: [correo.para],
         subject: correo.asunto,
         text: correo.cuerpo,
+        ...(correo.html ? { html: correo.html } : {}),
       }),
     });
 

@@ -158,6 +158,183 @@ export type Database = {
           },
         ]
       }
+      bajas_marketing: {
+        Row: {
+          campana_id: string | null
+          contacto_id: string
+          created_at: string
+          id: string
+          origen: string
+        }
+        Insert: {
+          campana_id?: string | null
+          contacto_id: string
+          created_at?: string
+          id?: string
+          origen?: string
+        }
+        Update: {
+          campana_id?: string | null
+          contacto_id?: string
+          created_at?: string
+          id?: string
+          origen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bajas_marketing_campana_id_fkey"
+            columns: ["campana_id"]
+            isOneToOne: false
+            referencedRelation: "campanas_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bajas_marketing_contacto_id_fkey"
+            columns: ["contacto_id"]
+            isOneToOne: false
+            referencedRelation: "contactos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campana_destinatarios: {
+        Row: {
+          abierto_at: string | null
+          baja_at: string | null
+          campana_id: string
+          clic_at: string | null
+          contacto_id: string
+          created_at: string
+          email: string
+          enviado_at: string | null
+          error: string | null
+          estado: Database["public"]["Enums"]["estado_envio"]
+          id: string
+          token: string
+        }
+        Insert: {
+          abierto_at?: string | null
+          baja_at?: string | null
+          campana_id: string
+          clic_at?: string | null
+          contacto_id: string
+          created_at?: string
+          email: string
+          enviado_at?: string | null
+          error?: string | null
+          estado?: Database["public"]["Enums"]["estado_envio"]
+          id?: string
+          token?: string
+        }
+        Update: {
+          abierto_at?: string | null
+          baja_at?: string | null
+          campana_id?: string
+          clic_at?: string | null
+          contacto_id?: string
+          created_at?: string
+          email?: string
+          enviado_at?: string | null
+          error?: string | null
+          estado?: Database["public"]["Enums"]["estado_envio"]
+          id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campana_destinatarios_campana_id_fkey"
+            columns: ["campana_id"]
+            isOneToOne: false
+            referencedRelation: "campanas_email"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campana_destinatarios_contacto_id_fkey"
+            columns: ["contacto_id"]
+            isOneToOne: false
+            referencedRelation: "contactos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanas_email: {
+        Row: {
+          asunto: string
+          created_at: string
+          created_by: string | null
+          cuerpo_html: string | null
+          cuerpo_texto: string
+          enviada_at: string | null
+          estado: Database["public"]["Enums"]["estado_campana"]
+          id: string
+          lista_id: string | null
+          nombre: string
+          programada_para: string | null
+          total_aperturas: number
+          total_bajas: number
+          total_clics: number
+          total_destinatarios: number
+          total_enviados: number
+          total_fallidos: number
+          updated_at: string
+        }
+        Insert: {
+          asunto: string
+          created_at?: string
+          created_by?: string | null
+          cuerpo_html?: string | null
+          cuerpo_texto: string
+          enviada_at?: string | null
+          estado?: Database["public"]["Enums"]["estado_campana"]
+          id?: string
+          lista_id?: string | null
+          nombre: string
+          programada_para?: string | null
+          total_aperturas?: number
+          total_bajas?: number
+          total_clics?: number
+          total_destinatarios?: number
+          total_enviados?: number
+          total_fallidos?: number
+          updated_at?: string
+        }
+        Update: {
+          asunto?: string
+          created_at?: string
+          created_by?: string | null
+          cuerpo_html?: string | null
+          cuerpo_texto?: string
+          enviada_at?: string | null
+          estado?: Database["public"]["Enums"]["estado_campana"]
+          id?: string
+          lista_id?: string | null
+          nombre?: string
+          programada_para?: string | null
+          total_aperturas?: number
+          total_bajas?: number
+          total_clics?: number
+          total_destinatarios?: number
+          total_enviados?: number
+          total_fallidos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanas_email_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanas_email_lista_id_fkey"
+            columns: ["lista_id"]
+            isOneToOne: false
+            referencedRelation: "listas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       canales: {
         Row: {
           activo: boolean
@@ -337,6 +514,77 @@ export type Database = {
           },
         ]
       }
+      cobros: {
+        Row: {
+          centro_id: string
+          created_at: string
+          es_primer_pago: boolean
+          factura_id: string | null
+          fecha: string
+          id: string
+          importe: number
+          lead_id: string | null
+          metodo: Database["public"]["Enums"]["metodo_cobro"]
+          notas: string | null
+          registrado_por: string | null
+        }
+        Insert: {
+          centro_id: string
+          created_at?: string
+          es_primer_pago?: boolean
+          factura_id?: string | null
+          fecha?: string
+          id?: string
+          importe: number
+          lead_id?: string | null
+          metodo?: Database["public"]["Enums"]["metodo_cobro"]
+          notas?: string | null
+          registrado_por?: string | null
+        }
+        Update: {
+          centro_id?: string
+          created_at?: string
+          es_primer_pago?: boolean
+          factura_id?: string | null
+          fecha?: string
+          id?: string
+          importe?: number
+          lead_id?: string | null
+          metodo?: Database["public"]["Enums"]["metodo_cobro"]
+          notas?: string | null
+          registrado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobros_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracion: {
         Row: {
           clave: string
@@ -462,6 +710,87 @@ export type Database = {
         }
         Relationships: []
       }
+      conversacion_participantes: {
+        Row: {
+          conversacion_id: string
+          created_at: string
+          id: string
+          leido_at: string | null
+          perfil_id: string
+        }
+        Insert: {
+          conversacion_id: string
+          created_at?: string
+          id?: string
+          leido_at?: string | null
+          perfil_id: string
+        }
+        Update: {
+          conversacion_id?: string
+          created_at?: string
+          id?: string
+          leido_at?: string | null
+          perfil_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversacion_participantes_conversacion_id_fkey"
+            columns: ["conversacion_id"]
+            isOneToOne: false
+            referencedRelation: "conversaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversacion_participantes_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversaciones: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          paciente_id: string | null
+          titulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          paciente_id?: string | null
+          titulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          paciente_id?: string | null
+          titulo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversaciones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversaciones_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversiones: {
         Row: {
           centro_id: string
@@ -474,6 +803,8 @@ export type Database = {
           modalidad_id: string | null
           presupuesto_id: string | null
           registrada_por: string | null
+          resena_enviada_at: string | null
+          resena_propuesta_at: string | null
           validada_at: string | null
           validada_por: string | null
         }
@@ -488,6 +819,8 @@ export type Database = {
           modalidad_id?: string | null
           presupuesto_id?: string | null
           registrada_por?: string | null
+          resena_enviada_at?: string | null
+          resena_propuesta_at?: string | null
           validada_at?: string | null
           validada_por?: string | null
         }
@@ -502,6 +835,8 @@ export type Database = {
           modalidad_id?: string | null
           presupuesto_id?: string | null
           registrada_por?: string | null
+          resena_enviada_at?: string | null
+          resena_propuesta_at?: string | null
           validada_at?: string | null
           validada_por?: string | null
         }
@@ -549,6 +884,156 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cuestionario_preguntas: {
+        Row: {
+          cuestionario_id: string
+          id: string
+          orden: number
+          texto: string
+          valor_max: number
+          valor_min: number
+        }
+        Insert: {
+          cuestionario_id: string
+          id?: string
+          orden: number
+          texto: string
+          valor_max?: number
+          valor_min?: number
+        }
+        Update: {
+          cuestionario_id?: string
+          id?: string
+          orden?: number
+          texto?: string
+          valor_max?: number
+          valor_min?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuestionario_preguntas_cuestionario_id_fkey"
+            columns: ["cuestionario_id"]
+            isOneToOne: false
+            referencedRelation: "cuestionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuestionario_respuesta_items: {
+        Row: {
+          id: string
+          pregunta_id: string
+          respuesta_id: string
+          valor: number
+        }
+        Insert: {
+          id?: string
+          pregunta_id: string
+          respuesta_id: string
+          valor: number
+        }
+        Update: {
+          id?: string
+          pregunta_id?: string
+          respuesta_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuestionario_respuesta_items_pregunta_id_fkey"
+            columns: ["pregunta_id"]
+            isOneToOne: false
+            referencedRelation: "cuestionario_preguntas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuestionario_respuesta_items_respuesta_id_fkey"
+            columns: ["respuesta_id"]
+            isOneToOne: false
+            referencedRelation: "cuestionario_respuestas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuestionario_respuestas: {
+        Row: {
+          created_at: string
+          cuestionario_id: string
+          fecha: string
+          id: string
+          notas: string | null
+          paciente_id: string
+          puntuacion_total: number | null
+          registrado_por: string | null
+        }
+        Insert: {
+          created_at?: string
+          cuestionario_id: string
+          fecha?: string
+          id?: string
+          notas?: string | null
+          paciente_id: string
+          puntuacion_total?: number | null
+          registrado_por?: string | null
+        }
+        Update: {
+          created_at?: string
+          cuestionario_id?: string
+          fecha?: string
+          id?: string
+          notas?: string | null
+          paciente_id?: string
+          puntuacion_total?: number | null
+          registrado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cuestionario_respuestas_cuestionario_id_fkey"
+            columns: ["cuestionario_id"]
+            isOneToOne: false
+            referencedRelation: "cuestionarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuestionario_respuestas_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuestionario_respuestas_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cuestionarios: {
+        Row: {
+          activo: boolean
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
       }
       derivaciones: {
         Row: {
@@ -634,6 +1119,54 @@ export type Database = {
           },
         ]
       }
+      documentos_clinicos: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          paciente_id: string
+          ruta: string
+          subido_por: string | null
+          tamano_bytes: number | null
+          tipo: Database["public"]["Enums"]["tipo_documento_clinico"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          paciente_id: string
+          ruta: string
+          subido_por?: string | null
+          tamano_bytes?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_documento_clinico"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          paciente_id?: string
+          ruta?: string
+          subido_por?: string | null
+          tamano_bytes?: number | null
+          tipo?: Database["public"]["Enums"]["tipo_documento_clinico"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documentos_clinicos_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documentos_clinicos_subido_por_fkey"
+            columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       etiquetas: {
         Row: {
           activa: boolean
@@ -668,6 +1201,396 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      factura_lineas: {
+        Row: {
+          cantidad: number
+          concepto: string
+          factura_id: string
+          id: string
+          orden: number
+          precio_unitario: number
+        }
+        Insert: {
+          cantidad?: number
+          concepto: string
+          factura_id: string
+          id?: string
+          orden?: number
+          precio_unitario: number
+        }
+        Update: {
+          cantidad?: number
+          concepto?: string
+          factura_id?: string
+          id?: string
+          orden?: number
+          precio_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "factura_lineas_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturas: {
+        Row: {
+          base_imponible: number
+          centro_id: string
+          cliente_direccion: string | null
+          cliente_email: string | null
+          cliente_nif: string | null
+          cliente_nombre: string
+          conversion_id: string | null
+          created_at: string
+          created_by: string | null
+          estado: Database["public"]["Enums"]["estado_factura"]
+          fecha: string
+          id: string
+          iva_porcentaje: number
+          lead_id: string | null
+          notas: string | null
+          numero: string | null
+          presupuesto_id: string | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          base_imponible?: number
+          centro_id: string
+          cliente_direccion?: string | null
+          cliente_email?: string | null
+          cliente_nif?: string | null
+          cliente_nombre: string
+          conversion_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: Database["public"]["Enums"]["estado_factura"]
+          fecha?: string
+          id?: string
+          iva_porcentaje?: number
+          lead_id?: string | null
+          notas?: string | null
+          numero?: string | null
+          presupuesto_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          base_imponible?: number
+          centro_id?: string
+          cliente_direccion?: string | null
+          cliente_email?: string | null
+          cliente_nif?: string | null
+          cliente_nombre?: string
+          conversion_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: Database["public"]["Enums"]["estado_factura"]
+          fecha?: string
+          id?: string
+          iva_porcentaje?: number
+          lead_id?: string | null
+          notas?: string | null
+          numero?: string | null
+          presupuesto_id?: string | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturas_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_conversion_id_fkey"
+            columns: ["conversion_id"]
+            isOneToOne: false
+            referencedRelation: "conversiones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_presupuesto_id_fkey"
+            columns: ["presupuesto_id"]
+            isOneToOne: false
+            referencedRelation: "presupuestos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      familiares: {
+        Row: {
+          created_at: string
+          email: string | null
+          es_contacto_emergencia: boolean
+          id: string
+          nombre: string
+          notas: string | null
+          paciente_id: string
+          relacion: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          es_contacto_emergencia?: boolean
+          id?: string
+          nombre: string
+          notas?: string | null
+          paciente_id: string
+          relacion?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          es_contacto_emergencia?: boolean
+          id?: string
+          nombre?: string
+          notas?: string | null
+          paciente_id?: string
+          relacion?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "familiares_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fases_metodo: {
+        Row: {
+          activa: boolean
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          orden: number
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          orden: number
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+        }
+        Relationships: []
+      }
+      gasto_campanas: {
+        Row: {
+          campana: string
+          centro_id: string | null
+          created_at: string
+          created_by: string | null
+          desde: string
+          hasta: string
+          id: string
+          importe: number
+          notas: string | null
+          plataforma: string
+          updated_at: string
+        }
+        Insert: {
+          campana: string
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          desde: string
+          hasta: string
+          id?: string
+          importe: number
+          notas?: string | null
+          plataforma: string
+          updated_at?: string
+        }
+        Update: {
+          campana?: string
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          desde?: string
+          hasta?: string
+          id?: string
+          importe?: number
+          notas?: string | null
+          plataforma?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gasto_campanas_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gasto_campanas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habitaciones: {
+        Row: {
+          activa: boolean
+          centro_id: string
+          created_at: string
+          id: string
+          nombre: string
+          plazas: number
+        }
+        Insert: {
+          activa?: boolean
+          centro_id: string
+          created_at?: string
+          id?: string
+          nombre: string
+          plazas?: number
+        }
+        Update: {
+          activa?: boolean
+          centro_id?: string
+          created_at?: string
+          id?: string
+          nombre?: string
+          plazas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habitaciones_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ia_consultas: {
+        Row: {
+          ambito: string
+          created_at: string
+          error: string | null
+          filas_consultadas: number | null
+          id: string
+          paciente_id: string | null
+          pregunta: string
+          respuesta: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          ambito: string
+          created_at?: string
+          error?: string | null
+          filas_consultadas?: number | null
+          id?: string
+          paciente_id?: string | null
+          pregunta: string
+          respuesta?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          ambito?: string
+          created_at?: string
+          error?: string | null
+          filas_consultadas?: number | null
+          id?: string
+          paciente_id?: string | null
+          pregunta?: string
+          respuesta?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ia_consultas_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ia_consultas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integraciones: {
+        Row: {
+          activa: boolean
+          ajustes: Json
+          clave: string
+          created_at: string
+          id: string
+          nombre: string
+          ultima_sincronizacion_at: string | null
+          ultimo_error: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          ajustes?: Json
+          clave: string
+          created_at?: string
+          id?: string
+          nombre: string
+          ultima_sincronizacion_at?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          ajustes?: Json
+          clave?: string
+          created_at?: string
+          id?: string
+          nombre?: string
+          ultima_sincronizacion_at?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       lead_contactos: {
         Row: {
@@ -735,9 +1658,12 @@ export type Database = {
           prescriptor_nombre: string | null
           primera_respuesta_at: string | null
           propietario_id: string | null
+          puntuacion: number
+          puntuacion_at: string | null
           quien_contacta:
             | Database["public"]["Enums"]["tipo_contacto_caso"]
             | null
+          reactivacion_propuesta_at: string | null
           relacion_con_afectado: string | null
           subcanal: string | null
           telefono: string
@@ -768,9 +1694,12 @@ export type Database = {
           prescriptor_nombre?: string | null
           primera_respuesta_at?: string | null
           propietario_id?: string | null
+          puntuacion?: number
+          puntuacion_at?: string | null
           quien_contacta?:
             | Database["public"]["Enums"]["tipo_contacto_caso"]
             | null
+          reactivacion_propuesta_at?: string | null
           relacion_con_afectado?: string | null
           subcanal?: string | null
           telefono: string
@@ -801,9 +1730,12 @@ export type Database = {
           prescriptor_nombre?: string | null
           primera_respuesta_at?: string | null
           propietario_id?: string | null
+          puntuacion?: number
+          puntuacion_at?: string | null
           quien_contacta?:
             | Database["public"]["Enums"]["tipo_contacto_caso"]
             | null
+          reactivacion_propuesta_at?: string | null
           relacion_con_afectado?: string | null
           subcanal?: string | null
           telefono?: string
@@ -960,6 +1892,95 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mensajes: {
+        Row: {
+          autor_id: string | null
+          conversacion_id: string
+          created_at: string
+          cuerpo: string
+          id: string
+        }
+        Insert: {
+          autor_id?: string | null
+          conversacion_id: string
+          created_at?: string
+          cuerpo: string
+          id?: string
+        }
+        Update: {
+          autor_id?: string | null
+          conversacion_id?: string
+          created_at?: string
+          cuerpo?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajes_autor_id_fkey"
+            columns: ["autor_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensajes_conversacion_id_fkey"
+            columns: ["conversacion_id"]
+            isOneToOne: false
+            referencedRelation: "conversaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mensajes_whatsapp: {
+        Row: {
+          anuncio_ref: string | null
+          anuncio_titulo: string | null
+          created_at: string
+          cuerpo: string | null
+          direccion: string
+          id: string
+          lead_id: string | null
+          mensaje_ref: string | null
+          procesado_at: string | null
+          recibido_at: string
+          telefono: string
+        }
+        Insert: {
+          anuncio_ref?: string | null
+          anuncio_titulo?: string | null
+          created_at?: string
+          cuerpo?: string | null
+          direccion: string
+          id?: string
+          lead_id?: string | null
+          mensaje_ref?: string | null
+          procesado_at?: string | null
+          recibido_at?: string
+          telefono: string
+        }
+        Update: {
+          anuncio_ref?: string | null
+          anuncio_titulo?: string | null
+          created_at?: string
+          cuerpo?: string | null
+          direccion?: string
+          id?: string
+          lead_id?: string | null
+          mensaje_ref?: string | null
+          procesado_at?: string | null
+          recibido_at?: string
+          telefono?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajes_whatsapp_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1147,6 +2168,171 @@ export type Database = {
           },
         ]
       }
+      ocupaciones: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          desde: string
+          habitacion_id: string
+          hasta: string | null
+          id: string
+          paciente_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          desde: string
+          habitacion_id: string
+          hasta?: string | null
+          id?: string
+          paciente_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          desde?: string
+          habitacion_id?: string
+          hasta?: string | null
+          id?: string
+          paciente_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ocupaciones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocupaciones_habitacion_id_fkey"
+            columns: ["habitacion_id"]
+            isOneToOne: false
+            referencedRelation: "habitaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ocupaciones_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pacientes: {
+        Row: {
+          adiccion_id: string | null
+          centro_id: string
+          created_at: string
+          created_by: string | null
+          email: string | null
+          estado: Database["public"]["Enums"]["estado_paciente"]
+          fase_id: string | null
+          fecha_alta: string | null
+          fecha_ingreso: string
+          fecha_nacimiento: string | null
+          id: string
+          lead_id: string | null
+          modalidad_id: string | null
+          nombre: string
+          notas: string | null
+          telefono: string | null
+          terapeuta_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          adiccion_id?: string | null
+          centro_id: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["estado_paciente"]
+          fase_id?: string | null
+          fecha_alta?: string | null
+          fecha_ingreso?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad_id?: string | null
+          nombre: string
+          notas?: string | null
+          telefono?: string | null
+          terapeuta_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adiccion_id?: string | null
+          centro_id?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          estado?: Database["public"]["Enums"]["estado_paciente"]
+          fase_id?: string | null
+          fecha_alta?: string | null
+          fecha_ingreso?: string
+          fecha_nacimiento?: string | null
+          id?: string
+          lead_id?: string | null
+          modalidad_id?: string | null
+          nombre?: string
+          notas?: string | null
+          telefono?: string | null
+          terapeuta_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pacientes_adiccion_id_fkey"
+            columns: ["adiccion_id"]
+            isOneToOne: false
+            referencedRelation: "adicciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_fase_id_fkey"
+            columns: ["fase_id"]
+            isOneToOne: false
+            referencedRelation: "fases_metodo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_modalidad_id_fkey"
+            columns: ["modalidad_id"]
+            isOneToOne: false
+            referencedRelation: "modalidades"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_terapeuta_id_fkey"
+            columns: ["terapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       perfil_centros: {
         Row: {
           centro_id: string
@@ -1185,6 +2371,7 @@ export type Database = {
       }
       perfiles: {
         Row: {
+          acceso_clinico: boolean
           activo: boolean
           created_at: string
           email: string
@@ -1193,6 +2380,7 @@ export type Database = {
           rol: Database["public"]["Enums"]["rol_usuario"]
         }
         Insert: {
+          acceso_clinico?: boolean
           activo?: boolean
           created_at?: string
           email: string
@@ -1201,6 +2389,7 @@ export type Database = {
           rol: Database["public"]["Enums"]["rol_usuario"]
         }
         Update: {
+          acceso_clinico?: boolean
           activo?: boolean
           created_at?: string
           email?: string
@@ -1287,6 +2476,50 @@ export type Database = {
           },
         ]
       }
+      plantillas_email: {
+        Row: {
+          activa: boolean
+          asunto: string
+          created_at: string
+          created_by: string | null
+          cuerpo_html: string | null
+          cuerpo_texto: string
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          asunto: string
+          created_at?: string
+          created_by?: string | null
+          cuerpo_html?: string | null
+          cuerpo_texto: string
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          asunto?: string
+          created_at?: string
+          created_by?: string | null
+          cuerpo_html?: string | null
+          cuerpo_texto?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plantillas_email_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       presupuestos: {
         Row: {
           creado_por: string | null
@@ -1342,6 +2575,47 @@ export type Database = {
           },
         ]
       }
+      push_suscripciones: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          perfil_id: string
+          ultimo_uso_at: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          perfil_id: string
+          ultimo_uso_at?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          perfil_id?: string
+          ultimo_uso_at?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_suscripciones_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reglas_etiquetado: {
         Row: {
           activa: boolean
@@ -1373,6 +2647,137 @@ export type Database = {
             columns: ["etiqueta_id"]
             isOneToOne: false
             referencedRelation: "etiquetas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seguimientos_post_alta: {
+        Row: {
+          completado_at: string | null
+          created_at: string
+          fecha_prevista: string
+          hito_meses: number
+          id: string
+          paciente_id: string
+          resultado: string | null
+        }
+        Insert: {
+          completado_at?: string | null
+          created_at?: string
+          fecha_prevista: string
+          hito_meses: number
+          id?: string
+          paciente_id: string
+          resultado?: string | null
+        }
+        Update: {
+          completado_at?: string | null
+          created_at?: string
+          fecha_prevista?: string
+          hito_meses?: number
+          id?: string
+          paciente_id?: string
+          resultado?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seguimientos_post_alta_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      series_factura: {
+        Row: {
+          ano: number
+          centro_id: string
+          id: string
+          ultimo_numero: number
+        }
+        Insert: {
+          ano: number
+          centro_id: string
+          id?: string
+          ultimo_numero?: number
+        }
+        Update: {
+          ano?: number
+          centro_id?: string
+          id?: string
+          ultimo_numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "series_factura_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sesiones: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          estado: Database["public"]["Enums"]["estado_sesion"]
+          fin: string
+          id: string
+          inicio: string
+          notas_clinicas: string | null
+          paciente_id: string
+          terapeuta_id: string | null
+          tipo: Database["public"]["Enums"]["tipo_sesion"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          estado?: Database["public"]["Enums"]["estado_sesion"]
+          fin: string
+          id?: string
+          inicio: string
+          notas_clinicas?: string | null
+          paciente_id: string
+          terapeuta_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_sesion"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          estado?: Database["public"]["Enums"]["estado_sesion"]
+          fin?: string
+          id?: string
+          inicio?: string
+          notas_clinicas?: string | null
+          paciente_id?: string
+          terapeuta_id?: string | null
+          tipo?: Database["public"]["Enums"]["tipo_sesion"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sesiones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_terapeuta_id_fkey"
+            columns: ["terapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1463,12 +2868,14 @@ export type Database = {
         Args: { p_fin: string; p_inicio: string; p_profesional: string }
         Returns: string
       }
+      darse_de_baja: { Args: { p_token: string }; Returns: boolean }
       es_direccion: { Args: never; Returns: boolean }
       mi_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["rol_usuario"]
       }
       mis_centros: { Args: never; Returns: string[] }
+      mis_pacientes: { Args: never; Returns: string[] }
       profesionales_agendables: {
         Args: never
         Returns: {
@@ -1479,10 +2886,23 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      siguiente_numero_factura: {
+        Args: { p_ano: number; p_centro: string }
+        Returns: string
+      }
+      tiene_acceso_clinico: { Args: never; Returns: boolean }
     }
     Enums: {
+      estado_campana:
+        | "borrador"
+        | "programada"
+        | "enviando"
+        | "enviada"
+        | "cancelada"
       estado_cita: "programada" | "realizada" | "no_show" | "cancelada"
       estado_conversion: "pendiente_validacion" | "validada"
+      estado_envio: "pendiente" | "enviado" | "fallido" | "rebotado"
+      estado_factura: "borrador" | "emitida" | "cobrada" | "anulada"
       estado_lead:
         | "nuevo"
         | "contactado"
@@ -1494,9 +2914,17 @@ export type Database = {
         | "perdido"
         | "no_valido"
         | "reabierto"
+      estado_paciente: "activo" | "alta" | "abandono" | "derivado_externo"
       estado_presupuesto: "propuesto" | "aceptado" | "rechazado"
+      estado_sesion: "programada" | "realizada" | "no_show" | "cancelada"
+      metodo_cobro:
+        | "transferencia"
+        | "tarjeta"
+        | "efectivo"
+        | "domiciliacion"
+        | "otro"
       modalidad_cita: "presencial" | "videollamada" | "telefonica"
-      rol_usuario: "direccion" | "admisiones" | "terapeuta"
+      rol_usuario: "direccion" | "admisiones" | "terapeuta" | "administracion"
       tipo_actividad:
         | "llamada"
         | "whatsapp"
@@ -1512,6 +2940,11 @@ export type Database = {
         | "visita_centro"
         | "otro"
       tipo_contacto_caso: "familiar" | "afectado" | "prescriptor" | "otro"
+      tipo_documento_clinico:
+        | "consentimiento"
+        | "informe"
+        | "derivacion"
+        | "otro"
       tipo_lista: "estatica" | "dinamica"
       tipo_notificacion:
         | "lead_asignado"
@@ -1522,6 +2955,11 @@ export type Database = {
         | "lead_nuevo_bandeja"
         | "presupuesto_sin_respuesta"
         | "resumen_diario"
+        | "riesgo_recaida"
+        | "seguimiento_post_alta"
+        | "campana_finalizada"
+        | "mensaje_chat"
+      tipo_sesion: "individual" | "grupal" | "familiar"
       urgencia_lead: "alta" | "media" | "baja"
     }
     CompositeTypes: {
@@ -1650,8 +3088,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      estado_campana: [
+        "borrador",
+        "programada",
+        "enviando",
+        "enviada",
+        "cancelada",
+      ],
       estado_cita: ["programada", "realizada", "no_show", "cancelada"],
       estado_conversion: ["pendiente_validacion", "validada"],
+      estado_envio: ["pendiente", "enviado", "fallido", "rebotado"],
+      estado_factura: ["borrador", "emitida", "cobrada", "anulada"],
       estado_lead: [
         "nuevo",
         "contactado",
@@ -1664,9 +3111,18 @@ export const Constants = {
         "no_valido",
         "reabierto",
       ],
+      estado_paciente: ["activo", "alta", "abandono", "derivado_externo"],
       estado_presupuesto: ["propuesto", "aceptado", "rechazado"],
+      estado_sesion: ["programada", "realizada", "no_show", "cancelada"],
+      metodo_cobro: [
+        "transferencia",
+        "tarjeta",
+        "efectivo",
+        "domiciliacion",
+        "otro",
+      ],
       modalidad_cita: ["presencial", "videollamada", "telefonica"],
-      rol_usuario: ["direccion", "admisiones", "terapeuta"],
+      rol_usuario: ["direccion", "admisiones", "terapeuta", "administracion"],
       tipo_actividad: [
         "llamada",
         "whatsapp",
@@ -1684,6 +3140,12 @@ export const Constants = {
         "otro",
       ],
       tipo_contacto_caso: ["familiar", "afectado", "prescriptor", "otro"],
+      tipo_documento_clinico: [
+        "consentimiento",
+        "informe",
+        "derivacion",
+        "otro",
+      ],
       tipo_lista: ["estatica", "dinamica"],
       tipo_notificacion: [
         "lead_asignado",
@@ -1694,7 +3156,12 @@ export const Constants = {
         "lead_nuevo_bandeja",
         "presupuesto_sin_respuesta",
         "resumen_diario",
+        "riesgo_recaida",
+        "seguimiento_post_alta",
+        "campana_finalizada",
+        "mensaje_chat",
       ],
+      tipo_sesion: ["individual", "grupal", "familiar"],
       urgencia_lead: ["alta", "media", "baja"],
     },
   },

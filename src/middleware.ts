@@ -43,6 +43,15 @@ export async function middleware(request: NextRequest) {
 
   const esLogin = request.nextUrl.pathname.startsWith('/login');
 
+  /**
+   * Rutas públicas sin sesión. Las abre gente que no tiene cuenta (el enlace
+   * de baja de una campaña) o que aún no la ha terminado de crear (el enlace
+   * de invitación): mandarlas al login las dejaría sin salida.
+   */
+  const PUBLICAS = ['/baja', '/auth/confirmar'];
+  const esPublica = PUBLICAS.some((ruta) => request.nextUrl.pathname.startsWith(ruta));
+  if (esPublica) return supabaseResponse;
+
   // Un redirect crea una respuesta nueva: hay que arrastrarle las cookies que
   // el refresco de sesión acaba de escribir, o el usuario se queda sin sesión.
   const redirigirA = (ruta: string) => {
