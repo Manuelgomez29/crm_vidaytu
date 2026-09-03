@@ -119,6 +119,36 @@ export async function editarUsuario(perfilId: string, formData: FormData) {
   volver('equipo');
 }
 
+/**
+ * Retira el segundo factor de un usuario: la vía cuando alguien pierde o
+ * cambia de móvil. En el siguiente acceso tendrá que darlo de alta otra vez,
+ * porque sin él no se entra.
+ */
+export async function retirarSegundoFactor(perfilId: string) {
+  await exigirDireccion();
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.auth.admin.mfa.listFactors({ userId: perfilId });
+  if (error) volver('equipo', { error: `No se pudieron leer sus factores: ${error.message}` });
+
+  const factores = data?.factors ?? [];
+  if (factores.length === 0) {
+    volver('equipo', { aviso: 'Ese usuario no tiene ningún segundo factor dado de alta.' });
+  }
+
+  for (const f of factores) {
+    const { error: errorBorrado } = await admin.auth.admin.mfa.deleteFactor({
+      userId: perfilId,
+      id: f.id,
+    });
+    if (errorBorrado) volver('equipo', { error: `No se pudo retirar: ${errorBorrado.message}` });
+  }
+
+  volver('equipo', {
+    aviso: 'Segundo factor retirado. La próxima vez que entre tendrá que darlo de alta de nuevo.',
+  });
+}
+
 export async function guardarObjetivos(perfilId: string, formData: FormData) {
   const { user } = await exigirDireccion();
 

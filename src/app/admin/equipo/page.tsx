@@ -9,6 +9,7 @@ import {
   editarUsuario,
   guardarDisponibilidad,
   guardarObjetivos,
+  retirarSegundoFactor,
 } from '../actions';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -164,6 +165,16 @@ export default async function AdminEquipo({
                   </div>
                   <button type="submit" className={`${botonAdminSecundario} self-start`}>
                     Guardar usuario
+                  </button>
+                </form>
+
+                <form action={retirarSegundoFactor.bind(null, p.id)} className="mt-2">
+                  <button
+                    type="submit"
+                    className="text-xs text-muted hover:text-danger hover:underline"
+                    title="Úsalo si ha perdido o cambiado de móvil: tendrá que darlo de alta otra vez"
+                  >
+                    Retirar su verificación en dos pasos
                   </button>
                 </form>
 

@@ -115,6 +115,16 @@ Cada rol ve lo que le permite RLS: dirección todo, admisiones solo sus centros.
 - **Avisos, nunca bloqueos**: al agendar se comprueba la disponibilidad del profesional, sus ausencias y los solapes; si algo no cuadra la cita se crea igual y se avisa.
 - **Rol terapeuta**: solo ve las citas en las que es el profesional, y de ellas solo el nombre y el teléfono del lead (nunca las notas ni la ficha). La agenda se sirve con la función `agenda_citas()`, que aplica esa regla en la base de datos.
 
+## Verificación en dos pasos (obligatoria)
+
+La plataforma trata datos de categoría especial, así que el 2FA no es opcional: sin él no se entra.
+
+- **Primer acceso**: tras la contraseña, la plataforma lleva a `/seguridad` para dar de alta el segundo factor. Se escanea un QR con cualquier app de autenticación (Google Authenticator, Authy, 1Password…) o se copia la clave a mano, y se confirma con un código de seis dígitos.
+- **Accesos siguientes**: contraseña y después el código de la app.
+- **Móvil perdido o cambiado**: dirección retira el factor desde **Administración → Equipo** («Retirar su verificación en dos pasos»); en el siguiente acceso el usuario lo da de alta otra vez.
+
+Lo impone el middleware, no la interfaz: quien no tenga factor solo puede llegar a la pantalla de alta, y quien lo tenga no ve nada hasta superarlo.
+
 ## Directorio de contactos
 
 `/contactos` es el directorio único de personas, deduplicado por teléfono (E.164) y global: una persona existe una sola vez aunque aparezca en varios casos y centros.

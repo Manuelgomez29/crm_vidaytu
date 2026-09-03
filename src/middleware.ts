@@ -67,7 +67,30 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!user && !esLogin) return redirigirA('/login');
-  if (user && esLogin) return redirigirA('/leads');
+
+  if (user) {
+    /**
+     * Verificación en dos pasos OBLIGATORIA (datos de categoría especial):
+     * quien no tenga segundo factor va a darlo de alta, y quien lo tenga debe
+     * superarlo antes de ver nada. Las dos pantallas quedan exentas para no
+     * encerrar al usuario en un bucle.
+     */
+    const ruta = request.nextUrl.pathname;
+    const esVerificacion = ruta.startsWith('/login/2fa');
+    const esAltaSegundoFactor = ruta.startsWith('/seguridad');
+
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const tieneSegundoFactor = aal?.nextLevel === 'aal2';
+    const yaVerificado = aal?.currentLevel === 'aal2';
+
+    if (tieneSegundoFactor && !yaVerificado && !esVerificacion) {
+      return redirigirA('/login/2fa');
+    }
+    if (!tieneSegundoFactor && !esAltaSegundoFactor) {
+      return redirigirA('/seguridad');
+    }
+    if (esLogin && !esVerificacion) return redirigirA('/leads');
+  }
 
   return supabaseResponse;
 }
