@@ -1,7 +1,7 @@
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
 import { exigirDireccion } from '../guard';
-import { Avisos, NavAdmin, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
+import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import {
   borrarAusencia,
   crearAusencia,
@@ -39,14 +39,14 @@ export default async function AdminEquipo({
   const mesActual = new Date().toISOString().slice(0, 7);
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <NavAdmin activo="equipo" />
+    <AppShell
+      seccion="admin"
+      subseccion="/admin/equipo"
+      titulo="Equipo"
+      descripcion="Usuarios, centros, disponibilidad y objetivos"
+      ancho="medio"
+    >
         <Avisos error={errorMsg} aviso={aviso} />
-
-        <h2 className="mb-1 mt-4 text-xl font-semibold">Equipo</h2>
         <p className="mb-4 text-sm text-slate-500">
           Usuarios, centros asignados, disponibilidad, ausencias y objetivos. Desactivar a alguien le
           impide entrar y sus leads pasan a avisar de que el propietario no está.
@@ -289,7 +289,6 @@ export default async function AdminEquipo({
             );
           })}
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

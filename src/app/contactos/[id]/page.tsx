@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { etiquetaEstado } from '@/lib/estados';
 import { clasesEtiqueta } from '@/lib/colores';
 import { fecha } from '@/lib/fechas';
@@ -92,10 +92,12 @@ export default async function FichaContacto({
   const listasDisponibles = (listas ?? []).filter((l) => !idsListas.has(l.id));
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
+    <AppShell
+      seccion="contactos"
+      subseccion="/contactos"
+      titulo="Ficha de contacto"
+      ancho="medio"
+    >
         <Link href="/contactos" className="text-sm text-teal-700 hover:underline">
           ← Volver al directorio
         </Link>
@@ -314,7 +316,6 @@ export default async function FichaContacto({
             </ul>
           </Seccion>
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

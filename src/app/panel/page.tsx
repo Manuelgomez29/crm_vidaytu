@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { ETIQUETA_ESTADO, type EstadoLead } from '@/lib/estados';
 import { desdeDatetimeLocal } from '@/lib/fechas';
 import {
@@ -244,12 +244,13 @@ export default async function Panel({
   };
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Panel</h2>
+    <AppShell
+      seccion="panel"
+      titulo="Panel"
+      descripcion="Métricas del área comercial"
+      ancho="ancho"
+    >
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
           <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm">
             {[
               ['mes', 'Este mes'],
@@ -509,7 +510,6 @@ export default async function Panel({
             )}
           </div>
         )}
-      </main>
-    </div>
+      </AppShell>
   );
 }

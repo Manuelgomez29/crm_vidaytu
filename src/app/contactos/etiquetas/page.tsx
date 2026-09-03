@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
-import { NavContactos } from '../nav';
+import { AppShell } from '@/components/app-shell';
 import { COLORES_ETIQUETA, clasesEtiqueta } from '@/lib/colores';
 import { borrarEtiqueta, crearEtiqueta, editarEtiqueta } from '../actions';
 
@@ -44,11 +43,13 @@ export default async function GestionEtiquetas({
   }
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <NavContactos activo="etiquetas" />
+    <AppShell
+      seccion="contactos"
+      subseccion="/contactos/etiquetas"
+      titulo="Etiquetas"
+      descripcion="Organización del directorio"
+      ancho="medio"
+    >
 
         <p className="mt-1 text-sm text-slate-500">
           Las etiquetas organizan el directorio (zona, origen, tipo de contacto…). Nunca deben
@@ -165,7 +166,6 @@ export default async function GestionEtiquetas({
             </p>
           </aside>
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

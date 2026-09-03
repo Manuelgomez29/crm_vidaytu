@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { crearLead } from './actions';
 
 const inputClase =
@@ -54,14 +54,12 @@ export default async function NuevoLead({
   const canalTelefono = canales?.find((c) => c.slug === 'telefono');
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-2xl px-4 py-6">
-        <Link href="/leads" className="text-sm text-teal-700 hover:underline">
-          ← Volver al tablero
-        </Link>
-        <h2 className="mt-2 text-xl font-semibold">Nuevo lead</h2>
+    <AppShell
+      seccion="leads"
+      titulo="Nuevo lead"
+      descripcion="Alta manual de un caso"
+      ancho="estrecho"
+    >
         <p className="mt-1 text-sm text-slate-500">
           Si el teléfono ya existe en el directorio, no se creará un duplicado: te llevaré a su
           caso (reabriéndolo si estaba cerrado).
@@ -167,7 +165,6 @@ export default async function NuevoLead({
             Crear lead
           </button>
         </form>
-      </main>
-    </div>
+      </AppShell>
   );
 }

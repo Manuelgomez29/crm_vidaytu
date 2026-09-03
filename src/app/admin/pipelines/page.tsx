@@ -1,7 +1,7 @@
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { ETIQUETA_ESTADO, type EstadoLead } from '@/lib/estados';
 import { exigirDireccion } from '../guard';
-import { Avisos, NavAdmin, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
+import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { anadirEtapa, borrarEtapa, crearPipeline, editarEtapa, editarPipeline } from '../actions';
 
 const ESTADOS = Object.keys(ETIQUETA_ESTADO) as EstadoLead[];
@@ -29,14 +29,14 @@ export default async function AdminPipelines({
   }
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <NavAdmin activo="pipelines" />
+    <AppShell
+      seccion="admin"
+      subseccion="/admin/pipelines"
+      titulo="Pipelines"
+      descripcion="Etapas y su estado de sistema"
+      ancho="medio"
+    >
         <Avisos error={errorMsg} aviso={aviso} />
-
-        <h2 className="mb-1 mt-4 text-xl font-semibold">Pipelines</h2>
         <p className="mb-4 text-sm text-slate-500">
           Cada etapa se asocia a un <strong>estado de sistema</strong>: es lo que permite que las
           métricas se calculen igual con cualquier pipeline. Mover una tarjeta al kanban copia ese
@@ -149,7 +149,6 @@ export default async function AdminPipelines({
             );
           })}
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

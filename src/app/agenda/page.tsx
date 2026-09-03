@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { ZONA, desdeDatetimeLocal } from '@/lib/fechas';
 import {
   ESTADO_CITA,
@@ -286,12 +286,13 @@ export default async function Agenda({
   };
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Agenda</h2>
+    <AppShell
+      seccion="agenda"
+      titulo="Agenda"
+      descripcion="Citas por mes, semana o rango de fechas"
+      ancho="ancho"
+    >
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
           <nav className="flex items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm">
             {(['mes', 'semana', 'rango'] as Vista[]).map((v) => (
               <Link
@@ -554,7 +555,6 @@ export default async function Agenda({
               ))}
           </div>
         )}
-      </main>
-    </div>
+      </AppShell>
   );
 }

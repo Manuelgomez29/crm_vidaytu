@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { ESTADOS_CERRADOS, type EstadoLead } from '@/lib/estados';
 import { hace, hoyMadrid } from '@/lib/fechas';
 import Kanban, { type TarjetaLead } from './kanban';
@@ -108,21 +108,13 @@ export default async function LeadsPage({
     .map(aTarjeta);
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold">Leads</h2>
-            <Link
-              href="/leads/nuevo"
-              className="rounded-lg bg-teal-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-teal-700"
-            >
-              + Nuevo lead
-            </Link>
-          </div>
-
+    <AppShell
+      seccion="leads"
+      titulo="Leads"
+      descripcion="Tablero de casos por etapa"
+      ancho="ancho"
+    >
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
           <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
             {pipelines && pipelines.length > 1 && (
               <select
@@ -175,7 +167,6 @@ export default async function LeadsPage({
             puedeAutoasignarse={perfil?.rol === 'admisiones'}
           />
         )}
-      </main>
-    </div>
+      </AppShell>
   );
 }

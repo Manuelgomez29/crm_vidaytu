@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
-import { NavContactos } from '../nav';
+import { AppShell } from '@/components/app-shell';
 import { contactosDelSegmento, describirFiltro, type FiltroSegmento } from '@/lib/segmentos';
 import { borrarLista, crearLista, editarLista } from '../actions';
 
@@ -112,11 +111,13 @@ export default async function ListasYSegmentos({
   );
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <NavContactos activo="listas" />
+    <AppShell
+      seccion="contactos"
+      subseccion="/contactos/listas"
+      titulo="Listas y segmentos"
+      descripcion="Estáticas por selección, dinámicas por criterios"
+      ancho="medio"
+    >
         <p className="mt-3 text-sm text-slate-500">
           Una <strong>lista estática</strong> tiene los contactos que le añades a mano. Un{' '}
           <strong>segmento dinámico</strong> no guarda miembros: se calcula cada vez a partir de sus
@@ -273,7 +274,6 @@ export default async function ListasYSegmentos({
             </p>
           </aside>
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

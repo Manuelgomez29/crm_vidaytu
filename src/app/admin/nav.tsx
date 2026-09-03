@@ -1,33 +1,3 @@
-import Link from 'next/link';
-
-const PESTANAS = [
-  { clave: 'equipo', texto: 'Equipo', href: '/admin/equipo' },
-  { clave: 'centros', texto: 'Centros', href: '/admin/centros' },
-  { clave: 'catalogos', texto: 'Catálogos', href: '/admin/catalogos' },
-  { clave: 'pipelines', texto: 'Pipelines', href: '/admin/pipelines' },
-  { clave: 'parametros', texto: 'Parámetros', href: '/admin/parametros' },
-] as const;
-
-export function NavAdmin({ activo }: { activo: (typeof PESTANAS)[number]['clave'] }) {
-  return (
-    <nav className="flex flex-wrap items-center gap-1 border-b border-slate-200 pb-2 text-sm">
-      {PESTANAS.map((p) => (
-        <Link
-          key={p.clave}
-          href={p.href}
-          className={`rounded-lg px-3 py-1.5 font-medium transition ${
-            p.clave === activo
-              ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          {p.texto}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
 export function Avisos({ error, aviso }: { error?: string; aviso?: string }) {
   return (
     <>

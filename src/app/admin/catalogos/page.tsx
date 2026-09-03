@@ -1,6 +1,6 @@
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { exigirDireccion } from '../guard';
-import { Avisos, NavAdmin, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
+import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { crearElementoCatalogo, editarElementoCatalogo, type Catalogo } from '../actions';
 
 type Elemento = { id: string; nombre: string; slug: string; activo: boolean };
@@ -78,14 +78,14 @@ export default async function AdminCatalogos({
     }));
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <NavAdmin activo="catalogos" />
+    <AppShell
+      seccion="admin"
+      subseccion="/admin/catalogos"
+      titulo="Catálogos"
+      descripcion="Los desplegables de toda la plataforma"
+      ancho="medio"
+    >
         <Avisos error={errorMsg} aviso={aviso} />
-
-        <h2 className="mb-1 mt-4 text-xl font-semibold">Catálogos</h2>
         <p className="mb-4 text-sm text-slate-500">
           Los desplegables de toda la plataforma salen de aquí. Desactivar un elemento lo retira de
           los formularios sin tocar los casos que ya lo usan.
@@ -117,7 +117,6 @@ export default async function AdminCatalogos({
             elementos={normalizar(adicciones)}
           />
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }

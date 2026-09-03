@@ -1,6 +1,6 @@
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { exigirDireccion } from '../guard';
-import { Avisos, NavAdmin, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
+import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { crearCentro, editarCentro } from '../actions';
 
 export default async function AdminCentros({
@@ -26,14 +26,14 @@ export default async function AdminCentros({
   }
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-4xl px-4 py-6">
-        <NavAdmin activo="centros" />
+    <AppShell
+      seccion="admin"
+      subseccion="/admin/centros"
+      titulo="Centros"
+      descripcion="Centros del grupo y bandeja compartida"
+      ancho="medio"
+    >
         <Avisos error={errorMsg} aviso={aviso} />
-
-        <h2 className="mb-1 mt-4 text-xl font-semibold">Centros</h2>
         <p className="mb-4 text-sm text-slate-500">
           Los centros no se borran (sus leads e historial dependen de ellos): se desactivan, y así
           dejan de ofrecerse en los formularios sin perder nada.
@@ -92,7 +92,6 @@ export default async function AdminCentros({
           La bandeja de grupo es un pseudo-centro donde nacen los leads sin centro claro. Asignar uno
           de esos leads a un centro real no es una derivación: es un cambio de centro auditado.
         </p>
-      </main>
-    </div>
+      </AppShell>
   );
 }

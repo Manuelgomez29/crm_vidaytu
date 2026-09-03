@@ -1,7 +1,7 @@
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
 import { exigirDireccion } from '../guard';
-import { Avisos, NavAdmin, botonAdmin, inputAdmin } from '../nav';
+import { Avisos, botonAdmin, inputAdmin } from '../nav';
 import { guardarParametros } from '../actions';
 
 export default async function AdminParametros({
@@ -30,14 +30,14 @@ export default async function AdminParametros({
       : '';
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <NavAdmin activo="parametros" />
+    <AppShell
+      seccion="admin"
+      subseccion="/admin/parametros"
+      titulo="Parámetros"
+      descripcion="SLA, cadencia, alertas y plantillas"
+      ancho="estrecho"
+    >
         <Avisos error={errorMsg} aviso={aviso} />
-
-        <h2 className="mb-1 mt-4 text-xl font-semibold">Parámetros</h2>
         <p className="mb-4 text-sm text-slate-500">
           Estos valores no están escritos en el código: la plataforma los lee de aquí cada vez que
           los necesita, así que cualquier cambio se aplica de inmediato.
@@ -106,7 +106,6 @@ export default async function AdminParametros({
         <p className="mt-3 text-xs text-slate-400">
           Última modificación del SLA: {fecha(actualizado.get('sla_primera_respuesta_minutos') ?? null)}
         </p>
-      </main>
-    </div>
+      </AppShell>
   );
 }

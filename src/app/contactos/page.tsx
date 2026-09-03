@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
-import { NavContactos } from './nav';
+import { AppShell } from '@/components/app-shell';
 import { clasesEtiqueta } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
@@ -152,12 +151,13 @@ function Pagina({
   const hayFiltros = Boolean(filtros.q || filtros.etiqueta || filtros.lista || filtros.consent);
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={email} />
-
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        <NavContactos activo="directorio" />
-        <h2 className="mb-4 mt-3 text-xl font-semibold">Directorio de contactos</h2>
+    <AppShell
+      seccion="contactos"
+      subseccion="/contactos"
+      titulo="Contactos"
+      descripcion="Directorio único de personas"
+      ancho="ancho"
+    >
 
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
           <input
@@ -285,7 +285,6 @@ function Pagina({
             </div>
           </>
         )}
-      </main>
-    </div>
+      </AppShell>
   );
 }

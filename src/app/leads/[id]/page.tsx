@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { Cabecera } from '@/components/cabecera';
+import { AppShell } from '@/components/app-shell';
 import { ESTADOS_CERRADOS, etiquetaEstado, type EstadoLead } from '@/lib/estados';
 import { fecha } from '@/lib/fechas';
 import {
@@ -169,10 +169,11 @@ export default async function FichaLead({
   const tareasPendientes = (tareas ?? []).filter((t) => t.completada_at === null);
 
   return (
-    <div className="min-h-screen">
-      <Cabecera email={user.email ?? ''} />
-
-      <main className="mx-auto max-w-6xl px-4 py-6">
+    <AppShell
+      seccion="leads"
+      titulo="Ficha del caso"
+      ancho="ancho"
+    >
         <Link href="/leads" className="text-sm text-teal-700 hover:underline">
           ← Volver al tablero
         </Link>
@@ -747,7 +748,6 @@ export default async function FichaLead({
             </Seccion>
           </div>
         </div>
-      </main>
-    </div>
+      </AppShell>
   );
 }
