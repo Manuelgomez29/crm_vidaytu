@@ -1,7 +1,12 @@
 import { AppShell } from '@/components/app-shell';
 import { exigirDireccion } from '../guard';
 import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
-import { crearElementoCatalogo, editarElementoCatalogo, type Catalogo } from '../actions';
+import {
+  crearElementoCatalogo,
+  editarElementoCatalogo,
+  guardarModalidadCentros,
+  type Catalogo,
+} from '../actions';
 
 type Elemento = { id: string; nombre: string; slug: string; activo: boolean };
 
@@ -59,12 +64,21 @@ export default async function AdminCatalogos({
   const { error: errorMsg, aviso } = await searchParams;
   const { supabase, user } = await exigirDireccion();
 
-  const [{ data: canales }, { data: adicciones }, { data: modalidades }, { data: motivos }] =
+  const [
+    { data: canales },
+    { data: adicciones },
+    { data: modalidades },
+    { data: motivos },
+    { data: centros },
+    { data: modalidadCentros },
+  ] =
     await Promise.all([
       supabase.from('canales').select('id, nombre, slug, activo').order('nombre'),
       supabase.from('adicciones').select('id, nombre, slug, activa').order('nombre'),
       supabase.from('modalidades').select('id, nombre, slug, activa').order('nombre'),
       supabase.from('motivos_perdida').select('id, nombre, slug, activo').order('nombre'),
+      supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
+      supabase.from('modalidad_centros').select('modalidad_id, centro_id'),
     ]);
 
   const normalizar = (
@@ -116,6 +130,50 @@ export default async function AdminCatalogos({
             elementos={normalizar(adicciones)}
           />
         </div>
+
+        <section className="panel mt-4 p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+            Qué ofrece cada centro
+          </h3>
+          <p className="mb-3 mt-0.5 text-xs text-ink2">
+            Marca las modalidades disponibles en cada centro. Bellamar es el único con ingreso
+            residencial, y los pisos tutelados son de Eclipse.
+          </p>
+          <div className="flex flex-col gap-2">
+            {(modalidades ?? []).map((m) => {
+              const suyos = (modalidadCentros ?? [])
+                .filter((mc) => mc.modalidad_id === m.id)
+                .map((mc) => mc.centro_id);
+              return (
+                <form
+                  key={m.id}
+                  action={guardarModalidadCentros.bind(null, m.id)}
+                  className="flex flex-wrap items-center gap-3 rounded-lg bg-surface2 px-3 py-2"
+                >
+                  <b className="min-w-40 text-[13.5px]">{m.nombre}</b>
+                  <div className="flex flex-1 flex-wrap gap-3">
+                    {(centros ?? [])
+                      .filter((c) => !c.nombre.includes('Bandeja'))
+                      .map((c) => (
+                        <label key={c.id} className="flex items-center gap-1.5 text-sm text-ink2">
+                          <input
+                            type="checkbox"
+                            name="centros"
+                            value={c.id}
+                            defaultChecked={suyos.includes(c.id)}
+                          />
+                          {c.nombre}
+                        </label>
+                      ))}
+                  </div>
+                  <button type="submit" className={botonAdminSecundario}>
+                    Guardar
+                  </button>
+                </form>
+              );
+            })}
+          </div>
+        </section>
       </AppShell>
   );
 }

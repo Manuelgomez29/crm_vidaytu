@@ -9,6 +9,7 @@ import {
   editarUsuario,
   guardarDisponibilidad,
   guardarObjetivos,
+  reasignarEnBloque,
   retirarSegundoFactor,
 } from '../actions';
 
@@ -76,8 +77,12 @@ export default async function AdminEquipo({
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-              Contraseña inicial * (mínimo 8)
-              <input name="password" type="text" required minLength={8} className={inputAdmin} />
+              Contraseña inicial (si no invitas por email)
+              <input name="password" type="text" minLength={10} className={inputAdmin} />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink2 sm:col-span-2">
+              <input type="checkbox" name="invitar" defaultChecked />
+              Invitar por email para que elija su propia contraseña
             </label>
             <fieldset className="sm:col-span-2">
               <legend className="mb-1 text-sm font-medium text-ink">Centros</legend>
@@ -94,9 +99,66 @@ export default async function AdminEquipo({
             </button>
           </form>
           <p className="mt-2 text-xs text-muted">
-            La contraseña inicial se le comunica por un canal aparte; el usuario debería cambiarla al
-            entrar.
+            La invitación es la vía recomendada. Mientras no haya SMTP propio en Supabase, los
+            envíos van muy limitados: si no llega, desmarca la casilla y dale una contraseña inicial
+            por un canal aparte. En ambos casos tendrá que activar la verificación en dos pasos.
           </p>
+        </section>
+
+        <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ink2">
+            Traspaso de cartera en bloque
+          </h3>
+          <p className="mb-3 text-xs text-ink2">
+            Para vacaciones, bajas o salidas del equipo. Cada caso queda anotado en su historial y
+            la persona que los recibe es avisada.
+          </p>
+          <form action={reasignarEnBloque} className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs text-ink2">
+              Casos de
+              <select name="origen" defaultValue="" className={inputAdmin} required>
+                <option value="">Elige…</option>
+                <option value="sin">— Sin propietario —</option>
+                {(perfiles ?? [])
+                  .filter((p) => p.rol !== 'terapeuta')
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-ink2">
+              Pasan a
+              <select name="destino" defaultValue="" className={inputAdmin} required>
+                <option value="">Elige…</option>
+                {(perfiles ?? [])
+                  .filter((p) => p.rol !== 'terapeuta' && p.activo)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-ink2">
+              Solo del centro
+              <select name="centro" defaultValue="" className={inputAdmin}>
+                <option value="">Todos</option>
+                {(centros ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-1.5 pb-2 text-sm text-ink2">
+              <input type="checkbox" name="solo_abiertos" defaultChecked /> Solo casos abiertos
+            </label>
+            <button type="submit" className={`${botonAdminSecundario} mb-0.5`}>
+              Traspasar
+            </button>
+          </form>
         </section>
 
         <div className="flex flex-col gap-4">

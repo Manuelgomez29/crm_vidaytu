@@ -88,9 +88,11 @@ npm run alertas
 
 `/admin` (solo dirección) hace realidad el «nada cableado»: cinco pestañas donde vive todo lo que la plataforma lee en tiempo de ejecución.
 
-- **Equipo**: crear usuarios con su acceso, rol y centros; activar o desactivar; disponibilidad semanal, ausencias y objetivos mensuales. No permite quedarse sin ninguna cuenta de dirección activa.
+- **Equipo**: alta de usuarios por **invitación por email** (eligen su propia contraseña) o con contraseña inicial cuando aún no hay SMTP propio; rol y centros; activar o desactivar; disponibilidad semanal, ausencias y objetivos mensuales; retirada del segundo factor. Incluye el **traspaso de cartera en bloque** para vacaciones, bajas o salidas: cada caso queda anotado en su historial y quien los recibe es avisado. No permite quedarse sin ninguna cuenta de dirección activa.
+
+  > La invitación usa el correo integrado de Supabase, que está muy limitado. Para producción hay que configurar SMTP propio en el proyecto (Authentication → Emails).
 - **Centros**: crear y editar; no se borran (su historial depende de ellos), se desactivan.
-- **Catálogos**: canales, modalidades, motivos de pérdida y adicciones. Desactivar retira del formulario sin tocar los casos que ya lo usan.
+- **Catálogos**: canales, modalidades, motivos de pérdida y adicciones, más **qué modalidades ofrece cada centro** (el ingreso residencial es de Bellamar, los pisos tutelados de Eclipse). Desactivar retira del formulario sin tocar los casos que ya lo usan.
 - **Pipelines**: etapas con su estado de sistema, que es lo que mantiene comparables las métricas entre pipelines. Una etapa con leads dentro no se puede borrar.
 - **Parámetros**: SLA de primera respuesta, cadencia de contacto, alerta de presupuesto y plantilla del recordatorio. La plantilla se rechaza si menciona el motivo de consulta (regla 12).
 

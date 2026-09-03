@@ -47,19 +47,32 @@ export async function crearUsuario(formData: FormData) {
   const password = String(formData.get('password') ?? '');
   const centros = formData.getAll('centros').map(String).filter(Boolean);
 
+  const porInvitacion = formData.get('invitar') === 'on';
+
   if (!nombre || !email || !rol) volver('equipo', { error: 'Nombre, email y rol son obligatorios.' });
-  if (password.length < 8) {
-    volver('equipo', { error: 'La contraseña inicial debe tener al menos 8 caracteres.' });
+  if (!porInvitacion && password.length < 10) {
+    volver('equipo', { error: 'La contraseña inicial debe tener al menos 10 caracteres.' });
   }
 
   const admin = createAdminClient();
-  const { data: creado, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
+
+  /**
+   * Dos vías: invitación por email (el usuario elige su contraseña, es la
+   * preferible) o alta directa con contraseña inicial, que sirve cuando aún no
+   * hay SMTP propio configurado.
+   */
+  const { data: creado, error } = porInvitacion
+    ? await admin.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_URL_APP ?? 'http://localhost:3000'}/auth/confirmar`,
+      })
+    : await admin.auth.admin.createUser({ email, password, email_confirm: true });
+
   if (error || !creado.user) {
-    volver('equipo', { error: `No se pudo crear el acceso: ${error?.message}` });
+    volver('equipo', {
+      error: porInvitacion
+        ? `No se pudo enviar la invitación: ${error?.message}. Sin SMTP propio, Supabase limita mucho los envíos: usa la contraseña inicial.`
+        : `No se pudo crear el acceso: ${error?.message}`,
+    });
   }
 
   const { error: errorPerfil } = await admin
@@ -74,7 +87,9 @@ export async function crearUsuario(formData: FormData) {
   }
 
   volver('equipo', {
-    aviso: `Usuario creado. Dale la contraseña inicial a ${nombre} y que la cambie al entrar.`,
+    aviso: porInvitacion
+      ? `Invitación enviada a ${email}. Al abrir el enlace elegirá su contraseña y activará la verificación en dos pasos.`
+      : `Usuario creado. Dale la contraseña inicial a ${nombre} por un canal aparte; al entrar tendrá que activar la verificación en dos pasos.`,
   });
 }
 
@@ -147,6 +162,68 @@ export async function retirarSegundoFactor(perfilId: string) {
   volver('equipo', {
     aviso: 'Segundo factor retirado. La próxima vez que entre tendrá que darlo de alta de nuevo.',
   });
+}
+
+/**
+ * Traspaso en bloque de una cartera: vacaciones, bajas o salidas del equipo.
+ * Pasa por el CRM y queda auditado caso a caso (regla 8), en vez de repartirse
+ * por WhatsApp.
+ */
+export async function reasignarEnBloque(formData: FormData) {
+  const { user } = await exigirDireccion();
+
+  const origen = String(formData.get('origen') ?? '');
+  const destino = String(formData.get('destino') ?? '');
+  const centroId = String(formData.get('centro') ?? '');
+  const soloAbiertos = formData.get('solo_abiertos') === 'on';
+
+  if (!destino) volver('equipo', { error: 'Elige a quién le pasas los casos.' });
+  if (origen === destino) volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+
+  const admin = createAdminClient();
+
+  let consulta = admin.from('leads').select('id');
+  // «Sin propietario» se pide con el valor especial `sin`.
+  if (origen === 'sin') consulta = consulta.is('propietario_id', null);
+  else if (origen) consulta = consulta.eq('propietario_id', origen);
+  else volver('equipo', { error: 'Elige de quién son los casos.' });
+
+  if (centroId) consulta = consulta.eq('centro_id', centroId);
+  if (soloAbiertos) consulta = consulta.not('estado', 'in', '(perdido,no_valido,convertido)');
+
+  const { data: leads, error: errorLectura } = await consulta;
+  if (errorLectura) volver('equipo', { error: `No se pudieron leer los casos: ${errorLectura.message}` });
+  if (!leads || leads.length === 0) {
+    volver('equipo', { aviso: 'No hay casos que encajen con esos criterios.' });
+  }
+
+  const ids = leads.map((l) => l.id);
+  const { error } = await admin.from('leads').update({ propietario_id: destino }).in('id', ids);
+  if (error) volver('equipo', { error: `No se pudo reasignar: ${error.message}` });
+
+  const { data: perfilDestino } = await admin
+    .from('perfiles')
+    .select('nombre')
+    .eq('id', destino)
+    .maybeSingle();
+
+  // Una anotación por caso: el historial de cada uno debe contarlo.
+  await admin.from('actividades').insert(
+    ids.map((lead_id) => ({
+      lead_id,
+      tipo: 'cambio_estado' as const,
+      contenido: `Traspaso en bloque: propietario cambiado a ${perfilDestino?.nombre ?? '—'}`,
+      usuario_id: user.id,
+    })),
+  );
+
+  await admin.from('notificaciones').insert({
+    usuario_id: destino,
+    tipo: 'lead_asignado',
+    mensaje: `Se te han traspasado ${ids.length} caso(s)`,
+  });
+
+  volver('equipo', { aviso: `${ids.length} caso(s) reasignados a ${perfilDestino?.nombre ?? '—'}.` });
 }
 
 export async function guardarObjetivos(perfilId: string, formData: FormData) {
@@ -326,6 +403,22 @@ export async function editarElementoCatalogo(
           : await admin.from('modalidades').update({ nombre, activa: activo }).eq('id', elementoId);
 
   if (error) volver('catalogos', { error: `No se pudo guardar: ${error.message}` });
+  volver('catalogos');
+}
+
+/** Qué modalidades ofrece cada centro (alimenta los formularios del caso). */
+export async function guardarModalidadCentros(modalidadId: string, formData: FormData) {
+  await exigirDireccion();
+  const centros = formData.getAll('centros').map(String).filter(Boolean);
+
+  const admin = createAdminClient();
+  await admin.from('modalidad_centros').delete().eq('modalidad_id', modalidadId);
+  if (centros.length > 0) {
+    const { error } = await admin
+      .from('modalidad_centros')
+      .insert(centros.map((centro_id) => ({ modalidad_id: modalidadId, centro_id })));
+    if (error) volver('catalogos', { error: `No se pudo guardar: ${error.message}` });
+  }
   volver('catalogos');
 }
 
