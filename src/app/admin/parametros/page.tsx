@@ -55,6 +55,13 @@ export default async function AdminParametros({
         </p>
 
         <form action={guardarParametros} className="flex flex-col gap-5 rounded-xl bg-surface p-5 ring-1 ring-line">
+          {/*
+            Marca que los interruptores de abajo venian en este envio. Sin
+            ella, un checkbox desmarcado (que no viaja) seria indistinguible
+            de un campo que no estaba en pantalla, y no habria forma de apagar
+            nada.
+          */}
+          <input type="hidden" name="_interruptores" value="1" />
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             SLA de primera respuesta (minutos)
             <input
@@ -196,6 +203,40 @@ export default async function AdminParametros({
                 placeholder="https://g.page/r/..."
                 className={inputAdmin}
               />
+            </label>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="recordatorios_automaticos"
+                  defaultChecked={valor.get('recordatorios_automaticos') === true}
+                />
+                Recordatorio de cita automatico
+              </span>
+              <span className="text-xs font-normal text-ink2">
+                Se envia por email 24 h antes, al contacto con quien se agendo la cita, con la
+                plantilla de arriba. El asunto es solo «Confirmacion de tu cita»: se lee en la
+                bandeja de entrada sin abrir nada.
+              </span>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="reparto_automatico"
+                  defaultChecked={valor.get('reparto_automatico') === true}
+                />
+                Reparto automatico de leads sin propietario
+              </span>
+              <span className="text-xs font-normal text-ink2">
+                Al comercial disponible del centro con menos carga, nunca a alguien ausente.
+                Apagado por defecto: mientras el equipo se rueda, la autoasignacion con un clic
+                funciona mejor, porque el comercial ve el caso antes de cogerlo.
+              </span>
             </label>
           </div>
 

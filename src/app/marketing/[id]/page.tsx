@@ -10,6 +10,7 @@ import {
   programarCampana,
   revisarCampana,
 } from '../actions';
+import { VistaPrevia } from './vista-previa';
 
 const CHIP_ESTADO: Record<string, { texto: string; clase: string }> = {
   borrador: { texto: 'Borrador', clase: 'chip-mut' },
@@ -55,6 +56,16 @@ export default async function EditorCampana({
 
   const editable = campana.estado === 'borrador' || campana.estado === 'programada';
   const estado = CHIP_ESTADO[campana.estado] ?? { texto: campana.estado, clase: 'chip-mut' };
+
+  const { data: pieConfig } = await supabase
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'marketing_pie')
+    .maybeSingle();
+  const pie =
+    typeof pieConfig?.valor === 'string'
+      ? pieConfig.valor
+      : 'Puedes darte de baja aquí: {baja}';
 
   const { data: fallidos } = await supabase
     .from('campana_destinatarios')
@@ -176,6 +187,13 @@ export default async function EditorCampana({
         </section>
 
         <div className="flex flex-col gap-4">
+          <VistaPrevia
+            asunto={campana.asunto}
+            texto={campana.cuerpo_texto}
+            html={campana.cuerpo_html}
+            pie={pie}
+          />
+
           <section className="panel p-4">
             <h2 className="mb-3 text-sm font-semibold">Resultados</h2>
             <dl className="flex flex-col gap-2 text-[13px]">

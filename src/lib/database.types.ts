@@ -412,6 +412,7 @@ export type Database = {
           activo: boolean
           ciudad: string | null
           created_at: string
+          direccion: string | null
           es_bandeja_grupo: boolean
           horario_atencion: Json | null
           id: string
@@ -422,6 +423,7 @@ export type Database = {
           activo?: boolean
           ciudad?: string | null
           created_at?: string
+          direccion?: string | null
           es_bandeja_grupo?: boolean
           horario_atencion?: Json | null
           id?: string
@@ -432,6 +434,7 @@ export type Database = {
           activo?: boolean
           ciudad?: string | null
           created_at?: string
+          direccion?: string | null
           es_bandeja_grupo?: boolean
           horario_atencion?: Json | null
           id?: string
@@ -453,6 +456,7 @@ export type Database = {
           modalidad_cita: Database["public"]["Enums"]["modalidad_cita"]
           notas: string | null
           profesional_id: string
+          recordatorio_enviado_at: string | null
           tipo: Database["public"]["Enums"]["tipo_cita"]
         }
         Insert: {
@@ -467,6 +471,7 @@ export type Database = {
           modalidad_cita: Database["public"]["Enums"]["modalidad_cita"]
           notas?: string | null
           profesional_id: string
+          recordatorio_enviado_at?: string | null
           tipo: Database["public"]["Enums"]["tipo_cita"]
         }
         Update: {
@@ -481,6 +486,7 @@ export type Database = {
           modalidad_cita?: Database["public"]["Enums"]["modalidad_cita"]
           notas?: string | null
           profesional_id?: string
+          recordatorio_enviado_at?: string | null
           tipo?: Database["public"]["Enums"]["tipo_cita"]
         }
         Relationships: [

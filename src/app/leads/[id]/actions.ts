@@ -9,6 +9,7 @@ import { centroDeAtribucion, reabrirCaso } from '@/lib/casos';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { asignarmeLead, moverLeadDeEtapa } from '../actions';
 import { crearPacienteDesdeCaso } from '@/lib/pacientes';
+import { resumirCaso } from '@/lib/resumen-caso';
 
 type TipoActividad = 'llamada' | 'whatsapp' | 'email' | 'nota';
 const TIPOS_CONTACTO_SALIENTE: TipoActividad[] = ['llamada', 'whatsapp', 'email'];
@@ -479,4 +480,28 @@ export async function validarConversion(leadId: string, conversionId: string) {
   }
 
   volver(leadId);
+}
+
+/**
+ * Resumen del caso en tres líneas, bajo demanda.
+ *
+ * Bajo demanda y no al abrir la ficha: llamar al modelo cada vez que alguien
+ * mira un caso cuesta dinero y tarda, y casi siempre el comercial ya sabe de
+ * qué va porque el caso es suyo. Esto es para cuando NO lo es.
+ */
+export async function pedirResumen(leadId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const resultado = await resumirCaso(supabase, leadId, user.id);
+
+  if (!resultado.ok) volver(leadId, { error: resultado.error });
+
+  // Solo el id de la consulta: el resumen lleva nombres y situaciones, y un
+  // query string acaba en el historial del navegador y en los registros.
+  revalidatePath(`/leads/${leadId}`);
+  redirect(`/leads/${leadId}?resumen=${resultado.consultaId ?? ''}`);
 }

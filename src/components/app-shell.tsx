@@ -98,6 +98,11 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Campañas', href: '/marketing' },
     { texto: 'Plantillas', href: '/marketing/plantillas' },
   ],
+  panel: [
+    { texto: 'Cuadro de mando', href: '/panel' },
+    { texto: 'Preguntar a los datos', href: '/panel/asistente' },
+    { texto: 'Informe mensual', href: '/panel/informe' },
+  ],
   clinica: [
     { texto: 'Pacientes', href: '/clinica' },
     { texto: 'Ocupación', href: '/clinica/ocupacion' },

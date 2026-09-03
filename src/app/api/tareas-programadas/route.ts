@@ -4,6 +4,8 @@ import { ejecutarAlertas } from '@/lib/alertas';
 import { ejecutarAutomatizaciones } from '@/lib/automatizacion';
 import { procesarCampanas } from '@/lib/campanas';
 import { enviarPushPendientes } from '@/lib/push-pendientes';
+import { repartirLeadsSinPropietario } from '@/lib/reparto';
+import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 
 /**
  * Motor periódico de la plataforma. Pensado para llamarse cada 15–30 minutos
@@ -27,8 +29,12 @@ export async function POST(req: NextRequest) {
 
     // En serie y en este orden: el etiquetado y el scoring dejan datos que
     // las alertas y las campañas usan en la misma pasada.
+    // El reparto va primero: si asigna un lead, las alertas de la misma
+    // pasada ya avisan a su propietario nuevo y no a dirección.
+    const reparto = await repartirLeadsSinPropietario(admin);
     const automatizacion = await ejecutarAutomatizaciones(admin);
     const alertas = await ejecutarAlertas(admin);
+    const recordatorios = await enviarRecordatoriosCita(admin);
     const campanas = await procesarCampanas(admin);
 
     // El último, para que empuje al móvil todo lo que los pasos anteriores
@@ -36,7 +42,15 @@ export async function POST(req: NextRequest) {
     const push = await enviarPushPendientes(admin);
 
     return NextResponse.json(
-      { ok: true, ...alertas, ...automatizacion, ...campanas, push: push.enviados },
+      {
+        ok: true,
+        ...alertas,
+        ...automatizacion,
+        ...campanas,
+        repartidos: reparto.asignados,
+        recordatorios: recordatorios.enviados,
+        push: push.enviados,
+      },
       { status: 200 },
     );
   } catch (e) {

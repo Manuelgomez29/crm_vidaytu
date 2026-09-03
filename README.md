@@ -221,7 +221,7 @@ Inicia sesión de verdad con cada usuario de prueba y consulta las tablas direct
 - **Fases del método**: siete, con nombres genéricos hasta que dirección les ponga los reales en **Configuración → Clínica**. La plataforma no inventa contenido clínico.
 - **Chat interno** con mensajes en vivo, vinculable a un paciente. Saca la comunicación clínica del WhatsApp personal, que hoy está fuera de todo control RGPD. Los mensajes **no se editan ni se borran**.
 - **Ocupación residencial**: habitaciones, plazas libres e ingresos. Si una plaza la ocupa un paciente que no es tuyo, ves la plaza pero no el nombre.
-- **Cuestionarios** periódicos con puntuación, para medir evolución.
+- **Cuestionarios** periódicos con puntuación y **gráfica de evolución** por cuestionario. SVG plano, sin librería de gráficos: el texto de las cifras va en tinta y hay puntos además de la línea, para que se lea igual sin distinguir bien los colores.
 - **Seguimiento post-alta** a 1, 3, 6 y 12 meses: la fase 7 del método, programada sola.
 - **Aviso de riesgo** tras dos faltas consecutivas a sesión. Es una señal para el terapeuta referente, no un diagnóstico.
 
@@ -241,6 +241,12 @@ La garantía central es estructural, no una promesa: **el contexto se lee siempr
 
 Toda consulta queda en `ia_consultas` (quién, qué, con qué ámbito). Ni la pregunta ni la respuesta viajan por la URL: un query string acaba en el historial del navegador, en los registros del servidor y en cualquier captura.
 
+Hay tres sitios donde aparece:
+
+- `/clinica/asistente` — consultar datos clínicos y apoyo profesional al terapeuta.
+- `/panel/asistente` — el **copiloto de dirección**: el dashboard en lenguaje natural, con los números del grupo y sin datos personales.
+- **Resumen del caso** en la ficha de un lead: tres líneas con quién es, qué ha pasado y qué está pendiente. Se pide con un botón, no al abrir cada ficha — llamar al modelo cada vez que alguien mira un caso cuesta dinero y tarda, y casi siempre el comercial ya sabe de qué va porque el caso es suyo. Esto es para cuando **no** lo es: un traspaso de cartera, una baja, una guardia de fin de semana.
+
 Requiere `ANTHROPIC_API_KEY` en el servidor y encenderlo en **Parámetros**. Enciéndelo solo tras firmar el acuerdo de tratamiento de datos con el proveedor.
 
 ## Email marketing
@@ -252,6 +258,8 @@ Tres barreras que la interfaz no puede saltarse:
 1. **Consentimiento.** La lista de destinatarios la construye el código, no la pantalla, y solo entran contactos con consentimiento registrado y email. No hay otra forma de crearla.
 2. **Discreción (regla 12).** El asunto y el cuerpo se revisan contra un catálogo de términos clínicos configurable. Si aparece uno, la campaña no se puede ni revisar ni programar, y el mensaje dice **qué palabra** lo bloqueó. Un correo se reenvía, se lee en una pantalla compartida o lo abre quien no debe.
 3. **Baja en un clic.** El pie con el enlace de baja lo añade el código, no quien redacta, así que ninguna campaña puede salir sin él. La baja se ejecuta al abrir el enlace, sin pedir confirmación: exigir un segundo clic para dejar de recibir correos es poner obstáculos.
+
+La **vista previa** enseña el correo tal y como lo verá quien lo reciba, con el pie de baja ya puesto y el nombre sustituido. El HTML se pinta en un iframe aislado: el cuerpo de un correo es contenido pegado, y no tiene por qué ejecutar nada.
 
 El envío va **por lotes** desde el motor, no de golpe: un envío de 3.000 personas no depende de que una sola petición aguante. Las tasas de apertura son orientativas por diseño — quien bloquea imágenes no cuenta y algunos gestores abren solos — y sirven para comparar campañas entre sí.
 
@@ -265,6 +273,8 @@ Todas corren en la misma pasada de `/api/tareas-programadas`, todas son idempote
 - **Petición de reseña** tras conversión validada. Crea una **tarea**, no un envío: la plataforma nunca escribe sola a un paciente.
 - **Riesgo de recaída** y **seguimiento post-alta** en el área clínica.
 - **Informe mensual** el día 1 a dirección, con enlace a `/panel/informe`.
+- **Recordatorio de cita** por email 24 h antes, al contacto con quien se agendó — no al contacto principal: si la cita la pidió la madre, el recordatorio es para ella. El asunto es solo «Confirmación de tu cita»: se lee en la bandeja de entrada sin abrir nada. Apagado por defecto.
+- **Reparto automático** de los leads sin propietario, al comercial disponible de ese centro con menos carga y nunca a alguien ausente. Apagado por defecto: mientras el equipo se rueda, la autoasignación con un clic funciona mejor, porque el comercial ve el caso antes de cogerlo.
 
 ## Facturación
 

@@ -612,11 +612,24 @@ export async function guardarParametros(formData: FormData) {
   const iva = numero('iva_porcentaje', 0);
   if (iva !== undefined) filas.push({ clave: 'iva_porcentaje', valor: iva });
 
-  if (formData.has('resena_activa')) {
-    filas.push({ clave: 'resena_activa', valor: formData.get('resena_activa') === 'on' });
-  }
-  if (formData.has('ia_activa')) {
-    filas.push({ clave: 'ia_activa', valor: formData.get('ia_activa') === 'on' });
+  /**
+   * Los interruptores.
+   *
+   * Un checkbox DESMARCADO no viaja en el formulario, asi que `formData.has()`
+   * no sirve para saber si el campo estaba en pantalla: con esa comprobacion
+   * se podria encender algo pero nunca apagarlo. El formulario manda un campo
+   * oculto que dice "estos interruptores venian en el envio", y a partir de
+   * ahi la ausencia del checkbox significa apagado, que es lo que significa.
+   */
+  if (formData.get('_interruptores') === '1') {
+    for (const clave of [
+      'resena_activa',
+      'recordatorios_automaticos',
+      'reparto_automatico',
+      'ia_activa',
+    ]) {
+      filas.push({ clave, valor: formData.get(clave) === 'on' });
+    }
   }
 
   const resenaUrl = texto('resena_url');

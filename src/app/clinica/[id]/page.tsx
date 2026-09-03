@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
+import { Evolucion } from '@/components/evolucion';
 import { exigirAccesoClinico } from '../guard';
 import {
   anadirFamiliar,
@@ -99,6 +100,16 @@ export default async function FichaPaciente({
       .eq('paciente_id', id)
       .order('hito_meses'),
   ]);
+
+  // Respuestas agrupadas por cuestionario y en orden cronológico, para dibujar
+  // una evolución por cada uno.
+  const porCuestionario = new Map<string, { fecha: string; valor: number }[]>();
+  for (const r of [...(respuestas ?? [])].reverse()) {
+    const nombre = r.cuestionario?.nombre ?? 'Cuestionario';
+    const lista = porCuestionario.get(nombre) ?? [];
+    lista.push({ fecha: fecha(r.fecha, false), valor: Number(r.puntuacion_total ?? 0) });
+    porCuestionario.set(nombre, lista);
+  }
 
   const noShowsSeguidos = (sesiones ?? [])
     .filter((s) => s.estado === 'realizada' || s.estado === 'no_show')
@@ -452,17 +463,17 @@ export default async function FichaPaciente({
                 ))}
               </form>
 
-              {(respuestas ?? []).length > 0 && (
-                <ul className="mt-3 flex flex-col gap-1 text-xs text-ink2">
-                  {(respuestas ?? []).map((r) => (
-                    <li key={r.id} className="flex justify-between">
-                      <span>
-                        {r.cuestionario?.nombre} · {fecha(r.fecha, false)}
-                      </span>
-                      <b className="tabular-nums">{r.puntuacion_total}</b>
-                    </li>
+              {/*
+                Una gráfica por cuestionario, en orden cronológico. Mezclar
+                escalas distintas en un mismo eje daría una línea que no
+                significa nada.
+              */}
+              {porCuestionario.size > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {Array.from(porCuestionario.entries()).map(([nombre, puntos]) => (
+                    <Evolucion key={nombre} titulo={nombre} puntos={puntos} />
                   ))}
-                </ul>
+                </div>
               )}
             </Seccion>
           )}

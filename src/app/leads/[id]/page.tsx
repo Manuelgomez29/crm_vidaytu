@@ -22,6 +22,7 @@ import {
   subirAdjunto,
   borrarAdjunto,
   validarConversion,
+  pedirResumen,
 } from './actions';
 import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
 import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
@@ -65,10 +66,10 @@ export default async function FichaLead({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string }>;
+  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string; resumen?: string }>;
 }) {
   const { id } = await params;
-  const { error: errorMsg, aviso, sugerir } = await searchParams;
+  const { error: errorMsg, aviso, sugerir, resumen } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -180,6 +181,12 @@ export default async function FichaLead({
   const cerrado = ESTADOS_CERRADOS.includes(lead.estado as EstadoLead);
   const tareasPendientes = (tareas ?? []).filter((t) => t.completada_at === null);
 
+  // El resumen se lee de su fila, no de la URL: lleva nombres y situaciones.
+  const { data: filaResumen } = resumen
+    ? await supabase.from('ia_consultas').select('respuesta').eq('id', resumen).maybeSingle()
+    : { data: null };
+  const textoResumen = filaResumen?.respuesta ?? null;
+
   return (
     <AppShell
       seccion="leads"
@@ -250,6 +257,28 @@ export default async function FichaLead({
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {/* Columna principal */}
           <div className="flex flex-col gap-4 lg:col-span-2">
+            {/*
+              Resumen en tres líneas para quien retoma un caso que no es suyo:
+              un traspaso de cartera, una baja, una guardia de fin de semana.
+            */}
+            <Seccion titulo="Resumen del caso">
+              {textoResumen ? (
+                <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
+                  {textoResumen}
+                </p>
+              ) : (
+                <p className="text-sm text-muted">
+                  Tres líneas con quién es, qué ha pasado y qué está pendiente. Útil sobre todo
+                  cuando el caso no es tuyo.
+                </p>
+              )}
+              <form action={pedirResumen.bind(null, lead.id)} className="mt-2">
+                <button type="submit" className={botonSecundario}>
+                  {textoResumen ? 'Volver a resumir' : 'Resumir con IA'}
+                </button>
+              </form>
+            </Seccion>
+
             <Seccion titulo="Registrar actividad">
               <form action={registrarActividad.bind(null, lead.id)} className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-2">
