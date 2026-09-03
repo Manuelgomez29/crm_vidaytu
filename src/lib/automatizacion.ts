@@ -13,6 +13,8 @@ import type { Database } from '@/lib/database.types';
 import { ZONA } from '@/lib/fechas';
 import { pesosDesdeConfig, puntuar, type SenalesLead } from '@/lib/scoring';
 import { ejecutarEtiquetado } from '@/lib/etiquetado';
+import { calcularInformeMensual, cuerpoInformeMensual, mesAnterior } from '@/lib/informe-mensual';
+import { enviarCorreo, emailConfigurado } from '@/lib/email';
 
 type Cliente = SupabaseClient<Database>;
 type TipoNotificacion = Database['public']['Enums']['tipo_notificacion'];
@@ -27,6 +29,7 @@ export type ResultadoAutomatizacion = {
   riesgosRecaida: number;
   seguimientosProgramados: number;
   seguimientosAvisados: number;
+  informeMensual: number;
 };
 
 function hoyMadrid(): string {
@@ -331,6 +334,55 @@ async function seguimientoPostAlta(
 }
 
 // ---------------------------------------------------------------------------
+// 6. INFORME MENSUAL
+//
+// El día 1 se manda a dirección el resumen del mes cerrado. Idempotente por
+// la clave del aviso: aunque el motor corra cada quince minutos todo el día 1,
+// el correo sale una sola vez.
+// ---------------------------------------------------------------------------
+async function informeMensual(admin: Cliente): Promise<number> {
+  const hoy = hoyMadrid();
+  if (!hoy.endsWith('-01')) return 0;
+
+  const mes = mesAnterior();
+  const { data: direccion } = await admin
+    .from('perfiles')
+    .select('id, nombre, email')
+    .eq('rol', 'direccion')
+    .eq('activo', true);
+
+  if (!direccion || direccion.length === 0) return 0;
+
+  const avisos = direccion.map((d) => ({
+    usuario_id: d.id,
+    tipo: 'resumen_diario' as TipoNotificacion,
+    mensaje: `Informe mensual de ${mes} listo`,
+    clave: `informe:${mes}:${d.id}`,
+  }));
+
+  const nuevos = await avisar(admin, avisos);
+  if (nuevos === 0) return 0;
+
+  if (emailConfigurado()) {
+    // Service role: el informe es del grupo entero, y va solo a dirección,
+    // que ve todo de todas formas.
+    const informe = await calcularInformeMensual(admin, mes);
+    const url = `${(process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/$/, '')}/panel/informe?mes=${mes}`;
+
+    for (const persona of direccion) {
+      if (!persona.email) continue;
+      await enviarCorreo({
+        para: persona.email,
+        asunto: `Informe de ${informe.titulo} — Grupo Vida y Tu`,
+        cuerpo: cuerpoInformeMensual(informe, url),
+      });
+    }
+  }
+
+  return nuevos;
+}
+
+// ---------------------------------------------------------------------------
 
 export async function ejecutarAutomatizaciones(admin: Cliente): Promise<ResultadoAutomatizacion> {
   const { data: config } = await admin.from('configuracion').select('clave, valor');
@@ -340,14 +392,16 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
     ? (mapa.get('post_alta_hitos') as number[])
     : [1, 3, 6, 12];
 
-  const [puntuados, etiquetado, reactivaciones, resenas, riesgosRecaida, postAlta] = await Promise.all([
-    recalcularPuntuaciones(admin, mapa.get('scoring_pesos')),
-    ejecutarEtiquetado(admin),
-    reactivarPerdidos(admin, Number(mapa.get('reactivacion_dias')) || 90),
-    proponerResenas(admin, mapa.get('resena_activa') !== false),
-    avisarRiesgoRecaida(admin, Number(mapa.get('riesgo_recaida_faltas')) || 2),
-    seguimientoPostAlta(admin, hitos),
-  ]);
+  const [puntuados, etiquetado, reactivaciones, resenas, riesgosRecaida, postAlta, informe] =
+    await Promise.all([
+      recalcularPuntuaciones(admin, mapa.get('scoring_pesos')),
+      ejecutarEtiquetado(admin),
+      reactivarPerdidos(admin, Number(mapa.get('reactivacion_dias')) || 90),
+      proponerResenas(admin, mapa.get('resena_activa') !== false),
+      avisarRiesgoRecaida(admin, Number(mapa.get('riesgo_recaida_faltas')) || 2),
+      seguimientoPostAlta(admin, hitos),
+      informeMensual(admin),
+    ]);
 
   return {
     puntuados,
@@ -357,5 +411,6 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
     riesgosRecaida,
     seguimientosProgramados: postAlta.programados,
     seguimientosAvisados: postAlta.avisados,
+    informeMensual: informe,
   };
 }

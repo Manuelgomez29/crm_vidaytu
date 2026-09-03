@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { etiquetaEstado } from '@/lib/estados';
 import { asignarmeLead, moverLeadDeEtapa } from './actions';
 
 export type TarjetaLead = {

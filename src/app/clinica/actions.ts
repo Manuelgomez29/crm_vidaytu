@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { desdeDatetimeLocal } from '@/lib/fechas';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { exigirAccesoClinico } from './guard';

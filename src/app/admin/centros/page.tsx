@@ -9,7 +9,7 @@ export default async function AdminCentros({
   searchParams: Promise<{ error?: string; aviso?: string }>;
 }) {
   const { error: errorMsg, aviso } = await searchParams;
-  const { supabase, user } = await exigirDireccion();
+  const { supabase } = await exigirDireccion();
 
   const [{ data: centros }, { data: leads }] = await Promise.all([
     supabase

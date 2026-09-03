@@ -422,9 +422,11 @@ async function main() {
   fallar('conversion', errorConversion);
 
   // Objetivos del mes en curso para los dos comerciales.
-  const primeroDeMes = new Date();
-  primeroDeMes.setDate(1);
-  const mes = primeroDeMes.toISOString().slice(0, 10);
+  // El mes se calcula en Madrid y NO con toISOString(): en UTC+2, el dia 1 a
+  // las 00:30 locales es el ultimo dia del mes anterior en UTC, y la columna
+  // exige dia 1.
+  const hoyEnMadrid = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+  const mes = `${hoyEnMadrid.slice(0, 7)}-01`;
   const { error: errorObjetivos } = await admin.from('objetivos').upsert(
     [
       { perfil_id: equipoId, mes, meta_citas: 20, meta_conversiones: 4, meta_ingresos: 12000, created_by: direccionId },
@@ -434,12 +436,202 @@ async function main() {
   );
   fallar('objetivos', errorObjetivos);
 
+  // -------------------------------------------------------------------------
+  // AREA CLINICA (fase 3)
+  //
+  // Un paciente de cada situacion, para poder ver la pantalla con datos: uno
+  // en tratamiento con sesiones, y uno de alta con su seguimiento programado.
+  // -------------------------------------------------------------------------
+  const { data: fases } = await admin
+    .from('fases_metodo')
+    .select('id, orden')
+    .order('orden');
+  const faseInicial = fases?.[0]?.id ?? null;
+  const faseFinal = fases?.[fases.length - 1]?.id ?? null;
+
+  const { data: bellamar } = await admin
+    .from('centros')
+    .select('id')
+    .eq('slug', 'bellamar')
+    .maybeSingle();
+  const { data: eclipse } = await admin
+    .from('centros')
+    .select('id')
+    .eq('slug', 'eclipse')
+    .maybeSingle();
+
+  if (bellamar && eclipse) {
+    const hace2Meses = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
+    const hace8Meses = new Date(Date.now() - 240 * 86_400_000).toISOString().slice(0, 10);
+    const hace1Mes = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+
+    // `pacientes` no tiene clave unica por telefono a proposito (dos personas
+    // pueden compartir el numero de casa), asi que el seed comprueba antes de
+    // insertar en lugar de apoyarse en un ON CONFLICT.
+    const { data: yaHay } = await admin
+      .from('pacientes')
+      .select('id')
+      .like('nombre', '%dato ficticio de seed%')
+      .limit(1);
+
+    const { error: errorPacientes } = yaHay && yaHay.length > 0
+      ? { error: null }
+      : await admin
+      .from('pacientes')
+      .insert(
+        [
+          {
+            centro_id: bellamar.id,
+            terapeuta_id: terapeutaId,
+            nombre: 'Paciente Uno (dato ficticio de seed)',
+            telefono: '+34600900001',
+            fase_id: faseInicial,
+            estado: 'activo',
+            fecha_ingreso: hace2Meses,
+            created_by: direccionId,
+          },
+          {
+            centro_id: eclipse.id,
+            terapeuta_id: terapeutaId,
+            nombre: 'Paciente Dos (dato ficticio de seed)',
+            telefono: '+34600900002',
+            fase_id: faseFinal,
+            estado: 'alta',
+            fecha_ingreso: hace8Meses,
+            fecha_alta: hace1Mes,
+            created_by: direccionId,
+          },
+        ],
+      );
+
+    fallar('pacientes', errorPacientes);
+
+    const { data: todosPacientes } = await admin
+      .from('pacientes')
+      .select('id, estado, nombre')
+      .like('nombre', '%dato ficticio de seed%');
+
+    const enTratamiento = (todosPacientes ?? []).find((p) => p.estado === 'activo');
+    const deAlta = (todosPacientes ?? []).find((p) => p.estado === 'alta');
+
+    if (enTratamiento) {
+      // Sesiones: dos realizadas y una programada.
+      const { data: sesionesExistentes } = await admin
+        .from('sesiones')
+        .select('id')
+        .eq('paciente_id', enTratamiento.id)
+        .limit(1);
+
+      if (!sesionesExistentes || sesionesExistentes.length === 0) {
+      await admin.from('sesiones').insert(
+        [-1, -8, 7].map((dias, i) => ({
+          paciente_id: enTratamiento.id,
+          terapeuta_id: terapeutaId,
+          tipo: (i === 2 ? 'familiar' : 'individual') as 'individual' | 'familiar',
+          estado: (dias < 0 ? 'realizada' : 'programada') as 'realizada' | 'programada',
+          inicio: new Date(Date.now() + dias * 86_400_000).toISOString(),
+          fin: new Date(Date.now() + dias * 86_400_000 + 3_600_000).toISOString(),
+          notas_clinicas: dias < 0 ? 'Nota de sesion ficticia del seed.' : null,
+          created_by: direccionId,
+        })),
+      );
+
+      await admin.from('familiares').insert({
+        paciente_id: enTratamiento.id,
+        nombre: 'Familiar de prueba',
+        telefono: '+34600900003',
+        relacion: 'Madre',
+        es_contacto_emergencia: true,
+      });
+      }
+
+      // Una habitacion en Bellamar con este paciente dentro.
+      const { data: habitacion } = await admin
+        .from('habitaciones')
+        .upsert(
+          [
+            { centro_id: bellamar.id, nombre: 'Habitacion 1', plazas: 2 },
+            { centro_id: bellamar.id, nombre: 'Habitacion 2', plazas: 2 },
+          ],
+          { onConflict: 'centro_id,nombre', ignoreDuplicates: true },
+        )
+        .select('id');
+
+      const { data: primeraHabitacion } = await admin
+        .from('habitaciones')
+        .select('id')
+        .eq('centro_id', bellamar.id)
+        .order('nombre')
+        .limit(1)
+        .maybeSingle();
+
+      if (primeraHabitacion) {
+        const { data: yaOcupa } = await admin
+          .from('ocupaciones')
+          .select('id')
+          .eq('paciente_id', enTratamiento.id)
+          .is('hasta', null)
+          .maybeSingle();
+        if (!yaOcupa) {
+          await admin.from('ocupaciones').insert({
+            habitacion_id: primeraHabitacion.id,
+            paciente_id: enTratamiento.id,
+            desde: hace2Meses,
+            created_by: direccionId,
+          });
+        }
+      }
+      void habitacion;
+    }
+
+    if (deAlta) {
+      // Los hitos de seguimiento los programa el motor; aqui se deja el
+      // primero para que la pantalla no salga vacia.
+      await admin.from('seguimientos_post_alta').upsert(
+        [
+          {
+            paciente_id: deAlta.id,
+            hito_meses: 1,
+            fecha_prevista: new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10),
+          },
+        ],
+        { onConflict: 'paciente_id,hito_meses', ignoreDuplicates: true },
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // MARKETING (fase 2): un segmento y una plantilla, para poder abrir la
+  // pantalla y probar el flujo sin escribir nada.
+  // -------------------------------------------------------------------------
+  const { data: plantillasExistentes } = await admin
+    .from('plantillas_email')
+    .select('id')
+    .limit(1);
+
+  if (!plantillasExistentes || plantillasExistentes.length === 0) {
+  await admin.from('plantillas_email').insert(
+    [
+      {
+        nombre: 'Charla divulgativa (ejemplo)',
+        asunto: 'Te esperamos en la charla del jueves',
+        cuerpo_texto:
+          'Hola {nombre},\n\nEl jueves a las 19:00 hacemos una charla abierta sobre habitos y bienestar. Si te apetece venir, responde a este correo y te guardamos sitio.\n\nUn saludo,\nEquipo de Vida y Tu',
+        created_by: direccionId,
+      },
+    ],
+  );
+  }
+
   console.log('');
   console.log('Seed completado. Usuarios de prueba (contraseña: ' + PASSWORD_DEV + '):');
   console.log('  direccion@test.com  → dirección (ve todo)');
   console.log('  horizonte@test.com  → admisiones, solo Horizonte');
   console.log('  equipo@test.com     → admisiones, Eclipse + Bellamar + bandeja de grupo');
-  console.log('  terapeuta@test.com  → terapeuta, SOLO sus citas');
+  console.log('  terapeuta@test.com  → terapeuta, SOLO sus citas y sus pacientes');
+  console.log('');
+  console.log('Tambien hay 2 fichas de paciente, sesiones, una habitacion ocupada');
+  console.log('y una plantilla de email, todas marcadas como datos ficticios.');
 }
 
 main().catch((e) => {

@@ -196,6 +196,111 @@ Supabase hace backups diarios automáticos en los planes de pago. Para una recup
 
 Un backup no probado no es un backup.
 
+## El muro entre las dos áreas
+
+La plataforma tiene dos áreas separadas en la **base de datos**, no en la pantalla:
+
+- **Área comercial** — del lead a la conversión. La usan dirección y admisiones.
+- **Área clínica** — del inicio del tratamiento en adelante. La usan los terapeutas y dirección.
+
+Un comercial que consulte `pacientes` recibe **cero filas**, no un error: ninguna política del área clínica menciona el rol `admisiones`. Un terapeuta no ve pipeline, presupuestos ni dinero. Cada terapeuta ve únicamente los pacientes de los que es **referente**, y dirección lo ve todo.
+
+Una persona puede tener los dos accesos (`perfiles.acceso_clinico`, que dirección concede en **Equipo**) y entonces ve las dos áreas — pero en la clínica sigue viendo solo sus pacientes.
+
+```bash
+npm run verificar:muro
+```
+
+Inicia sesión de verdad con cada usuario de prueba y consulta las tablas directamente. Que una pantalla redirija no demuestra nada: lo que importa es que la consulta devuelva cero filas aunque alguien la haga a mano. Comprueba también el aislamiento **entre terapeutas**, que es lo que de verdad protege al paciente.
+
+## Área clínica
+
+`/clinica` (terapeutas y dirección).
+
+- **Ficha de paciente** en cuatro bloques: datos y proceso · sesiones y evolución con notas clínicas · familia y contactos de emergencia · documentos cifrados con descarga por enlace que caduca.
+- **Fases del método**: siete, con nombres genéricos hasta que dirección les ponga los reales en **Configuración → Clínica**. La plataforma no inventa contenido clínico.
+- **Chat interno** con mensajes en vivo, vinculable a un paciente. Saca la comunicación clínica del WhatsApp personal, que hoy está fuera de todo control RGPD. Los mensajes **no se editan ni se borran**.
+- **Ocupación residencial**: habitaciones, plazas libres e ingresos. Si una plaza la ocupa un paciente que no es tuyo, ves la plaza pero no el nombre.
+- **Cuestionarios** periódicos con puntuación, para medir evolución.
+- **Seguimiento post-alta** a 1, 3, 6 y 12 meses: la fase 7 del método, programada sola.
+- **Aviso de riesgo** tras dos faltas consecutivas a sesión. Es una señal para el terapeuta referente, no un diagnóstico.
+
+### El paciente nace de la conversión
+
+Al validar una conversión se crea la ficha con un **traspaso limpio**: pasan los datos básicos (nombre, centro, modalidad, adicción), no pasa nada del historial comercial — ni presupuestos, ni notas de la negociación, ni cuánto se regateó.
+
+Dos detalles que importan: si el caso registra una persona afectada distinta de quien llamó, **la ficha es de ella**; y el teléfono solo viaja si era el suyo, porque el de un familiar es del familiar.
+
+La ficha nace **sin terapeuta referente** y aparece destacada hasta que dirección se lo asigna, igual que un lead sin propietario.
+
+## Asistente de IA
+
+`/clinica/asistente`, en dos modos: **consultar datos** y **apoyo profesional** (preparar sesiones, redactar borradores de informe).
+
+La garantía central es estructural, no una promesa: **el contexto se lee siempre con la sesión de quien pregunta**, nunca con la service role. Si un terapeuta pregunta por un paciente que no es suyo, la base de datos no devuelve la fila, así que ese dato **jamás llega al modelo**. No hay instrucción del sistema que pueda saltárselo, porque no es una instrucción: es que el dato no existe en la petición.
+
+Toda consulta queda en `ia_consultas` (quién, qué, con qué ámbito). Ni la pregunta ni la respuesta viajan por la URL: un query string acaba en el historial del navegador, en los registros del servidor y en cualquier captura.
+
+Requiere `ANTHROPIC_API_KEY` en el servidor y encenderlo en **Parámetros**. Enciéndelo solo tras firmar el acuerdo de tratamiento de datos con el proveedor.
+
+## Email marketing
+
+`/marketing` (solo dirección). Campañas escritas dentro de la plataforma, en texto o HTML, a listas estáticas o segmentos dinámicos.
+
+Tres barreras que la interfaz no puede saltarse:
+
+1. **Consentimiento.** La lista de destinatarios la construye el código, no la pantalla, y solo entran contactos con consentimiento registrado y email. No hay otra forma de crearla.
+2. **Discreción (regla 12).** El asunto y el cuerpo se revisan contra un catálogo de términos clínicos configurable. Si aparece uno, la campaña no se puede ni revisar ni programar, y el mensaje dice **qué palabra** lo bloqueó. Un correo se reenvía, se lee en una pantalla compartida o lo abre quien no debe.
+3. **Baja en un clic.** El pie con el enlace de baja lo añade el código, no quien redacta, así que ninguna campaña puede salir sin él. La baja se ejecuta al abrir el enlace, sin pedir confirmación: exigir un segundo clic para dejar de recibir correos es poner obstáculos.
+
+El envío va **por lotes** desde el motor, no de golpe: un envío de 3.000 personas no depende de que una sola petición aguante. Las tasas de apertura son orientativas por diseño — quien bloquea imágenes no cuenta y algunos gestores abren solos — y sirven para comparar campañas entre sí.
+
+## Automatizaciones
+
+Todas corren en la misma pasada de `/api/tareas-programadas`, todas son idempotentes y todas **proponen, no deciden**:
+
+- **Lead scoring** (0–100) con pesos configurables. Prioriza la cola cuando entran veinte leads a la vez; no oculta ni cierra nada. Un 12 se llama igual que un 90, solo que más tarde.
+- **Etiquetado automático** de las reglas de Contactos. Solo **añade** etiquetas, nunca las retira: quien llegó por Instagram llegó por Instagram, y borrarlo reescribiría la historia. Retirar una etiqueta es decisión humana.
+- **Reactivación** de los perdidos por «no es el momento» a los 90 días. Un «ahora no» no es un no.
+- **Petición de reseña** tras conversión validada. Crea una **tarea**, no un envío: la plataforma nunca escribe sola a un paciente.
+- **Riesgo de recaída** y **seguimiento post-alta** en el área clínica.
+- **Informe mensual** el día 1 a dirección, con enlace a `/panel/informe`.
+
+## Facturación
+
+`/facturacion` (dirección y el rol `administracion`, que ve el dinero de los tres centros pero **no** el área clínica ni las notas de los casos).
+
+- La factura nace de un **presupuesto aceptado**, para que nunca se facture algo que nadie propuso.
+- El número de serie (`VYT-BM-2026-0001`) se consume al **emitir**, no al crear el borrador: una serie con huecos es un problema con la gestoría.
+- Una factura emitida **no se edita**: se anula y se hace otra. Anular **conserva el número**.
+- Cuando los cobros cubren el total, la factura pasa sola a «cobrada».
+- El NIF del cliente vive solo aquí. El área comercial sigue sin pedir DNI (regla 11).
+- `/facturacion/informe` da facturado, cobrado y pendiente por centro, para la gestoría.
+
+Los PDF salen del «Imprimir → Guardar como PDF» del navegador. Sin librería a propósito: el navegador ya lo hace bien y es una dependencia menos que mantener.
+
+## Integraciones
+
+`/admin/integraciones`. **Ninguna clave ni token se guarda en base de datos**: van en variables de entorno del servidor, porque una fila acaba en una copia de seguridad o en una exportación. Aquí solo viven identificadores de cuenta y el estado.
+
+- **WhatsApp Business API** — webhook en `/api/whatsapp` con **firma HMAC verificada** en tiempo constante. Aplica las mismas reglas que todo lo demás: caso abierto se anota, caso cerrado se **reabre**, teléfono desconocido nace en la bandeja de grupo. En campañas click-to-WhatsApp, Meta manda qué anuncio trajo a la persona. Sin `WHATSAPP_APP_SECRET` la ruta rechaza todo: un webhook abierto que crea leads es una puerta para llenar el CRM de basura.
+- **Importación CSV** (Clientify, Zerochats, cualquier hoja): deduplica por teléfono y **nunca pisa** lo que ya hay, solo rellena huecos. El consentimiento de marketing solo se marca si la columna lo dice explícitamente; sin ella todo entra **sin consentimiento**.
+- **Gasto publicitario**: Meta y Google Ads no se conectan (haría falta acceso a las cuentas). Se anota el gasto por campaña y la plataforma lo cruza con la `utm_campaign` de cada lead para dar coste por lead y por conversión en el Dashboard. Una campaña con gasto y cero leads sale en rojo.
+
+## Aplicación móvil (PWA)
+
+La plataforma es instalable en el móvil y recibe avisos aunque esté cerrada.
+
+```bash
+npm run push:claves
+```
+
+Genera el par VAPID una vez y lo guarda en `.env.local` y en producción. Cambiarlas invalida todas las suscripciones: cada dispositivo tendría que reactivar los avisos.
+
+El permiso se pide **al pulsar el botón** en `/seguridad`, no al cargar la página: un navegador que pregunta nada más entrar consigue que la gente diga «no» por reflejo, y ese «no» cuesta revertirlo.
+
+Los textos de las notificaciones son deliberadamente sosos («Caso asignado», «Tarea vencida»): se leen en la pantalla de bloqueo, y el teléfono lo puede coger cualquiera. Cada aviso se marca al enviarse, y los de más de seis horas se descartan sin enviar — nadie quiere veinte notificaciones de golpe al volver de un fin de semana con el motor parado.
+
 ## Estructura
 
 - `src/app` — rutas (App Router). `/login` pública; todo lo demás requiere sesión.
@@ -203,4 +308,5 @@ Un backup no probado no es un backup.
 - `src/lib/database.types.ts` — tipos generados del esquema.
 - `supabase/migrations` — migraciones SQL versionadas.
 - `scripts/seed.ts` — seed de desarrollo (usa la service role).
+- `scripts/verificar-muro.mjs` — comprueba el muro entre áreas contra la base de datos real.
 - `CLAUDE.md` — contexto de negocio y reglas innegociables del proyecto.

@@ -10,7 +10,7 @@ export default async function AdminParametros({
   searchParams: Promise<{ error?: string; aviso?: string }>;
 }) {
   const { error: errorMsg, aviso } = await searchParams;
-  const { supabase, user } = await exigirDireccion();
+  const { supabase } = await exigirDireccion();
 
   const { data: filas } = await supabase
     .from('configuracion')

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { desdeDatetimeLocal } from '@/lib/fechas';
-import { centroDeAtribucion, reabrirCaso, ultimoCasoPorTelefono } from '@/lib/casos';
+import { centroDeAtribucion, reabrirCaso } from '@/lib/casos';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { asignarmeLead, moverLeadDeEtapa } from '../actions';
 import { crearPacienteDesdeCaso } from '@/lib/pacientes';

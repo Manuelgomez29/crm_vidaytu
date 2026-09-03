@@ -12,7 +12,9 @@
     "db:seed": "tsx --env-file=.env.local scripts/seed.ts",
     "test:ingesta": "node --env-file=.env.local scripts/test-ingesta.mjs",
     "alertas": "node --env-file=.env.local scripts/alertas.mjs",
-    "push:claves": "node scripts/claves-push.mjs"
+    "push:claves": "node scripts/claves-push.mjs",
+    "verificar:muro": "node --env-file=.env.local scripts/verificar-muro.mjs",
+    "verificar": "tsx --env-file=.env.local scripts/verificar.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

@@ -62,7 +62,7 @@ export default async function AdminCatalogos({
   searchParams: Promise<{ error?: string; aviso?: string }>;
 }) {
   const { error: errorMsg, aviso } = await searchParams;
-  const { supabase, user } = await exigirDireccion();
+  const { supabase } = await exigirDireccion();
 
   const [
     { data: canales },

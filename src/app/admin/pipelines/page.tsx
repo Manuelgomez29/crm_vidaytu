@@ -12,7 +12,7 @@ export default async function AdminPipelines({
   searchParams: Promise<{ error?: string; aviso?: string }>;
 }) {
   const { error: errorMsg, aviso } = await searchParams;
-  const { supabase, user } = await exigirDireccion();
+  const { supabase } = await exigirDireccion();
 
   const [{ data: pipelines }, { data: etapas }, { data: centros }, { data: leads }] =
     await Promise.all([

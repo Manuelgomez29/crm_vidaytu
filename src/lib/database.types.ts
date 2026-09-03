@@ -2878,6 +2878,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["rol_usuario"]
       }
       mis_centros: { Args: never; Returns: string[] }
+      mis_conversaciones: { Args: never; Returns: string[] }
       mis_pacientes: { Args: never; Returns: string[] }
       profesionales_agendables: {
         Args: never
