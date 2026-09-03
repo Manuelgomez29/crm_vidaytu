@@ -83,7 +83,8 @@ function Tarjeta({
       } ${atenuada ? 'opacity-40' : ''}`}
     >
       <Link
-        href={`/leads/${lead.id}`}
+        href={`/leads?caso=${lead.id}`}
+        scroll={false}
         className="mb-1.5 block text-[13.5px] font-bold text-ink hover:text-primary"
         draggable={false}
       >
@@ -201,12 +202,14 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
     }
 
     function alMover(e: PointerEvent) {
-      e.preventDefault();
       const a = arrastreRef.current;
       if (!a) return;
       // El umbral se mide contra el ORIGEN del gesto, no contra el último
       // movimiento: si no, un arrastre lento nunca llega a activarse.
       const activo = a.activo || Math.hypot(e.clientX - a.origenX, e.clientY - a.origenY) > 6;
+      // Solo se bloquea el evento cuando el arrastre ya es real: hacerlo antes
+      // cancelaba el clic del enlace de la tarjeta.
+      if (activo) e.preventDefault();
       fijarArrastre({ ...a, x: e.clientX, y: e.clientY, activo });
       setColumnaDestino(columnaBajo(e.clientX, e.clientY));
     }
@@ -271,7 +274,8 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
               >
                 <div>
                   <Link
-                    href={`/leads/${lead.id}`}
+                    href={`/leads?caso=${lead.id}`}
+                    scroll={false}
                     className="block text-[13px] font-bold text-ink hover:text-primary"
                   >
                     {lead.nombre}

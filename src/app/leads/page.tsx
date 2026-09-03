@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { ESTADOS_CERRADOS, type EstadoLead } from '@/lib/estados';
 import { hace, hoyMadrid } from '@/lib/fechas';
 import Kanban, { type TarjetaLead } from './kanban';
+import { DrawerCaso } from './drawer-caso';
 
 /** Estados exentos del aviso "sin próxima acción": cerrados o ya resueltos. */
 const ESTADOS_SIN_AVISO_ACCION: string[] = [...ESTADOS_CERRADOS, 'convertido', 'derivado'];
@@ -27,7 +28,7 @@ type FilaKanban = {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pipeline?: string; centro?: string }>;
+  searchParams: Promise<{ pipeline?: string; centro?: string; caso?: string }>;
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
@@ -36,6 +37,12 @@ export default async function LeadsPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
+
+  // Al cerrar la ficha se vuelve al tablero con los mismos filtros.
+  const parametrosTablero = new URLSearchParams();
+  if (filtros.pipeline) parametrosTablero.set('pipeline', filtros.pipeline);
+  if (filtros.centro) parametrosTablero.set('centro', filtros.centro);
+  const volverAlTablero = `/leads${parametrosTablero.toString() ? `?${parametrosTablero}` : ''}`;
 
   // Consultas independientes en paralelo; solo etapas y leads esperan al pipeline.
   const hoy = hoyMadrid();
@@ -168,6 +175,8 @@ export default async function LeadsPage({
             puedeAutoasignarse={perfil?.rol === 'admisiones'}
           />
         )}
+
+        {filtros.caso && <DrawerCaso leadId={filtros.caso} volverA={volverAlTablero} />}
       </AppShell>
   );
 }
