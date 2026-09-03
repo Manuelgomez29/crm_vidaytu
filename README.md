@@ -104,6 +104,9 @@ Cada acción vuelve a comprobar el rol en el servidor: la interfaz nunca es la �
 - **Disciplina**: leads sin asignar del periodo y leads abiertos sin próxima acción (estos, en todo momento).
 - **Embudo** por estado, **origen** por canal, y tabla **por centro** con su tasa de conversión.
 - **Equipo comercial**: leads, citas, conversiones e ingresos de cada comercial frente a sus objetivos del mes (`objetivos`).
+- **Calidad del proceso**: tiempo medio de primera respuesta contra el SLA, tasa de no-shows, días de lead a conversión y ticket medio.
+- **Composición de la demanda**: quién contacta (familiar / afectado / prescriptor), modalidad de interés y adicción.
+- **Pérdidas y movimientos**: motivos de pérdida del periodo, casos estancados en valoración más de dos semanas, derivaciones internas entre centros y leads nacidos en la bandeja de grupo — el valor comercial de la marca personal, en números.
 
 Cada rol ve lo que le permite RLS: dirección todo, admisiones solo sus centros. El terapeuta no tiene acceso.
 

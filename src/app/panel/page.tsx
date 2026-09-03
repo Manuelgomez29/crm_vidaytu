@@ -32,6 +32,10 @@ type LeadMetrica = {
   propietario_id: string | null;
   created_at: string;
   primera_respuesta_at: string | null;
+  quien_contacta: string | null;
+  adiccion_id: string | null;
+  modalidad_interes_id: string | null;
+  motivo_perdida_id: string | null;
 };
 
 function Tarjeta({
@@ -85,6 +89,35 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
   );
 }
 
+/** Lista de categorías con su barra proporcional. */
+function Lista({
+  filas,
+  total,
+  color,
+}: {
+  filas: [string, number][];
+  total: number;
+  color: string;
+}) {
+  const maximo = Math.max(1, ...filas.map(([, n]) => n));
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {filas.map(([texto, n]) => (
+        <li key={texto}>
+          <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+            <span className="truncate">{texto}</span>
+            <span className="num shrink-0 text-ink2">
+              {n} · {porcentaje(n, total)}
+            </span>
+          </div>
+          <Barra valor={n} maximo={maximo} clases={color} />
+        </li>
+      ))}
+      {filas.length === 0 && <li className="text-sm text-muted">Sin datos en el periodo.</li>}
+    </ul>
+  );
+}
+
 function Barra({ valor, maximo, clases }: { valor: number; maximo: number; clases: string }) {
   const ancho = maximo > 0 ? Math.max(2, Math.round((valor / maximo) * 100)) : 0;
   return (
@@ -121,14 +154,18 @@ export default async function Panel({
 
   let consultaLeads = supabase
     .from('leads')
-    .select('id, estado, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at')
+    .select(
+      'id, estado, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at, quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id',
+    )
     .gte('created_at', desdeIso)
     .lt('created_at', hastaIso);
   if (filtros.centro) consultaLeads = consultaLeads.eq('centro_id', filtros.centro);
 
   let consultaConversiones = supabase
     .from('conversiones')
-    .select('id, estado, importe_primer_pago, centro_id, created_at, lead:leads (propietario_id)')
+    .select(
+      'id, lead_id, estado, importe_primer_pago, centro_id, created_at, lead:leads (propietario_id)',
+    )
     .gte('created_at', desdeIso)
     .lt('created_at', hastaIso);
   if (filtros.centro) consultaConversiones = consultaConversiones.eq('centro_id', filtros.centro);
@@ -146,6 +183,10 @@ export default async function Panel({
     { data: citas },
     { data: centros },
     { data: canales },
+    { data: adicciones },
+    { data: modalidades },
+    { data: motivosPerdida },
+    { data: derivaciones },
     { data: comerciales },
     { data: objetivos },
     { data: configSla },
@@ -157,6 +198,15 @@ export default async function Panel({
     consultaCitas,
     supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
     supabase.from('canales').select('id, nombre').eq('activo', true),
+    supabase.from('adicciones').select('id, nombre'),
+    supabase.from('modalidades').select('id, nombre'),
+    supabase.from('motivos_perdida').select('id, nombre'),
+    // Derivaciones y citas del periodo, para no-shows y movimientos internos.
+    supabase
+      .from('derivaciones')
+      .select('centro_origen_id, centro_destino_id')
+      .gte('created_at', desdeIso)
+      .lt('created_at', hastaIso),
     supabase
       .from('perfiles')
       .select('id, nombre, rol')
@@ -283,6 +333,87 @@ export default async function Panel({
   const objetivoDe = new Map(
     (objetivos ?? []).filter((o) => o.mes === mesActual).map((o) => [o.perfil_id, o]),
   );
+
+  // --- KPIs adicionales del inventario -------------------------------------
+
+  /** Agrupa por una clave del lead y devuelve la lista ordenada por volumen. */
+  function agrupar(
+    clave: (l: LeadMetrica) => string | null,
+    nombres: Map<string, string>,
+    etiquetaVacio = 'Sin indicar',
+  ) {
+    const cuenta = new Map<string, number>();
+    for (const l of leads) {
+      const k = clave(l);
+      const texto = k ? (nombres.get(k) ?? '—') : etiquetaVacio;
+      cuenta.set(texto, (cuenta.get(texto) ?? 0) + 1);
+    }
+    return [...cuenta.entries()].sort((a, b) => b[1] - a[1]);
+  }
+
+  const nombreAdiccion = new Map((adicciones ?? []).map((a) => [a.id, a.nombre]));
+  const nombreModalidad = new Map((modalidades ?? []).map((m) => [m.id, m.nombre]));
+  const nombreMotivo = new Map((motivosPerdida ?? []).map((m) => [m.id, m.nombre]));
+
+  const porQuienContacta = agrupar((l) => l.quien_contacta, new Map(
+    [['familiar', 'Familiar'], ['afectado', 'Afectado'], ['prescriptor', 'Prescriptor'], ['otro', 'Otro']],
+  ));
+  const porAdiccion = agrupar((l) => l.adiccion_id, nombreAdiccion);
+  const porModalidad = agrupar((l) => l.modalidad_interes_id, nombreModalidad);
+  const porMotivoPerdida = agrupar(
+    (l) => (l.estado === 'perdido' ? l.motivo_perdida_id : null),
+    nombreMotivo,
+    '',
+  ).filter(([texto]) => texto !== '');
+
+  // Tiempo medio de primera respuesta (solo los ya respondidos).
+  const minutosRespuesta = respondidos.map((l) =>
+    minutosEntre(l.created_at, l.primera_respuesta_at!),
+  );
+  const mediaRespuesta =
+    minutosRespuesta.length > 0
+      ? Math.round(minutosRespuesta.reduce((a, b) => a + b, 0) / minutosRespuesta.length)
+      : null;
+
+  // No-shows del periodo sobre las citas que ya deberían haberse dado.
+  const citasCerradas = (citas ?? []).filter((c) =>
+    ['realizada', 'no_show'].includes(c.estado),
+  );
+  const noShows = (citas ?? []).filter((c) => c.estado === 'no_show').length;
+
+  // Tiempo medio de lead a conversión validada.
+  const fechaLead = new Map(leads.map((l) => [l.id, l.created_at]));
+  const diasHastaConversion = validadas
+    .map((c) => {
+      const alta = fechaLead.get(c.lead_id);
+      return alta ? (new Date(c.created_at).getTime() - new Date(alta).getTime()) / 86_400_000 : null;
+    })
+    .filter((d): d is number => d !== null);
+  const mediaDiasConversion =
+    diasHastaConversion.length > 0
+      ? Math.round(diasHastaConversion.reduce((a, b) => a + b, 0) / diasHastaConversion.length)
+      : null;
+
+  const ticketMedio = validadas.length > 0 ? Math.round(ingresos / validadas.length) : 0;
+
+  // Casos estancados: abiertos en valoración desde hace más de dos semanas.
+  const estancados = leads.filter(
+    (l) =>
+      l.estado === 'en_valoracion' &&
+      Date.now() - new Date(l.created_at).getTime() > 14 * 86_400_000,
+  ).length;
+
+  /**
+   * El valor comercial de la marca personal: leads nacidos en la bandeja de
+   * grupo y a qué centro acabaron yendo.
+   */
+  const bandeja = (centros ?? []).find((c) => nombreCentro.get(c.id)?.includes('Bandeja'));
+  const nacidosEnBandeja = leads.filter((l) => l.centro_id === bandeja?.id).length;
+  const derivacionesInternas = new Map<string, number>();
+  for (const d of derivaciones ?? []) {
+    const clave = `${nombreCentro.get(d.centro_origen_id) ?? '—'} → ${nombreCentro.get(d.centro_destino_id) ?? '—'}`;
+    derivacionesInternas.set(clave, (derivacionesInternas.get(clave) ?? 0) + 1);
+  }
 
   const maxEmbudo = Math.max(1, ...EMBUDO.map((e) => porEstado.get(e) ?? 0));
 
@@ -425,6 +556,33 @@ export default async function Panel({
                 valor={String(sinProximaAccion)}
                 pie="En todo momento, no solo del periodo"
                 acento={sinProximaAccion > 0 ? 'rojo' : 'verde'}
+              />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Tarjeta
+                titulo="1ª respuesta (media)"
+                valor={mediaRespuesta === null ? '—' : `${mediaRespuesta} min`}
+                pie={`Objetivo: ${slaMinutos} min`}
+                acento={
+                  mediaRespuesta === null ? undefined : mediaRespuesta <= slaMinutos ? 'verde' : 'rojo'
+                }
+              />
+              <Tarjeta
+                titulo="No-shows"
+                valor={porcentaje(noShows, citasCerradas.length)}
+                pie={`${noShows} de ${citasCerradas.length} citas cerradas`}
+                acento={noShows > 0 ? 'ambar' : 'verde'}
+              />
+              <Tarjeta
+                titulo="Lead → conversión"
+                valor={mediaDiasConversion === null ? '—' : `${mediaDiasConversion} días`}
+                pie="Media de las validadas del periodo"
+              />
+              <Tarjeta
+                titulo="Ticket medio"
+                valor={euros(ticketMedio)}
+                pie="Primer pago medio de las validadas"
               />
             </div>
 
@@ -571,6 +729,60 @@ export default async function Panel({
                 </p>
               )}
             </Seccion>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Seccion titulo="Quién contacta">
+                <Lista filas={porQuienContacta} total={leads.length} color="bg-primary" />
+              </Seccion>
+              <Seccion titulo="Modalidad de interés">
+                <Lista filas={porModalidad} total={leads.length} color="bg-graf-bm" />
+              </Seccion>
+              <Seccion titulo="Adicción">
+                <Lista filas={porAdiccion} total={leads.length} color="bg-graf-ec" />
+              </Seccion>
+              <Seccion titulo="Motivos de pérdida">
+                {porMotivoPerdida.length === 0 ? (
+                  <p className="text-sm text-muted">Ningún caso perdido en el periodo.</p>
+                ) : (
+                  <Lista
+                    filas={porMotivoPerdida}
+                    total={porMotivoPerdida.reduce((a, [, n]) => a + n, 0)}
+                    color="bg-ink2"
+                  />
+                )}
+              </Seccion>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Tarjeta
+                titulo="Nacidos en la bandeja de grupo"
+                valor={String(nacidosEnBandeja)}
+                pie="Sobre todo el Instagram de Lolo Drago"
+              />
+              <Tarjeta
+                titulo="Estancados en valoración"
+                valor={String(estancados)}
+                pie="Abiertos ahí desde hace más de 2 semanas"
+                acento={estancados > 0 ? 'ambar' : 'verde'}
+              />
+              <div className="panel p-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink2">
+                  Derivaciones internas
+                </p>
+                {derivacionesInternas.size === 0 ? (
+                  <p className="mt-1 text-sm text-muted">Ninguna en el periodo.</p>
+                ) : (
+                  <ul className="mt-1 flex flex-col gap-0.5 text-[13px]">
+                    {[...derivacionesInternas.entries()].map(([ruta, n]) => (
+                      <li key={ruta} className="flex justify-between gap-2">
+                        <span className="truncate text-ink2">{ruta}</span>
+                        <span className="num font-semibold">{n}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
 
             {!esDireccion && (
               <p className="text-xs text-muted">
