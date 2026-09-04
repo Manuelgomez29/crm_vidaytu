@@ -3,14 +3,20 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { fecha, hoyMadrid } from '@/lib/fechas';
-import { completarTareaDesdeLista, reabrirTarea } from './actions';
+import {
+  aplazarTarea,
+  borrarTarea,
+  completarTareaDesdeLista,
+  crearTareaManual,
+  reabrirTarea,
+} from './actions';
 
 type FilaTarea = {
   id: string;
   titulo: string;
   vence_at: string;
   completada_at: string | null;
-  lead_id: string;
+  lead_id: string | null;
   lead: { nombre: string; estado: string; centro: { nombre: string; slug: string } | null } | null;
   responsable: { nombre: string } | null;
   cerrada_por: { nombre: string } | null;
@@ -40,6 +46,21 @@ function ChipCentro({ centro }: { centro: { nombre: string; slug: string } | nul
   return <span className={`chip ${CHIP_CENTRO[centro.slug] ?? 'chip-mut'}`}>{centro.nombre}</span>;
 }
 
+/** De dónde cuelga la tarea: un caso, o nada. */
+function Origen({ tarea }: { tarea: FilaTarea }) {
+  if (!tarea.lead_id) {
+    return <span className="chip chip-mut">Sin caso</span>;
+  }
+  return (
+    <>
+      <Link href={`/leads/${tarea.lead_id}`} className="font-medium text-primary hover:underline">
+        {tarea.lead?.nombre ?? 'Caso'}
+      </Link>
+      <ChipCentro centro={tarea.lead?.centro ?? null} />
+    </>
+  );
+}
+
 function Grupo({
   titulo,
   tareas,
@@ -65,18 +86,45 @@ function Grupo({
             <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-semibold">{t.titulo}</p>
               <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink2">
-                <Link href={`/leads/${t.lead_id}`} className="font-medium text-primary hover:underline">
-                  {t.lead?.nombre ?? 'Caso'}
-                </Link>
-                <ChipCentro centro={t.lead?.centro ?? null} />
+                <Origen tarea={t} />
                 <span className={acento === 'rojo' ? 'font-semibold text-danger' : ''}>
                   ◷ {fecha(t.vence_at)}
                 </span>
               </p>
             </div>
+
+            {/* Aplazar es lo que más se hace con una tarea: sin abrir nada. */}
+            <div className="flex items-center gap-1 text-xs text-muted">
+              {[
+                [1, '+1d'],
+                [3, '+3d'],
+                [7, '+7d'],
+              ].map(([dias, texto]) => (
+                <form key={dias} action={aplazarTarea.bind(null, t.id, dias as number)}>
+                  <button
+                    type="submit"
+                    title={`Aplazar ${dias} día(s)`}
+                    className="rounded-md px-1.5 py-1 hover:bg-surface2 hover:text-ink"
+                  >
+                    {texto}
+                  </button>
+                </form>
+              ))}
+            </div>
+
             <form action={completarTareaDesdeLista.bind(null, t.id)}>
               <button type="submit" className="btn btn-ghost">
                 Completar
+              </button>
+            </form>
+
+            <form action={borrarTarea.bind(null, t.id)}>
+              <button
+                type="submit"
+                title="Borrar la tarea"
+                className="text-xs text-muted hover:text-danger hover:underline"
+              >
+                Borrar
               </button>
             </form>
           </article>
@@ -108,7 +156,7 @@ export default async function MisTareas({
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, nombre')
     .eq('id', user.id)
     .maybeSingle();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
@@ -143,7 +191,29 @@ export default async function MisTareas({
   }
   if (!verTodas) consulta = consulta.eq('responsable_id', user.id);
 
-  const { data, error } = await consulta;
+  /**
+   * Los casos que puede elegir al crear la tarea. Solo abiertos: apuntar una
+   * próxima acción sobre un caso ya cerrado no tiene sentido, y la lista sería
+   * el doble de larga.
+   */
+  const [{ data, error }, { data: casos }, { data: companeros }] = await Promise.all([
+    consulta,
+    supabase
+      .from('leads')
+      .select('id, nombre, centro:centros (nombre)')
+      .not('estado', 'in', '(convertido,perdido,no_valido)')
+      .order('created_at', { ascending: false })
+      .limit(200),
+    esDireccion
+      ? supabase
+          .from('perfiles')
+          .select('id, nombre')
+          .eq('activo', true)
+          .in('rol', ['direccion', 'admisiones'])
+          .order('nombre')
+      : Promise.resolve({ data: null }),
+  ]);
+
   const tareas = (data ?? []) as unknown as FilaTarea[];
 
   const hoy = hoyMadrid();
@@ -166,6 +236,10 @@ export default async function MisTareas({
   ).length;
   const porcentaje = tareas.length > 0 ? Math.round((enPlazo / tareas.length) * 100) : 0;
   const textoPeriodo = diasHistorial === 365 ? '12 meses' : `${diasHistorial} días`;
+
+  // Por defecto, mañana a las nueve: lo que se apunta hoy casi nunca es para hoy.
+  const manana = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const porDefecto = `${manana.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' })}T09:00`;
 
   const pestana = (activa: boolean) =>
     `rounded-md px-3 py-1.5 font-medium transition ${
@@ -231,6 +305,58 @@ export default async function MisTareas({
         </p>
       )}
 
+      {/* -------------------- Apuntar algo -------------------- */}
+      {!verHechas && (
+        <section className="panel mb-5 p-4">
+          <h2 className="mb-1 text-sm font-semibold">Apuntar una tarea</h2>
+          <p className="mb-3 text-xs text-ink2">
+            El caso es opcional: aquí también va lo que no cuelga de ninguno — llamar a un
+            prescriptor, preparar la reunión del lunes. Lo que acaba en un post-it no lo cubre nadie
+            cuando estás de baja.
+          </p>
+
+          <form action={crearTareaManual} className="flex flex-wrap items-end gap-2">
+            <input
+              name="titulo"
+              placeholder="¿Qué hay que hacer?"
+              className="campo min-w-56 flex-1"
+              required
+            />
+            <label className="text-xs text-ink2">
+              <span className="mb-0.5 block">Para cuándo</span>
+              <input name="vence" type="datetime-local" defaultValue={porDefecto} className="campo" required />
+            </label>
+            <label className="text-xs text-ink2">
+              <span className="mb-0.5 block">Sobre un caso</span>
+              <select name="lead" defaultValue="" className="campo max-w-56">
+                <option value="">Ninguno</option>
+                {(casos ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                    {c.centro?.nombre ? ` · ${c.centro.nombre}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {esDireccion && (companeros ?? []).length > 0 && (
+              <label className="text-xs text-ink2">
+                <span className="mb-0.5 block">Para quién</span>
+                <select name="responsable" defaultValue={user.id} className="campo">
+                  {(companeros ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.id === user.id ? 'Para mí' : c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button type="submit" className="btn btn-coral">
+              Apuntar
+            </button>
+          </form>
+        </section>
+      )}
+
       {error ? (
         <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
           No se pudieron cargar las tareas: {error.message}
@@ -252,13 +378,7 @@ export default async function MisTareas({
                       {t.titulo}
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink2">
-                      <Link
-                        href={`/leads/${t.lead_id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {t.lead?.nombre ?? 'Caso'}
-                      </Link>
-                      <ChipCentro centro={t.lead?.centro ?? null} />
+                      <Origen tarea={t} />
                       <span className={`chip ${tarde ? 'chip-warn' : 'chip-ok'}`}>
                         {tarde ? 'Fuera de plazo' : 'En plazo'}
                       </span>

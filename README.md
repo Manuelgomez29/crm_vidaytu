@@ -98,7 +98,15 @@ Un proceso o una etapa con casos dentro **no se borra**: lo impide la base de da
 
 ## Bandeja de tareas
 
-`/tareas` tiene dos pestañas:
+`/tareas` es donde cada uno apunta su trabajo y lo cierra.
+
+**Se crean a mano desde ahí**, y el caso es **opcional**. Un comercial tiene trabajo que no cuelga de ningún caso —llamar a un prescriptor, preparar la reunión del lunes—, y sin sitio donde apuntarlo acaba en un post-it: no aparece en ninguna métrica ni lo cubre nadie cuando esa persona está de baja. La regla 9 no cambia: un caso abierto sigue necesitando su próxima acción con fecha.
+
+Una tarea suelta se crea **para uno mismo**. Encargarle algo suelto a otra persona sin un caso de por medio es una vía para molestar sin rastro; si hay caso, ese caso ya deja el rastro. Dirección sí puede asignar a cualquiera.
+
+Cada tarea se puede **aplazar con un clic** (+1, +3, +7 días), que es lo que más se hace con una tarea. Aplazar cuenta desde hoy si ya venció: aplazar «3 días» algo vencido hace dos semanas lo pone dentro de tres días, no lo deja igual de vencido.
+
+Tiene dos pestañas:
 
 - **Pendientes**, agrupadas en vencidas / para hoy / próximas.
 - **Completadas**, el historial de los últimos 30 días, 90 días o un año, con quién cerró cada tarea, cuándo, y si lo hizo **en plazo o fuera de plazo**. El porcentaje dentro de plazo aparece en la cabecera: es el indicador de disciplina comercial (regla 9), y por eso se ve aquí y no escondido en el panel de dirección.

@@ -2831,8 +2831,9 @@ export type Database = {
           completada_at: string | null
           completada_por: string | null
           created_at: string
+          created_by: string | null
           id: string
-          lead_id: string
+          lead_id: string | null
           responsable_id: string | null
           titulo: string
           vence_at: string
@@ -2841,8 +2842,9 @@ export type Database = {
           completada_at?: string | null
           completada_por?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
-          lead_id: string
+          lead_id?: string | null
           responsable_id?: string | null
           titulo: string
           vence_at: string
@@ -2851,8 +2853,9 @@ export type Database = {
           completada_at?: string | null
           completada_por?: string | null
           created_at?: string
+          created_by?: string | null
           id?: string
-          lead_id?: string
+          lead_id?: string | null
           responsable_id?: string | null
           titulo?: string
           vence_at?: string
@@ -2861,6 +2864,13 @@ export type Database = {
           {
             foreignKeyName: "tareas_completada_por_fkey"
             columns: ["completada_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tareas_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]

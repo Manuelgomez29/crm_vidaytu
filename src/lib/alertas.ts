@@ -212,7 +212,10 @@ export async function ejecutarAlertas(admin: Cliente): Promise<ResultadoAlertas>
         usuario_id,
         tipo: 'tarea_vencida' as TipoNotificacion,
         lead_id: t.lead_id,
-        mensaje: `Tarea vencida en ${t.lead?.nombre ?? 'un caso'}: ${t.titulo}`,
+        // Una tarea suelta no cuelga de ningún caso: nombrarlo sería mentir.
+        mensaje: t.lead?.nombre
+          ? `Tarea vencida en ${t.lead.nombre}: ${t.titulo}`
+          : `Tarea vencida: ${t.titulo}`,
         clave: `tarea_vencida:${t.id}:${usuario_id}`,
       })),
     ),
