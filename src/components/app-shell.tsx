@@ -89,6 +89,10 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
 
 /** Subsecciones de las áreas que las tienen. */
 const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> = {
+  leads: [
+    { texto: 'Kanban', href: '/leads' },
+    { texto: 'Procesos de venta', href: '/leads/procesos' },
+  ],
   contactos: [
     { texto: 'Directorio', href: '/contactos' },
     { texto: 'Etiquetas', href: '/contactos/etiquetas' },

@@ -84,6 +84,18 @@ npm run alertas
 
 **Correo (opcional).** Si defines `RESEND_API_KEY` y `EMAIL_REMITENTE`, los avisos se envían también por email y se marca `email_enviado_at`. Sin esas variables la plataforma funciona igual: los avisos se quedan en la campana. Ningún correo menciona el motivo de consulta (regla 12), ni siquiera los internos.
 
+## Procesos de venta
+
+`/leads/procesos` (área comercial). Cada equipo puede tener su propio recorrido, y las métricas se calculan igual con todos: **cada etapa se asocia a un estado de sistema**. Un caso pasa por «Primera llamada» en un proceso y por «Contacto inicial» en otro, y el embudo del panel sale igual. Las etapas se renombran al lenguaje de cada equipo sin romper nada.
+
+Los crean **dirección y los comerciales** (regla 6). Cada uno maneja los que ha creado; los de los demás los ve —hacen falta para poder mover un caso a ellos— pero no los toca. Crear uno copiando otro es lo normal: «como el estándar, pero con una etapa más antes de la cita».
+
+**Un caso se mueve de un proceso a otro** desde su ficha, eligiendo en qué etapa entra. Sin eso, un proceso nuevo nacería vacío y se quedaría vacío. El historial, las tareas y las citas se quedan como están: cambia el recorrido, no el caso.
+
+**Qué proceso recibe los casos nuevos lo decide dirección.** Crear recorridos es libre; redirigir la entrada de un centro entero, no. Antes se elegía «el primero que encaje, por antigüedad», y con los comerciales creando procesos eso era una trampa: el día que alguien creara uno para un centro que no tenía el suyo, todos los casos nuevos de ese centro habrían empezado a caer ahí sin que nadie lo decidiera.
+
+Un proceso o una etapa con casos dentro **no se borra**: lo impide la base de datos, no la pantalla. Se desactiva, o se mueven los casos primero.
+
 ## Bandeja de tareas
 
 `/tareas` tiene dos pestañas:

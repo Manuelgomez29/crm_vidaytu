@@ -179,6 +179,59 @@ export async function cambiarEtapa(leadId: string, formData: FormData) {
   volver(leadId);
 }
 
+/**
+ * Mueve un caso a OTRO proceso de venta.
+ *
+ * Sin esto, los procesos personalizados no servían de nada: el proceso se
+ * asignaba al crear el caso y no había forma de cambiarlo, así que uno nuevo
+ * nacía vacío y se quedaba vacío para siempre.
+ *
+ * Hay que elegir también en qué etapa entra, porque las etapas de un proceso
+ * no se corresponden con las de otro. El trigger `fn_sync_estado_etapa` copia
+ * el estado de sistema de la etapa nueva, así que las métricas siguen
+ * cuadrando aunque el caso cambie de recorrido a mitad de camino.
+ */
+export async function cambiarProceso(leadId: string, formData: FormData) {
+  const pipelineId = String(formData.get('pipeline') ?? '');
+  const etapaId = String(formData.get('etapa') ?? '');
+  if (!pipelineId || !etapaId) {
+    volver(leadId, { error: 'Elige el proceso y la etapa en la que entra el caso.' });
+  }
+
+  const supabase = await createClient();
+
+  // La etapa tiene que ser de ESE proceso: si no, el caso quedaría en un
+  // proceso mostrando una columna que no le pertenece.
+  const { data: etapa } = await supabase
+    .from('pipeline_etapas')
+    .select('id, nombre, pipeline_id, pipeline:pipelines (nombre)')
+    .eq('id', etapaId)
+    .maybeSingle();
+
+  if (!etapa || etapa.pipeline_id !== pipelineId) {
+    volver(leadId, { error: 'Esa etapa no pertenece al proceso elegido.' });
+  }
+
+  const { data: actualizados, error } = await supabase
+    .from('leads')
+    .update({ pipeline_id: pipelineId, etapa_id: etapaId })
+    .eq('id', leadId)
+    .select('id');
+
+  if (error) volver(leadId, { error: `No se pudo mover: ${error.message}` });
+  if (!actualizados || actualizados.length === 0) {
+    volver(leadId, { error: 'No tienes permiso para mover este caso.' });
+  }
+
+  await registrarEnHistorial(
+    leadId,
+    'cambio_estado',
+    `Movido al proceso «${etapa.pipeline?.nombre}», etapa «${etapa.nombre}»`,
+  );
+
+  volver(leadId, { aviso: `Caso movido a «${etapa.pipeline?.nombre}».` });
+}
+
 export async function asignarPropietario(leadId: string, formData: FormData) {
   const perfilId = String(formData.get('propietario') ?? '') || null;
   const supabase = await createClient();

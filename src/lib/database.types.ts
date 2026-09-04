@@ -2481,6 +2481,7 @@ export type Database = {
           centro_id: string | null
           created_at: string
           created_by: string | null
+          es_predeterminado: boolean
           id: string
           nombre: string
         }
@@ -2489,6 +2490,7 @@ export type Database = {
           centro_id?: string | null
           created_at?: string
           created_by?: string | null
+          es_predeterminado?: boolean
           id?: string
           nombre: string
         }
@@ -2497,6 +2499,7 @@ export type Database = {
           centro_id?: string | null
           created_at?: string
           created_by?: string | null
+          es_predeterminado?: boolean
           id?: string
           nombre?: string
         }

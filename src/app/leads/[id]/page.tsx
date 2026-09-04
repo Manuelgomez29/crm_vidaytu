@@ -10,6 +10,7 @@ import {
   asignarmeDesdeFicha,
   asignarPropietario,
   cambiarEtapa,
+  cambiarProceso,
   completarTarea,
   crearPresupuesto,
   crearTarea,
@@ -109,6 +110,7 @@ export default async function FichaLead({
     { data: presupuestos },
     { data: conversion },
     { data: etapas },
+    { data: procesos },
     { data: motivos },
     { data: centros },
     { data: modalidades },
@@ -147,6 +149,13 @@ export default async function FichaLead({
       .select('id, nombre, orden')
       .eq('pipeline_id', lead.pipeline_id)
       .order('orden'),
+    // Todos los procesos activos y sus etapas: hace falta para poder mover el
+    // caso a otro recorrido, no solo a otra columna del suyo.
+    supabase
+      .from('pipelines')
+      .select('id, nombre, centro_id, es_predeterminado, etapas:pipeline_etapas (id, nombre, orden)')
+      .eq('activo', true)
+      .order('nombre'),
     supabase.from('motivos_perdida').select('id, nombre').eq('activo', true).order('nombre'),
     supabase.from('centros').select('id, nombre, es_bandeja_grupo').eq('activo', true).order('nombre'),
     supabase.from('modalidades').select('id, nombre').eq('activa', true).order('nombre'),
@@ -751,6 +760,54 @@ export default async function FichaLead({
                     Mover
                   </button>
                 </form>
+
+                {/*
+                  Cambiar de PROCESO, no solo de etapa. Hay que decir en qué
+                  etapa entra porque las de un proceso no se corresponden con
+                  las de otro; el estado de sistema lo copia el disparador, así
+                  que las métricas siguen cuadrando.
+                */}
+                {(procesos ?? []).length > 1 && (
+                  <details className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
+                    <summary className="cursor-pointer text-[13px] font-medium text-ink2">
+                      Cambiar de proceso de venta
+                    </summary>
+                    <form
+                      action={cambiarProceso.bind(null, lead.id)}
+                      className="mt-2 flex flex-col gap-2"
+                    >
+                      <select name="pipeline" defaultValue={lead.pipeline_id} className={inputClase}>
+                        {(procesos ?? []).map((pr) => (
+                          <option key={pr.id} value={pr.id}>
+                            {pr.nombre}
+                            {pr.id === lead.pipeline_id ? ' (el actual)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <select name="etapa" defaultValue="" className={inputClase} required>
+                        <option value="">¿En qué etapa entra?</option>
+                        {(procesos ?? []).map((pr) => (
+                          <optgroup key={pr.id} label={pr.nombre}>
+                            {[...(pr.etapas ?? [])]
+                              .sort((a, b) => a.orden - b.orden)
+                              .map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.orden}. {e.nombre}
+                                </option>
+                              ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      <button type="submit" className={botonSecundario}>
+                        Mover a ese proceso
+                      </button>
+                      <span className="text-xs text-muted">
+                        El historial, las tareas y las citas se quedan como están: cambia el
+                        recorrido, no el caso.
+                      </span>
+                    </form>
+                  </details>
+                )}
 
                 {!lead.propietario_id && perfil?.rol === 'admisiones' && (
                   <form action={asignarmeDesdeFicha.bind(null, lead.id)}>

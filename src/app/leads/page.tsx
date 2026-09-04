@@ -61,7 +61,11 @@ export default async function LeadsPage({
   const [{ data: perfil }, { data: pipelines }, { data: centros }, { data: ausencias }, { data: canales }] =
     await Promise.all([
       supabase.from('perfiles').select('rol, nombre').eq('id', user.id).single(),
-      supabase.from('pipelines').select('id, nombre').eq('activo', true).order('nombre'),
+      supabase
+        .from('pipelines')
+        .select('id, nombre, centro_id, es_predeterminado')
+        .eq('activo', true)
+        .order('nombre'),
       supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
       supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
       supabase.from('canales').select('id, nombre').eq('activo', true).order('nombre'),
@@ -70,9 +74,27 @@ export default async function LeadsPage({
   // El terapeuta solo tiene agenda (regla 14).
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
 
+  /**
+   * El selector solo enseña los procesos que le sirven a esta persona: los
+   * globales y los de sus centros. Antes salían todos, incluidos los de
+   * centros que no lleva — columnas que nunca iban a tener una tarjeta suya.
+   */
+  const { data: misCentros } = await supabase
+    .from('perfil_centros')
+    .select('centro_id')
+    .eq('perfil_id', user.id);
+  const centrosPropios = new Set((misCentros ?? []).map((c) => c.centro_id));
+
+  const procesosVisibles = (pipelines ?? []).filter(
+    (p) => perfil?.rol === 'direccion' || p.centro_id === null || centrosPropios.has(p.centro_id),
+  );
+
+  // Por defecto se abre el que recibe los casos nuevos: es donde está lo que
+  // acaba de entrar y lo que hay que atender.
   const pipelineId =
-    (filtros.pipeline && pipelines?.find((p) => p.id === filtros.pipeline)?.id) ||
-    pipelines?.[0]?.id;
+    (filtros.pipeline && procesosVisibles.find((p) => p.id === filtros.pipeline)?.id) ||
+    procesosVisibles.find((p) => p.es_predeterminado)?.id ||
+    procesosVisibles[0]?.id;
 
   let consulta = supabase
     .from('leads')
@@ -167,15 +189,22 @@ export default async function LeadsPage({
   return (
     <AppShell
       seccion="leads"
+      subseccion="/leads"
       titulo="Kanban comercial"
-      descripcion={`Pipeline: ${pipelines?.find((p) => p.id === pipelineId)?.nombre ?? "—"} · ${tarjetas.length} casos abiertos`}
+      descripcion={`Proceso: ${procesosVisibles.find((p) => p.id === pipelineId)?.nombre ?? '—'} · ${tarjetas.length} casos abiertos`}
     >
         <form method="get" className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-          {pipelines && pipelines.length > 1 && (
-            <select name="pipeline" defaultValue={pipelineId} className="campo">
-              {pipelines.map((p) => (
+          {procesosVisibles.length > 1 && (
+            <select
+              name="pipeline"
+              defaultValue={pipelineId}
+              className="campo"
+              title="Proceso de venta"
+            >
+              {procesosVisibles.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.nombre}
+                  {p.es_predeterminado ? ' ·' : ''}
                 </option>
               ))}
             </select>

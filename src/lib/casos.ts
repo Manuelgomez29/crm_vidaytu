@@ -235,13 +235,32 @@ export async function pipelineYPrimeraEtapa(
 ): Promise<{ pipelineId: string; etapaId: string } | { error: string }> {
   const { data: pipelines } = await cliente
     .from('pipelines')
-    .select('id, centro_id, created_at')
+    .select('id, centro_id, es_predeterminado, created_at')
     .eq('activo', true)
     .or(`centro_id.eq.${centroId},centro_id.is.null`)
     .order('created_at');
 
-  const pipeline = pipelines?.find((p) => p.centro_id === centroId) ?? pipelines?.[0];
-  if (!pipeline) return { error: 'No hay ningún pipeline activo.' };
+  /**
+   * Orden de preferencia, y el orden importa:
+   *
+   *   1. El proceso marcado como predeterminado DE ESTE CENTRO.
+   *   2. El predeterminado del grupo.
+   *   3. Cualquiera de este centro, por antigüedad.
+   *   4. Cualquiera global.
+   *
+   * Antes era solo «el primero que encaje». Con los comerciales creando sus
+   * propios procesos eso era una trampa: el día que alguien creara uno para
+   * un centro que no tenía, todos los casos nuevos de ese centro empezarían a
+   * caer ahí sin que nadie lo hubiera decidido. Ahora hace falta marcarlo, y
+   * eso solo lo hace dirección.
+   */
+  const pipeline =
+    pipelines?.find((p) => p.centro_id === centroId && p.es_predeterminado) ??
+    pipelines?.find((p) => p.centro_id === null && p.es_predeterminado) ??
+    pipelines?.find((p) => p.centro_id === centroId) ??
+    pipelines?.[0];
+
+  if (!pipeline) return { error: 'No hay ningún proceso de venta activo.' };
 
   const { data: etapa } = await cliente
     .from('pipeline_etapas')
@@ -250,7 +269,7 @@ export async function pipelineYPrimeraEtapa(
     .order('orden')
     .limit(1)
     .maybeSingle();
-  if (!etapa) return { error: 'El pipeline aplicable no tiene etapas configuradas.' };
+  if (!etapa) return { error: 'El proceso de venta aplicable no tiene etapas configuradas.' };
 
   return { pipelineId: pipeline.id, etapaId: etapa.id };
 }
