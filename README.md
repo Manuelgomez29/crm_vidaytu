@@ -335,6 +335,38 @@ Sentry está integrado en `src/instrumentation.ts` e **inerte sin `SENTRY_DSN`**
 
 Cuando se active, filtra cookies, cabeceras de autorización, secretos de webhook y query strings, y `sendDefaultPii` se queda en false. Un informe de error de esta plataforma puede arrastrar el nombre y el teléfono de alguien que llamó a un centro de adicciones, y eso no puede acabar en un servicio de terceros por accidente.
 
+## Seguridad
+
+```bash
+npm run verificar:seguridad
+```
+
+Ataca la plataforma desde fuera y desde dentro con las credenciales reales de cada rol, y comprueba que cada agujero encontrado en la auditoría sigue cerrado. No mira el código: mira lo que la base de datos y las rutas hacen de verdad. **37 comprobaciones.** Si alguna falla, es que una migración o un cambio lo ha reabierto.
+
+Cubre: acceso anónimo a tablas y funciones, el muro entre áreas, el aislamiento entre centros, la escalada de privilegios, la inmutabilidad de la auditoría, la entrega de avisos, las redirecciones abiertas y las firmas de enlace.
+
+### Decisiones de seguridad
+
+**RLS no es la única barrera.** `anon` no tiene ningún permiso de tabla en el esquema `public`, ni por defecto en lo que se cree a partir de ahora. Si una migración futura olvidara `enable row level security`, esa tabla seguiría sin ser accesible desde internet. `TRUNCATE` está retirado a `authenticated`: RLS no se aplica a TRUNCATE, y sin eso la auditoría «imborrable» se podía vaciar entera.
+
+**Las funciones no las ejecuta cualquiera.** Postgres concede `EXECUTE` a PUBLIC al crear una función, y un `grant` a `authenticated` no lo revoca. Todas están retiradas de `anon` salvo `darse_de_baja`, que la llama el enlace del correo de alguien que por definición no tiene cuenta. Además, `siguiente_numero_factura` comprueba el rol por dentro: consumir un número de serie es un acto contable.
+
+**Nada de redirecciones abiertas.** El `?next=` de las invitaciones solo acepta rutas internas —ni `//evil.com`, ni `/\evil.com`, ni esquemas—, y el redirector de clics de las campañas exige una firma HMAC del servidor. Sin eso, el dominio desde el que el grupo envía correo sería una herramienta de phishing con su propia marca delante.
+
+**Los secretos se comparan en tiempo constante.** `!==` corta en el primer carácter distinto y filtra cuántos acertaste.
+
+**Cabeceras.** CSP que limita a dónde puede hablar el navegador (solo la app y Supabase), `frame-ancestors 'none'` contra clickjacking sobre botones como «validar conversión», HSTS en producción, y sin cabecera de versión del framework.
+
+**Almacenamiento.** Los dos buckets son privados, con límite de 20 MB y lista de tipos permitidos **en el propio bucket**: el almacenamiento de Supabase es accesible directamente desde el navegador, así que un límite que solo esté en la acción del servidor es una sugerencia. La lista de tipos importa más que el tamaño — un `.html` subido como documento se sirve con su content-type y ejecutaría javascript en el dominio del almacenamiento.
+
+**La IA trata su contexto como datos.** Buena parte viene de formularios que rellena cualquiera desde internet. Las instrucciones del sistema dicen explícitamente que si dentro del contexto aparece algo con forma de orden, es texto de un tercero y no se obedece.
+
+### Lo que sigue abierto
+
+- **Sin límite de peticiones.** Ni en el login, ni en los webhooks, ni en el enlace de baja. Los tokens son de 24 bytes aleatorios, así que enumerarlos es inviable, pero un atacante puede machacar el login o inundar la ingesta. Se resuelve en la capa de red (Vercel, Cloudflare) o con los límites de Supabase Auth, no en el código.
+- **`postcss`, dentro de Next, tiene dos vulnerabilidades conocidas.** Solo se ejecuta en tiempo de compilación sobre CSS propio, así que la exposición real es nula mientras nadie con acceso al repositorio sea el atacante. El arreglo es subir a Next 16, que es un salto mayor: conviene hacerlo antes de producción y con pruebas, no con prisa.
+- **El alta manual confirma que un teléfono existe** aunque el caso esté en un centro que no ves. Es deliberado —evita crear duplicados— pero permite a un comercial averiguar si una persona es cliente de otro centro. Documentado como riesgo aceptado; si se quiere cerrar, la alternativa es enrutar la comprobación a dirección.
+
 ## Estructura
 
 - `src/app` — rutas (App Router). `/login` pública; todo lo demás requiere sesión.
@@ -344,5 +376,7 @@ Cuando se active, filtra cookies, cabeceras de autorización, secretos de webhoo
 - `scripts/seed.ts` — seed de desarrollo (usa la service role).
 - `scripts/verificar-muro.mjs` — comprueba el muro entre áreas contra la base de datos real.
 - `scripts/verificar-retencion.mjs` — comprueba qué se va y qué se queda al anonimizar.
+- `scripts/verificar-seguridad.ts` — 37 comprobaciones de seguridad contra la base de datos real.
+- `src/lib/enlaces.ts` — defensas contra redirecciones abiertas y comparación de secretos.
 - `src/instrumentation.ts` — Sentry, inerte sin DSN.
 - `CLAUDE.md` — contexto de negocio y reglas innegociables del proyecto.

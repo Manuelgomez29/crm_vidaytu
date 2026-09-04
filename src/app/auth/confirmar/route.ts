@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { rutaInternaSegura } from '@/lib/enlaces';
 
 /**
  * Punto de aterrizaje de los enlaces de invitación y de recuperación. Canjea
@@ -9,7 +10,17 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(req: NextRequest) {
   const tokenHash = req.nextUrl.searchParams.get('token_hash');
   const tipo = req.nextUrl.searchParams.get('type');
-  const siguiente = req.nextUrl.searchParams.get('next') ?? '/establecer-clave';
+  /**
+   * `new URL('https://evil.com', base)` devuelve el destino externo, no la
+   * base: sin filtrar, este parametro convertia el endpoint de invitacion en
+   * una redireccion abierta con el dominio del grupo delante. Es el peor sitio
+   * posible para tener una, porque quien llega aqui viene de un correo
+   * legitimo y ya se ha fiado.
+   */
+  const siguiente = rutaInternaSegura(
+    req.nextUrl.searchParams.get('next'),
+    '/establecer-clave',
+  );
 
   if (!tokenHash || !tipo) {
     return NextResponse.redirect(new URL('/login?error=enlace', req.url));

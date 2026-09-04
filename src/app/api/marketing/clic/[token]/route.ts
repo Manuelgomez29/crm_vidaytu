@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { destinoValido } from '@/lib/enlaces';
 
 /**
- * Redirector de clics. El enlace del correo apunta aquí con el destino en
- * `?a=`, se anota el clic y se reenvía.
+ * Redirector de clics de las campañas.
  *
- * Solo se aceptan destinos http/https absolutos: un redirector abierto que
- * acepte cualquier cosa es un regalo para el phishing, y estaría firmado con
- * el dominio del grupo.
+ * El enlace del correo apunta aquí con el destino en `?a=` y su FIRMA en `?f=`.
+ * Se anota el clic y se reenvía.
+ *
+ * La firma no es un adorno. Sin ella, esta ruta era una redirección abierta en
+ * el dominio desde el que el grupo envía correo: bastaba con
+ * `…/api/marketing/clic/x?a=https://login-falso.example` para tener un enlace
+ * con el dominio de confianza delante que lleva a una copia del login. Es
+ * exactamente el patrón de phishing que más funciona, y comprobar solo el
+ * protocolo (http/https) no lo evita en absoluto.
+ *
+ * Ahora solo se aceptan destinos que ha firmado la propia plataforma al
+ * componer el correo, con un HMAC del secreto del servidor.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const destino = req.nextUrl.searchParams.get('a') ?? '';
+  const firma = req.nextUrl.searchParams.get('f');
+
+  if (!destinoValido(destino, firma)) {
+    return NextResponse.json({ error: 'Enlace no válido' }, { status: 400 });
+  }
 
   let url: URL;
   try {

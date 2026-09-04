@@ -18,6 +18,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
+import { firmarDestino } from '@/lib/enlaces';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -154,6 +155,29 @@ export async function prepararDestinatarios(
 
 type Personalizacion = { nombre: string; token: string };
 
+/**
+ * Reescribe los enlaces del cuerpo HTML para que pasen por el redirector y se
+ * pueda contar el clic.
+ *
+ * Cada destino viaja FIRMADO. Sin firma, el redirector aceptaría cualquier
+ * URL y el dominio desde el que el grupo envía correo se convertiría en una
+ * redirección abierta: un regalo para quien quiera montar un phishing con el
+ * dominio de confianza delante.
+ *
+ * No se tocan los `mailto:`, los `tel:` ni el propio enlace de baja: contar
+ * clics en «darme de baja» sería absurdo, y meterle un salto por el medio a
+ * quien quiere irse es justo lo que el RGPD llama poner obstáculos.
+ */
+function reescribirEnlaces(html: string, token: string): string {
+  const base = urlApp();
+  return html.replace(/href\s*=\s*"(https?:\/\/[^"]+)"/gi, (entero, destino: string) => {
+    if (destino.startsWith(`${base}/baja/`)) return entero;
+    const firma = firmarDestino(destino);
+    if (!firma) return entero; // Sin secreto configurado, se deja el enlace tal cual.
+    return `href="${base}/api/marketing/clic/${token}?a=${encodeURIComponent(destino)}&f=${firma}"`;
+  });
+}
+
 /** Sustituye los marcadores del cuerpo y añade el pie obligatorio. */
 function componer(
   cuerpo: string,
@@ -171,7 +195,8 @@ function componer(
   if (!comoHtml) return `${texto}\n\n—\n${pieResuelto}`;
 
   const pixel = `<img src="${urlApp()}/api/marketing/abierto/${persona.token}" width="1" height="1" alt="" style="display:none">`;
-  return `${texto}<hr style="border:none;border-top:1px solid #E2DFD6;margin:24px 0"><p style="font:12px/1.5 system-ui,sans-serif;color:#8A8FA0">${pieResuelto}</p>${pixel}`;
+  const conSeguimiento = reescribirEnlaces(texto, persona.token);
+  return `${conSeguimiento}<hr style="border:none;border-top:1px solid #E2DFD6;margin:24px 0"><p style="font:12px/1.5 system-ui,sans-serif;color:#8A8FA0">${pieResuelto}</p>${pixel}`;
 }
 
 /**

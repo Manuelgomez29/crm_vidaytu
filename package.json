@@ -15,7 +15,8 @@
     "push:claves": "node scripts/claves-push.mjs",
     "verificar:muro": "node --env-file=.env.local scripts/verificar-muro.mjs",
     "verificar": "tsx --env-file=.env.local scripts/verificar.ts",
-    "verificar:retencion": "node --env-file=.env.local scripts/verificar-retencion.mjs"
+    "verificar:retencion": "node --env-file=.env.local scripts/verificar-retencion.mjs",
+    "verificar:seguridad": "tsx --env-file=.env.local scripts/verificar-seguridad.ts"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",

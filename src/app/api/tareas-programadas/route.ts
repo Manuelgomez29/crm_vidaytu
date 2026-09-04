@@ -6,6 +6,7 @@ import { procesarCampanas } from '@/lib/campanas';
 import { enviarPushPendientes } from '@/lib/push-pendientes';
 import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
+import { secretoCoincide } from '@/lib/enlaces';
 
 /**
  * Motor periódico de la plataforma. Pensado para llamarse cada 15–30 minutos
@@ -20,7 +21,9 @@ import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 export async function POST(req: NextRequest) {
   const secretoEsperado = process.env.CRON_SECRET;
   const secreto = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('token') ?? '';
-  if (!secretoEsperado || secreto !== secretoEsperado) {
+  // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
+  // cuantos acertaste.
+  if (!secretoCoincide(secreto, secretoEsperado)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 

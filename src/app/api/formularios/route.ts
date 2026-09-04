@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
+import { secretoCoincide } from '@/lib/enlaces';
 import {
   anotarEnCasoAbierto,
   pipelineYPrimeraEtapa,
@@ -53,7 +54,9 @@ export async function POST(req: NextRequest) {
   const secretoEsperado = process.env.FORMULARIOS_WEBHOOK_SECRET;
   const secreto =
     req.headers.get('x-webhook-secret') ?? req.nextUrl.searchParams.get('token') ?? '';
-  if (!secretoEsperado || secreto !== secretoEsperado) {
+  // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
+  // cuantos acertaste.
+  if (!secretoCoincide(secreto, secretoEsperado)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
