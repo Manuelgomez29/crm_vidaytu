@@ -14,14 +14,25 @@ import { secretoCoincide } from '@/lib/enlaces';
  * desde un cron
  * (Vercel Cron, GitHub Actions, cron-job.org…), protegido por secreto.
  *
- *   POST /api/tareas-programadas   con cabecera `x-cron-secret` o `?token=`
+ *   POST /api/tareas-programadas
+ *
+ * Acepta el secreto de tres formas, para que valga con cualquier cron:
+ *   · `Authorization: Bearer <secreto>` — lo que manda Vercel Cron solo.
+ *   · Cabecera `x-cron-secret`.
+ *   · `?token=` en la URL, para los cron que no saben poner cabeceras. Es la
+ *     peor: el secreto queda en los registros del servidor y del proxy.
  *
  * Es idempotente: cada aviso lleva clave única, así que llamarlo de más no
  * duplica nada. Devuelve el recuento de lo que ha hecho.
  */
 export async function POST(req: NextRequest) {
   const secretoEsperado = process.env.CRON_SECRET;
-  const secreto = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('token') ?? '';
+  const autorizacion = req.headers.get('authorization') ?? '';
+  const secreto =
+    (autorizacion.startsWith('Bearer ') ? autorizacion.slice(7) : '') ||
+    req.headers.get('x-cron-secret') ||
+    req.nextUrl.searchParams.get('token') ||
+    '';
   if (!(await dentroDelLimite('cron', ipDeLaPeticion(req.headers)))) {
     return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
   }
