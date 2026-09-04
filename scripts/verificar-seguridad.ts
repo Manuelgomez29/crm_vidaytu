@@ -97,6 +97,18 @@ async function main() {
   });
   comprobar('no puede sondear la disponibilidad de un profesional', Boolean(eDisp));
 
+  /**
+   * El contador del límite lo lleva el servidor. Si un anónimo pudiera
+   * invocarlo con la clave que quisiera, agotaría de antemano la cuota de
+   * login de una persona concreta y la dejaría fuera de su herramienta.
+   */
+  const { error: eLimite } = await anon.rpc('consumir_intento', {
+    p_clave: 'ataque',
+    p_maximo: 1,
+    p_ventana_segundos: 60,
+  });
+  comprobar('no puede tocar los contadores del límite de peticiones', Boolean(eLimite));
+
   // -------------------------------------------------------------------------
   console.log('\n2. El muro: un terapeuta frente a los datos comerciales');
   const terapeuta = await sesion('terapeuta@test.com');
@@ -180,8 +192,56 @@ async function main() {
   await admin.from('mensajes_whatsapp').delete().eq('telefono', '+34600999888');
 
   // -------------------------------------------------------------------------
-  console.log('\n4. Escalada de privilegios');
+  console.log('\n4. El directorio de contactos, limitado por centro');
   const equipo = await sesion('equipo@test.com');
+
+  /**
+   * La política de EDICIÓN de contactos ya estaba limitada por centro; la de
+   * LECTURA era solo `mi_rol() = admisiones`. Un comercial sin acceso a
+   * Horizonte podía listar el nombre y el teléfono de TODAS las personas del
+   * sistema. Para un grupo de centros de adicciones, esa lista es el dato más
+   * sensible que se guarda.
+   */
+  const { data: centroHz } = await admin
+    .from('centros')
+    .select('id')
+    .eq('slug', 'horizonte')
+    .single();
+  const { data: leadDeHorizonte } = await admin
+    .from('leads')
+    .select('id, telefono')
+    .eq('centro_id', centroHz!.id)
+    .limit(1)
+    .single();
+
+  const { data: veSuGente } = await horizonte
+    .from('contactos')
+    .select('id')
+    .eq('telefono', leadDeHorizonte!.telefono);
+  comprobar(
+    'quien SÍ lleva Horizonte ve a su gente',
+    (veSuGente ?? []).length > 0,
+    'control: sin esto, el filtro estaría de más',
+  );
+
+  const { data: noVeAjenos } = await equipo
+    .from('contactos')
+    .select('id, nombre, telefono')
+    .eq('telefono', leadDeHorizonte!.telefono);
+  comprobar('quien NO lleva Horizonte no ve a su gente', (noVeAjenos ?? []).length === 0);
+
+  /**
+   * Y el oráculo de existencia que quedaba en el alta manual: buscar el
+   * teléfono no confirma que esa persona esté en el sistema.
+   */
+  const { data: niPorTelefono } = await equipo
+    .from('leads')
+    .select('id')
+    .eq('telefono', leadDeHorizonte!.telefono);
+  comprobar('ni encuentra su caso por el teléfono', (niPorTelefono ?? []).length === 0);
+
+  // -------------------------------------------------------------------------
+  console.log('\n5. Escalada de privilegios');
   const { data: yo } = await equipo
     .from('perfiles')
     .select('id')
@@ -208,7 +268,7 @@ async function main() {
   comprobar('ni añadirse un centro', (centrosNuevos ?? []).length === 0);
 
   // -------------------------------------------------------------------------
-  console.log('\n5. La auditoría es de verdad inmutable');
+  console.log('\n6. La auditoría es de verdad inmutable');
   const { data: fila } = await admin.from('auditoria').select('id').limit(1).maybeSingle();
   if (fila) {
     const { error: eUpd } = await equipo
@@ -225,7 +285,7 @@ async function main() {
   comprobar('no se pueden inventar entradas', Boolean(eIns));
 
   // -------------------------------------------------------------------------
-  console.log('\n6. Los avisos entre compañeros llegan');
+  console.log('\n7. Los avisos entre compañeros llegan');
   /**
    * `notificaciones` no tenía política de INSERT, así que todo aviso creado
    * por una acción con la sesión del usuario era rechazado en silencio: nadie
@@ -248,7 +308,7 @@ async function main() {
   await admin.from('notificaciones').delete().eq('mensaje', marca);
 
   // -------------------------------------------------------------------------
-  console.log('\n7. Redirecciones abiertas y firmas');
+  console.log('\n8. Redirecciones abiertas y firmas');
   const ataques = [
     'https://evil.example.com',
     '//evil.example.com',
@@ -272,6 +332,43 @@ async function main() {
 
   comprobar('los secretos se comparan en tiempo constante', secretoCoincide('abc123', 'abc123'));
   comprobar('y un prefijo correcto no cuela', !secretoCoincide('abc', 'abc123'));
+
+  // -------------------------------------------------------------------------
+  console.log('\n9. El límite de peticiones cuenta y aguanta la concurrencia');
+  const claveSerie = `verificacion:${Date.now()}`;
+  const serie: boolean[] = [];
+  for (let i = 0; i < 7; i++) {
+    const { data } = await admin.rpc('consumir_intento', {
+      p_clave: claveSerie,
+      p_maximo: 5,
+      p_ventana_segundos: 60,
+    });
+    serie.push(data === true);
+  }
+  comprobar(
+    'deja pasar 5 y bloquea el 6 y el 7',
+    serie.filter(Boolean).length === 5 && !serie[5] && !serie[6],
+  );
+
+  /**
+   * Lo que de verdad importa: dos peticiones simultáneas no pueden colarse
+   * ambas por el hueco del último intento. Es una sola sentencia atómica.
+   */
+  const claveConcurrente = `concurrencia:${Date.now()}`;
+  const enParalelo = await Promise.all(
+    Array.from({ length: 20 }, () =>
+      admin.rpc('consumir_intento', {
+        p_clave: claveConcurrente,
+        p_maximo: 5,
+        p_ventana_segundos: 60,
+      }),
+    ),
+  );
+  const pasaron = enParalelo.filter((r) => r.data === true).length;
+  comprobar('20 peticiones a la vez con límite 5 dejan pasar exactamente 5', pasaron === 5, `pasaron ${pasaron}`);
+
+  await admin.from('limite_peticiones').delete().like('clave', 'verificacion:%');
+  await admin.from('limite_peticiones').delete().like('clave', 'concurrencia:%');
 
   // -------------------------------------------------------------------------
   console.log(

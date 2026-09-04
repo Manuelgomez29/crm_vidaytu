@@ -6,6 +6,7 @@ import { procesarCampanas } from '@/lib/campanas';
 import { enviarPushPendientes } from '@/lib/push-pendientes';
 import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
+import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 
 /**
@@ -21,6 +22,10 @@ import { secretoCoincide } from '@/lib/enlaces';
 export async function POST(req: NextRequest) {
   const secretoEsperado = process.env.CRON_SECRET;
   const secreto = req.headers.get('x-cron-secret') ?? req.nextUrl.searchParams.get('token') ?? '';
+  if (!(await dentroDelLimite('cron', ipDeLaPeticion(req.headers)))) {
+    return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
+  }
+
   // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
   // cuantos acertaste.
   if (!secretoCoincide(secreto, secretoEsperado)) {

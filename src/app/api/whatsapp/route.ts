@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
+import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import {
   anotarEnCasoAbierto,
   pipelineYPrimeraEtapa,
@@ -69,6 +70,12 @@ export async function POST(req: NextRequest) {
   const secreto = process.env.WHATSAPP_APP_SECRET;
   if (!secreto) {
     return NextResponse.json({ error: 'Webhook no configurado' }, { status: 503 });
+  }
+
+  // Meta puede mandar rafagas legitimas, asi que el limite es generoso: frena
+  // una inundacion, no el trafico normal de un numero de atencion.
+  if (!(await dentroDelLimite('whatsapp', ipDeLaPeticion(req.headers)))) {
+    return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
   }
 
   const cuerpo = await req.text();

@@ -18,6 +18,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { dentroDelLimite } from '@/lib/limites';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -244,6 +245,18 @@ export async function preguntar(
     return registrar({
       ok: false,
       error: 'Falta ANTHROPIC_API_KEY en el servidor. Sin esa clave el asistente no puede responder.',
+    });
+  }
+
+  /**
+   * Por usuario. Aquí el límite protege la factura tanto como la seguridad:
+   * cada consulta manda el contexto entero al proveedor y se paga por ello.
+   * Cuarenta por hora es mucho más de lo que nadie usa trabajando.
+   */
+  if (!(await dentroDelLimite('ia', usuarioId))) {
+    return registrar({
+      ok: false,
+      error: 'Has hecho muchas consultas seguidas. Espera un rato y vuelve a preguntar.',
     });
   }
 

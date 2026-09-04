@@ -341,9 +341,9 @@ Cuando se active, filtra cookies, cabeceras de autorización, secretos de webhoo
 npm run verificar:seguridad
 ```
 
-Ataca la plataforma desde fuera y desde dentro con las credenciales reales de cada rol, y comprueba que cada agujero encontrado en la auditoría sigue cerrado. No mira el código: mira lo que la base de datos y las rutas hacen de verdad. **37 comprobaciones.** Si alguna falla, es que una migración o un cambio lo ha reabierto.
+Ataca la plataforma desde fuera y desde dentro con las credenciales reales de cada rol, y comprueba que cada agujero encontrado en la auditoría sigue cerrado. No mira el código: mira lo que la base de datos y las rutas hacen de verdad. **43 comprobaciones.** Si alguna falla, es que una migración o un cambio lo ha reabierto.
 
-Cubre: acceso anónimo a tablas y funciones, el muro entre áreas, el aislamiento entre centros, la escalada de privilegios, la inmutabilidad de la auditoría, la entrega de avisos, las redirecciones abiertas y las firmas de enlace.
+Cubre: acceso anónimo a tablas y funciones, el muro entre áreas, el aislamiento entre centros, el alcance del directorio de contactos, la escalada de privilegios, la inmutabilidad de la auditoría, la entrega de avisos, las redirecciones abiertas, las firmas de enlace y el límite de peticiones bajo concurrencia.
 
 ### Decisiones de seguridad
 
@@ -361,11 +361,17 @@ Cubre: acceso anónimo a tablas y funciones, el muro entre áreas, el aislamient
 
 **La IA trata su contexto como datos.** Buena parte viene de formularios que rellena cualquiera desde internet. Las instrucciones del sistema dicen explícitamente que si dentro del contexto aparece algo con forma de orden, es texto de un tercero y no se obedece.
 
+**El directorio de contactos va por centro.** Un comercial ve a una persona si participa en algún caso de sus centros, o si la dio de alta él. La regla 5 sigue en pie —la persona es global y la deduplicación cruza centros— pero eso lo hace el servidor: navegar el directorio es otra cosa. Antes, quien no veía ni un caso de Horizonte podía listar el nombre y el teléfono de todo el mundo.
+
+**Nadie averigua si un teléfono está en otro centro.** El alta manual solo deduplica contra lo que quien la hace puede ver. Si eso crea un duplicado entre centros, el motor lo detecta y avisa a dirección, que sí ve los dos casos, para unirlos o derivar. Se cambia una fuga por un duplicado temporal que alguien con la visión completa resuelve.
+
+**Límite de peticiones en la base de datos**, no en memoria del proceso: en un despliegue sin servidor cada petición cae en una instancia distinta y un contador en memoria no ve lo que hacen las demás. Cubre el login (por cuenta y por IP), los dos webhooks, el enlace de baja, el alta de dispositivos y las consultas a la IA, que además cuestan dinero. La función que lleva la cuenta solo la puede invocar el servidor: si un anónimo pudiera llamarla, agotaría de antemano la cuota de login de una persona concreta.
+
+Los límites viven en `configuracion` como todo lo demás, y **fallan abiertos**: si la consulta del límite se cae, se deja pasar. Un límite roto que bloquea el login deja al equipo fuera de su propia herramienta, y si la base de datos no responde la plataforma no funciona igualmente.
+
 ### Lo que sigue abierto
 
-- **Sin límite de peticiones.** Ni en el login, ni en los webhooks, ni en el enlace de baja. Los tokens son de 24 bytes aleatorios, así que enumerarlos es inviable, pero un atacante puede machacar el login o inundar la ingesta. Se resuelve en la capa de red (Vercel, Cloudflare) o con los límites de Supabase Auth, no en el código.
-- **`postcss`, dentro de Next, tiene dos vulnerabilidades conocidas.** Solo se ejecuta en tiempo de compilación sobre CSS propio, así que la exposición real es nula mientras nadie con acceso al repositorio sea el atacante. El arreglo es subir a Next 16, que es un salto mayor: conviene hacerlo antes de producción y con pruebas, no con prisa.
-- **El alta manual confirma que un teléfono existe** aunque el caso esté en un centro que no ves. Es deliberado —evita crear duplicados— pero permite a un comercial averiguar si una persona es cliente de otro centro. Documentado como riesgo aceptado; si se quiere cerrar, la alternativa es enrutar la comprobación a dirección.
+Nada con arreglo en el código. Queda una recomendación de despliegue: **poner también un límite en la capa de red** (Vercel o Cloudflare). El de la base de datos frena el abuso de las rutas, pero una inundación de peticiones sigue llegando al servidor y consumiendo su tiempo antes de que nadie la cuente.
 
 ## Estructura
 
@@ -376,7 +382,8 @@ Cubre: acceso anónimo a tablas y funciones, el muro entre áreas, el aislamient
 - `scripts/seed.ts` — seed de desarrollo (usa la service role).
 - `scripts/verificar-muro.mjs` — comprueba el muro entre áreas contra la base de datos real.
 - `scripts/verificar-retencion.mjs` — comprueba qué se va y qué se queda al anonimizar.
-- `scripts/verificar-seguridad.ts` — 37 comprobaciones de seguridad contra la base de datos real.
+- `scripts/verificar-seguridad.ts` — 43 comprobaciones de seguridad contra la base de datos real.
+- `src/lib/limites.ts` — límite de peticiones, con el contador en la base de datos.
 - `src/lib/enlaces.ts` — defensas contra redirecciones abiertas y comparación de secretos.
 - `src/instrumentation.ts` — Sentry, inerte sin DSN.
 - `CLAUDE.md` — contexto de negocio y reglas innegociables del proyecto.

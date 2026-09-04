@@ -32,6 +32,7 @@ export type ResultadoAutomatizacion = {
   seguimientosAvisados: number;
   informeMensual: number;
   anonimizados: number;
+  duplicadosDetectados: number;
 };
 
 function hoyMadrid(): string {
@@ -385,7 +386,66 @@ async function informeMensual(admin: Cliente): Promise<number> {
 }
 
 // ---------------------------------------------------------------------------
-// 7. RETENCIÓN (RGPD)
+// 7. DUPLICADOS ENTRE CENTROS
+//
+// El alta manual solo deduplica contra los casos que quien la hace puede ver.
+// No es un descuido: avisarle de un caso en un centro ajeno convertía el
+// formulario en una forma de preguntar «¿es esta persona cliente de
+// Horizonte?», probando números uno a uno.
+//
+// El precio es que puede nacer un duplicado entre centros, y lo paga aquí:
+// dirección, que sí ve los dos casos, recibe el aviso para unirlos o derivar.
+// ---------------------------------------------------------------------------
+async function duplicadosEntreCentros(admin: Cliente): Promise<number> {
+  const { data: abiertos } = await admin
+    .from('leads')
+    .select('id, nombre, telefono, centro_id, created_at')
+    .not('estado', 'in', '(convertido,perdido,no_valido)')
+    .order('created_at');
+
+  if (!abiertos || abiertos.length === 0) return 0;
+
+  const porTelefono = new Map<string, typeof abiertos>();
+  for (const lead of abiertos) {
+    const lista = porTelefono.get(lead.telefono) ?? [];
+    lista.push(lead);
+    porTelefono.set(lead.telefono, lista);
+  }
+
+  const { data: direccion } = await admin
+    .from('perfiles')
+    .select('id')
+    .eq('rol', 'direccion')
+    .eq('activo', true);
+  if (!direccion || direccion.length === 0) return 0;
+
+  const avisos: Parameters<typeof avisar>[1] = [];
+
+  for (const [, casos] of porTelefono) {
+    if (casos.length < 2) continue;
+    // Solo interesa cuando están en centros DISTINTOS: dos casos abiertos en
+    // el mismo centro los ve su propio equipo y los resuelve sin ayuda.
+    const centros = new Set(casos.map((c) => c.centro_id));
+    if (centros.size < 2) continue;
+
+    for (const persona of direccion) {
+      avisos.push({
+        usuario_id: persona.id,
+        tipo: 'lead_nuevo_bandeja',
+        lead_id: casos[casos.length - 1].id,
+        mensaje: `${casos[0].nombre} tiene ${casos.length} casos abiertos en centros distintos: únelos o deriva`,
+        // La clave lleva los ids ordenados: mientras sigan los mismos casos
+        // abiertos no vuelve a avisar, y si aparece un tercero sí.
+        clave: `duplicado:${casos.map((c) => c.id).sort().join('-')}:${persona.id}`,
+      });
+    }
+  }
+
+  return avisar(admin, avisos);
+}
+
+// ---------------------------------------------------------------------------
+// 8. RETENCIÓN (RGPD)
 //
 // Apagada por defecto. El plazo es una decisión jurídica del grupo, y hasta
 // que su asesor lo valide la plataforma no anonimiza nada por su cuenta.
@@ -443,6 +503,15 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
       informeMensual(admin),
     ]);
 
+  const duplicadosDetectados = await duplicadosEntreCentros(admin);
+
+  /**
+   * Limpieza de los contadores del limite de peticiones. Sin esto la tabla
+   * crece para siempre con ventanas ya pasadas. Se llama en cada pasada
+   * porque es una sola sentencia y solo borra lo de hace mas de dos dias.
+   */
+  await admin.rpc('limpiar_limites');
+
   const anonimizados = await retencion(
     admin,
     mapa.get('retencion_automatica') === true,
@@ -459,5 +528,6 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
     seguimientosAvisados: postAlta.avisados,
     informeMensual: informe,
     anonimizados,
+    duplicadosDetectados,
   };
 }

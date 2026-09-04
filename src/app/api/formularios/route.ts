@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { secretoCoincide } from '@/lib/enlaces';
+import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import {
   anotarEnCasoAbierto,
   pipelineYPrimeraEtapa,
@@ -54,6 +55,15 @@ export async function POST(req: NextRequest) {
   const secretoEsperado = process.env.FORMULARIOS_WEBHOOK_SECRET;
   const secreto =
     req.headers.get('x-webhook-secret') ?? req.nextUrl.searchParams.get('token') ?? '';
+  /**
+   * El limite va ANTES de comprobar el secreto: si fuera despues, quien no lo
+   * conoce podria seguir probando sin freno, que es justo a quien hay que
+   * frenar.
+   */
+  if (!(await dentroDelLimite('formularios', ipDeLaPeticion(req.headers)))) {
+    return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
+  }
+
   // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
   // cuantos acertaste.
   if (!secretoCoincide(secreto, secretoEsperado)) {

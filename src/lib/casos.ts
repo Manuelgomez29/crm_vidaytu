@@ -59,6 +59,64 @@ export async function ultimoCasoPorTelefono(
 }
 
 /** Minutos de SLA de primera respuesta, leídos de `configuracion`. */
+/**
+ * Devuelve el contacto de un teléfono, creándolo si no existe.
+ *
+ * Va SIEMPRE con el cliente admin, por dos razones que apuntan al mismo sitio:
+ *
+ * · El teléfono es único en toda la tabla. Si un comercial intenta insertar
+ *   uno que ya existe en un centro que no ve, la base de datos rechaza la
+ *   inserción y el mensaje de error confirma que esa persona está en el
+ *   sistema. Sería un oráculo de existencia por la puerta de atrás.
+ * · La persona es global (regla 5): si ya está, se reutiliza, no se duplica.
+ *
+ * Quien llama es responsable de vincularla al caso: es ese vínculo el que le
+ * da visibilidad sobre ella.
+ */
+export async function asegurarContacto(
+  admin: Cliente,
+  datos: {
+    nombre: string;
+    telefono: string;
+    email?: string | null;
+    zona?: string | null;
+  },
+  creadoPor: string | null,
+): Promise<{ id: string; yaExistia: boolean } | { error: string }> {
+  const { data: existente } = await admin
+    .from('contactos')
+    .select('id, email, zona')
+    .eq('telefono', datos.telefono)
+    .maybeSingle();
+
+  if (existente) {
+    // Solo se rellenan huecos. Lo que ya hay se ha ganado hablando con la
+    // persona; lo que llega ahora puede venir de un formulario mal escrito.
+    const parche: { email?: string; zona?: string } = {};
+    if (!existente.email && datos.email) parche.email = datos.email;
+    if (!existente.zona && datos.zona) parche.zona = datos.zona;
+    if (Object.keys(parche).length > 0) {
+      await admin.from('contactos').update(parche).eq('id', existente.id);
+    }
+    return { id: existente.id, yaExistia: true };
+  }
+
+  const { data: creado, error } = await admin
+    .from('contactos')
+    .insert({
+      nombre: datos.nombre,
+      telefono: datos.telefono,
+      email: datos.email ?? null,
+      zona: datos.zona ?? null,
+      created_by: creadoPor,
+    })
+    .select('id')
+    .single();
+
+  if (error || !creado) return { error: error?.message ?? 'No se pudo crear el contacto.' };
+  return { id: creado.id, yaExistia: false };
+}
+
 export async function slaMinutos(cliente: Cliente): Promise<number> {
   const { data } = await cliente
     .from('configuracion')

@@ -680,6 +680,7 @@ export type Database = {
           consentimiento_marketing_at: string | null
           consentimiento_marketing_origen: string | null
           created_at: string
+          created_by: string | null
           email: string | null
           id: string
           nombre: string
@@ -693,6 +694,7 @@ export type Database = {
           consentimiento_marketing_at?: string | null
           consentimiento_marketing_origen?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           nombre: string
@@ -706,6 +708,7 @@ export type Database = {
           consentimiento_marketing_at?: string | null
           consentimiento_marketing_origen?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           nombre?: string
@@ -714,7 +717,15 @@ export type Database = {
           updated_at?: string
           zona?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contactos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversacion_participantes: {
         Row: {
@@ -1821,6 +1832,24 @@ export type Database = {
           },
         ]
       }
+      limite_peticiones: {
+        Row: {
+          clave: string
+          contador: number
+          ventana: string
+        }
+        Insert: {
+          clave: string
+          contador?: number
+          ventana: string
+        }
+        Update: {
+          clave?: string
+          contador?: number
+          ventana?: string
+        }
+        Relationships: []
+      }
       lista_contactos: {
         Row: {
           added_by: string | null
@@ -2880,8 +2909,13 @@ export type Database = {
         Args: { p_fin: string; p_inicio: string; p_profesional: string }
         Returns: string
       }
+      consumir_intento: {
+        Args: { p_clave: string; p_maximo: number; p_ventana_segundos: number }
+        Returns: boolean
+      }
       darse_de_baja: { Args: { p_token: string }; Returns: boolean }
       es_direccion: { Args: never; Returns: boolean }
+      limpiar_limites: { Args: never; Returns: number }
       mi_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["rol_usuario"]
@@ -2897,6 +2931,7 @@ export type Database = {
           rol: Database["public"]["Enums"]["rol_usuario"]
         }[]
       }
+      puedo_ver_contacto: { Args: { p_contacto: string }; Returns: boolean }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       siguiente_numero_factura: {

@@ -25,6 +25,16 @@ export default async function LoginPage({
             </p>
           )}
 
+          {error === 'demasiados' && (
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn ring-1 ring-warn/25"
+            >
+              Demasiados intentos seguidos. Espera un cuarto de hora y vuelve a probar. Si no has
+              sido tú, avisa a dirección: alguien está intentando entrar en tu cuenta.
+            </p>
+          )}
+
           <form action={iniciarSesion} className="mt-6 flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm font-medium">
               Email

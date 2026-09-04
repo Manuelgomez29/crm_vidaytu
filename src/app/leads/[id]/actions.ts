@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { desdeDatetimeLocal } from '@/lib/fechas';
-import { centroDeAtribucion, reabrirCaso } from '@/lib/casos';
+import { asegurarContacto, centroDeAtribucion, reabrirCaso } from '@/lib/casos';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { asignarmeLead, moverLeadDeEtapa } from '../actions';
 import { crearPacienteDesdeCaso } from '@/lib/pacientes';
@@ -109,6 +109,9 @@ export async function anadirContacto(leadId: string, formData: FormData) {
   }
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // La persona es GLOBAL: se deduplica por teléfono contra todo el directorio.
   const { data: existente } = await supabase
@@ -119,13 +122,17 @@ export async function anadirContacto(leadId: string, formData: FormData) {
 
   let contactoId = existente?.id;
   if (!contactoId) {
-    const { data: nuevo, error } = await supabase
-      .from('contactos')
-      .insert({ nombre, telefono })
-      .select('id')
-      .single();
-    if (error) volver(leadId, { error: `No se pudo crear el contacto: ${error.message}` });
-    contactoId = nuevo.id;
+    /**
+     * No se ha encontrado CON SU SESION, que solo alcanza a las personas de
+     * sus centros. Puede que exista igualmente en otro: por eso la creacion va
+     * por el cliente admin, que reutiliza la que ya haya en lugar de chocar
+     * contra la clave unica del telefono y delatar su existencia en el error.
+     */
+    const resultado = await asegurarContacto(createAdminClient(), { nombre, telefono }, user?.id ?? null);
+    if ('error' in resultado) {
+      volver(leadId, { error: `No se pudo crear el contacto: ${resultado.error}` });
+    }
+    contactoId = resultado.id;
   }
 
   // Aviso de duplicado: ¿este teléfono ya está en otros casos?

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
 import {
+  asegurarContacto,
   pipelineYPrimeraEtapa,
   reabrirCaso,
   slaMinutos,
@@ -39,22 +40,29 @@ export async function crearLead(formData: FormData) {
   const esDireccion = perfil?.rol === 'direccion';
 
   // Regla 4: la deduplicación mira TODO el directorio, también centros que
-  // este usuario no ve — por eso usa el cliente admin. Si el caso existente
-  // queda fuera de su alcance, se le avisa sin revelar datos del otro centro.
+  // este usuario no ve — por eso usa el cliente admin.
   const admin = createAdminClient();
   const caso = await ultimoCasoPorTelefono(admin, telefono);
 
-  if (caso) {
-    const puedeVerlo =
-      esDireccion || (misCentros ?? []).some((c) => c.centro_id === caso.centroId);
+  const puedeVerlo =
+    caso !== null && (esDireccion || (misCentros ?? []).some((c) => c.centro_id === caso.centroId));
 
-    if (!puedeVerlo) {
-      fallar(
-        'Ese teléfono ya tiene un caso abierto en un centro al que no tienes acceso. ' +
-          'No se ha creado un duplicado: contacta con dirección para que te lo asigne o lo derive.',
-      );
-    }
-
+  /**
+   * ORÁCULO DE EXISTENCIA, cerrado.
+   *
+   * Antes, si el teléfono existía en un centro que este comercial no ve, se le
+   * decía. Evitaba el duplicado, pero convertía el formulario de alta en una
+   * forma de preguntarle al sistema «¿es esta persona cliente de Horizonte?»,
+   * probando números uno a uno. En un grupo de centros de adicciones, esa
+   * respuesta es exactamente lo que no se puede dar.
+   *
+   * Ahora el comercial no se entera de nada: su alta sigue el curso normal.
+   * El duplicado entre centros lo detecta el motor en su siguiente pasada y lo
+   * pone en manos de dirección, que sí ve los dos casos y puede unirlos o
+   * derivarlos. Se cambia una fuga por un duplicado temporal que alguien con
+   * la visión completa resuelve.
+   */
+  if (caso && puedeVerlo) {
     if (caso.cerrado) {
       await reabrirCaso(admin, {
         caso,
@@ -113,20 +121,26 @@ export async function crearLead(formData: FormData) {
     .single();
   if (errorLead || !lead) fallar(`No se pudo crear el lead: ${errorLead?.message}`);
 
-  const { data: contacto, error: errorContacto } = await supabase
-    .from('contactos')
-    .insert({
-      nombre,
-      telefono,
-      email: String(formData.get('email') ?? '').trim() || null,
-      zona,
-    })
-    .select('id')
-    .single();
-  if (errorContacto || !contacto) fallar(`No se pudo crear el contacto: ${errorContacto?.message}`);
+  /**
+   * Con el cliente admin, no con la sesion.
+   *
+   * El telefono es unico en toda la tabla: si esa persona ya existe en un
+   * centro que este comercial no ve, insertarla con su sesion fallaria, y el
+   * mensaje de error confirmaria que esta en el sistema. Un oraculo de
+   * existencia por la puerta de atras.
+   *
+   * Ademas la persona es global (regla 5): si ya esta, se reutiliza.
+   */
+  const contacto = await asegurarContacto(
+    admin,
+    { nombre, telefono, email: String(formData.get('email') ?? '').trim() || null, zona },
+    user.id,
+  );
+  if ('error' in contacto) fallar(`No se pudo crear el contacto: ${contacto.error}`);
 
   // Toda alta nace con próxima acción con fecha (regla 9), igual que la ingesta web.
   await Promise.all([
+    // Este vinculo es lo que le da visibilidad sobre la persona.
     supabase.from('lead_contactos').insert({
       lead_id: lead.id,
       contacto_id: contacto.id,

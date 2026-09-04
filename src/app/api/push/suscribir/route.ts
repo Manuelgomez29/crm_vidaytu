@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { dentroDelLimite } from '@/lib/limites';
 
 /**
  * Alta y baja de un dispositivo para notificaciones push.
@@ -14,6 +15,12 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  // Por usuario, no por IP: quien ya tiene sesion esta identificado, y esto
+  // frena que un dispositivo comprometido llene la tabla de suscripciones.
+  if (!(await dentroDelLimite('push', user.id))) {
+    return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
+  }
 
   const { endpoint, p256dh, auth } = await req.json();
   if (!endpoint || !p256dh || !auth) {

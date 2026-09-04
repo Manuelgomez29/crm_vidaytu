@@ -13,6 +13,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { iaConfigurada } from '@/lib/ia';
+import { dentroDelLimite } from '@/lib/limites';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -33,6 +34,11 @@ export async function resumirCaso(
   }
   if (!iaConfigurada()) {
     return { ok: false, error: 'Falta ANTHROPIC_API_KEY en el servidor.' };
+  }
+
+  // Mismo cubo que el asistente: un resumen cuesta lo mismo que una pregunta.
+  if (!(await dentroDelLimite('ia', usuarioId))) {
+    return { ok: false, error: 'Has pedido muchos resúmenes seguidos. Espera un rato.' };
   }
 
   // Todo con la sesión del usuario: si no puede ver el caso, no hay contexto
