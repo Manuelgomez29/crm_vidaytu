@@ -51,7 +51,7 @@ export default async function ImprimirFactura({ params }: { params: Promise<{ id
       <header className="mb-8 flex flex-wrap items-start justify-between gap-6 border-b border-line pb-6">
         <div>
           <b className="block text-[17px] font-bold">
-            {emisor.razon_social || 'Vida y Tu'}
+            {emisor.razon_social || 'Vidaitu'}
           </b>
           {emisor.nif && <span className="block text-[13px] text-ink2">NIF {emisor.nif}</span>}
           {emisor.direccion && (

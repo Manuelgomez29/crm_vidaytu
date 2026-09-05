@@ -12,9 +12,9 @@ export default async function LoginPage({
       <div className="w-full max-w-sm">
         <div className="panel p-8">
           <h1 className="text-center text-2xl font-bold tracking-tight">
-            Vida y Tu <span className="text-coral">DATA</span>
+            Vidaitu <span className="text-coral">DATA</span>
           </h1>
-          <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">Grupo Vida y Tu</p>
+          <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">Grupo Vidaitu</p>
 
           {error === 'credenciales' && (
             <p

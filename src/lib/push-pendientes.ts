@@ -75,7 +75,7 @@ export async function enviarPushPendientes(
   let retirados = 0;
 
   for (const aviso of recientes) {
-    const plantilla = AVISOS[aviso.tipo] ?? { titulo: 'Vida y Tu DATA', ruta: '/leads' };
+    const plantilla = AVISOS[aviso.tipo] ?? { titulo: 'Vidaitu DATA', ruta: '/leads' };
     const resultado = await enviarPush(admin, aviso.usuario_id, {
       titulo: plantilla.titulo,
       cuerpo: aviso.mensaje,

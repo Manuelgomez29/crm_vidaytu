@@ -376,7 +376,7 @@ async function informeMensual(admin: Cliente): Promise<number> {
       if (!persona.email) continue;
       await enviarCorreo({
         para: persona.email,
-        asunto: `Informe de ${informe.titulo} — Grupo Vida y Tu`,
+        asunto: `Informe de ${informe.titulo} — Grupo Vidaitu`,
         cuerpo: cuerpoInformeMensual(informe, url),
       });
     }

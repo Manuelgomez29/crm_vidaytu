@@ -1,5 +1,5 @@
 /**
- * Verificación de seguridad de Vida y Tu DATA.
+ * Verificación de seguridad de Vidaitu DATA.
  *
  *   npm run verificar:seguridad
  *

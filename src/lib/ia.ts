@@ -47,7 +47,7 @@ export function iaConfigurada(): boolean {
  */
 function instrucciones(ambito: Ambito, nombre: string): string {
   const comunes = [
-    'Eres el asistente de Vida y Tu DATA, la plataforma del Grupo Vida y Tu.',
+    'Eres el asistente de Vidaitu DATA, la plataforma del Grupo Vidaitu.',
     `Hablas con ${nombre}. Respondes SIEMPRE en castellano, de forma breve y directa.`,
     '',
     'REGLAS QUE NO PUEDES SALTARTE:',

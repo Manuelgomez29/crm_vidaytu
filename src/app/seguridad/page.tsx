@@ -23,7 +23,7 @@ export default async function Seguridad() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
       <h1 className="text-center text-2xl font-bold tracking-tight">
-        Vida y Tu <span className="text-coral">DATA</span>
+        Vidaitu <span className="text-coral">DATA</span>
       </h1>
       <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">
         Seguridad de la cuenta

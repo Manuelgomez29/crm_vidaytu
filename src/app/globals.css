@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ===========================================================================
-   Vida y Tu DATA — Sistema de diseño v1
+   Vidaitu DATA — Sistema de diseño v1
    Azules institucionales del grupo + acento coral + Kumbh Sans.
    Tema claro único: no hay variante oscura.
    =========================================================================== */
@@ -18,7 +18,11 @@
   /* Tinta */
   --color-ink: #242b3a;
   --color-ink2: #5a6272;
-  --color-muted: #8a8fa0;
+  /* Oscurecido desde #8A8FA0: sobre blanco daba 3.22:1 y AA pide 4.5:1. Es
+     texto secundario —fechas, pistas, contadores— pero texto al fin y al cabo,
+     y se lee en pantallas de movil a contraluz. El tono es el mismo, solo baja
+     la luminosidad. */
+  --color-muted: #717583;
 
   /* Primario (azul nuboso Bellamar) */
   --color-primary: #384b71;

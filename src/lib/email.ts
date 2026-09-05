@@ -68,7 +68,7 @@ export function cuerpoResumenDiario(datos: {
   return [
     `Buenos días, ${datos.nombre}.`,
     '',
-    `Resumen de Vida y Tu DATA — ${datos.fecha}`,
+    `Resumen de Vidaitu DATA — ${datos.fecha}`,
     '',
     `· Leads nuevos en las últimas 24 h: ${datos.leadsNuevos}`,
     `· Sin propietario asignado: ${datos.sinAsignar}`,

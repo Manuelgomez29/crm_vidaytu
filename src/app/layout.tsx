@@ -11,11 +11,11 @@ const kumbh = Kumbh_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Vida y Tu DATA',
-  description: 'Plataforma de gestión del Grupo Vida y Tu',
+  title: 'Vidaitu DATA',
+  description: 'Plataforma de gestión del Grupo Vidaitu',
   // Instalable en el móvil: media plantilla trabaja desde el teléfono.
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, title: 'Vida y Tu', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Vidaitu', statusBarStyle: 'default' },
   icons: { icon: '/icono.svg', apple: '/icono.svg' },
 };
 
