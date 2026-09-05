@@ -131,12 +131,14 @@ function Tarjeta({
         <span className="chip chip-mut">{lead.subcanal || lead.canalNombre}</span>
         {lead.urgencia === 'alta' && <span className="chip chip-danger">Urgente</span>}
         {/* El scoring prioriza la cola; no oculta ni cierra nada. */}
-        {lead.puntuacion >= 60 && (
+        {/* Los cortes viven en nivelDeCalor, no aqui: dos numeros sueltos en el
+            JSX se olvidan el dia que dirección cambie las reglas. */}
+        {lead.puntuacion >= 70 && (
           <span className="chip chip-danger" title={`Puntuación ${lead.puntuacion}/100`}>
             🔥 {lead.puntuacion}
           </span>
         )}
-        {lead.puntuacion >= 35 && lead.puntuacion < 60 && (
+        {lead.puntuacion >= 40 && lead.puntuacion < 70 && (
           <span className="chip chip-warn" title={`Puntuación ${lead.puntuacion}/100`}>
             {lead.puntuacion}
           </span>

@@ -135,6 +135,9 @@ export default async function MiDia() {
         .is('primera_respuesta_at', null)
         .lt('created_at', limiteSla)
         .not('estado', 'in', '(perdido,no_valido,convertido)')
+        // Por calor y no por antiguedad: si hay diez fuera de plazo, importa
+        // cual se llama primero.
+        .order('puntuacion', { ascending: false })
         .order('created_at')
         .limit(20) as never,
     ),

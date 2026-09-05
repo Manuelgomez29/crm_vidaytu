@@ -11,7 +11,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { ZONA } from '@/lib/fechas';
-import { pesosDesdeConfig, puntuar, type SenalesLead } from '@/lib/scoring';
+import { puntuar, reglaDesdeFila, type Regla, type SenalesLead } from '@/lib/scoring';
 import { ejecutarEtiquetado } from '@/lib/etiquetado';
 import { calcularInformeMensual, cuerpoInformeMensual, mesAnterior } from '@/lib/informe-mensual';
 import { anonimizar } from '@/lib/anonimizar';
@@ -70,13 +70,24 @@ async function avisar(
 // ---------------------------------------------------------------------------
 // 1. LEAD SCORING
 // ---------------------------------------------------------------------------
-async function recalcularPuntuaciones(admin: Cliente, pesosCrudos: unknown): Promise<number> {
-  const pesos = pesosDesdeConfig(pesosCrudos);
+async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
+  /*
+   * Las reglas salen de la tabla, no de una constante. Si direccion apaga una o
+   * le cambia los puntos, la siguiente pasada ya lo respeta sin desplegar nada.
+   */
+  const { data: filas } = await admin
+    .from('scoring_reglas')
+    .select('nombre, condicion, puntos, activa');
+  const reglas: Regla[] = (filas ?? [])
+    .map(reglaDesdeFila)
+    .filter((r): r is Regla => r !== null);
+
+  if (reglas.length === 0) return 0;
 
   const { data: casos } = await admin
     .from('leads')
     .select(
-      'id, estado, urgencia, quien_contacta, canal_id, primera_respuesta_at, puntuacion, updated_at, canal:canales (slug)',
+      'id, estado, urgencia, quien_contacta, relacion_con_afectado, canal_id, primera_respuesta_at, created_at, puntuacion, updated_at, canal:canales (slug)',
     )
     .not('estado', 'in', '(convertido,perdido,no_valido,derivado)');
 
@@ -84,11 +95,18 @@ async function recalcularPuntuaciones(admin: Cliente, pesosCrudos: unknown): Pro
 
   const ids = casos.map((c) => c.id);
 
-  // Última actividad y existencia de presupuesto, en dos consultas y no en 2N.
-  const [{ data: actividades }, { data: presupuestos }] = await Promise.all([
-    admin.from('actividades').select('lead_id, created_at').in('lead_id', ids),
-    admin.from('presupuestos').select('lead_id').in('lead_id', ids),
-  ]);
+  /*
+   * Todo lo que hace falta en cuatro consultas, no en 4N. Con doscientos casos
+   * abiertos la diferencia entre una consulta por caso y una por concepto es la
+   * diferencia entre que la pasada de los quince minutos termine o no.
+   */
+  const [{ data: actividades }, { data: presupuestos }, { data: reaperturas }, { data: citas }] =
+    await Promise.all([
+      admin.from('actividades').select('lead_id, created_at').in('lead_id', ids),
+      admin.from('presupuestos').select('lead_id').in('lead_id', ids),
+      admin.from('actividades').select('lead_id').in('lead_id', ids).eq('tipo', 'reapertura'),
+      admin.from('citas').select('lead_id, estado').in('lead_id', ids).eq('estado', 'no_show'),
+    ]);
 
   const ultimaActividad = new Map<string, number>();
   for (const a of actividades ?? []) {
@@ -96,6 +114,10 @@ async function recalcularPuntuaciones(admin: Cliente, pesosCrudos: unknown): Pro
     if (ts > (ultimaActividad.get(a.lead_id) ?? 0)) ultimaActividad.set(a.lead_id, ts);
   }
   const conPresupuesto = new Set((presupuestos ?? []).map((p) => p.lead_id));
+  const reabiertos = new Set((reaperturas ?? []).map((r) => r.lead_id));
+
+  const noShows = new Map<string, number>();
+  for (const c of citas ?? []) noShows.set(c.lead_id, (noShows.get(c.lead_id) ?? 0) + 1);
 
   const ahora = Date.now();
   let cambiados = 0;
@@ -106,13 +128,21 @@ async function recalcularPuntuaciones(admin: Cliente, pesosCrudos: unknown): Pro
       estado: caso.estado,
       urgencia: caso.urgencia,
       quienContacta: caso.quien_contacta,
+      relacionContacto: caso.relacion_con_afectado,
       canalSlug: caso.canal?.slug ?? null,
       respondido: caso.primera_respuesta_at !== null,
+      minutosHastaRespuesta: caso.primera_respuesta_at
+        ? Math.round(
+            (Date.parse(caso.primera_respuesta_at) - Date.parse(caso.created_at)) / 60_000,
+          )
+        : null,
       tienePresupuesto: conPresupuesto.has(caso.id),
+      fueReabierto: reabiertos.has(caso.id),
       diasSinActividad: Math.max(0, Math.floor((ahora - referencia) / DIA_MS)),
+      citasNoAsistidas: noShows.get(caso.id) ?? 0,
     };
 
-    const { puntuacion } = puntuar(senales, pesos);
+    const { puntuacion } = puntuar(senales, reglas);
     if (puntuacion === caso.puntuacion) continue;
 
     // Sin `updated_at`: recalcular una puntuación no es tocar el caso, y
@@ -494,7 +524,7 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
 
   const [puntuados, etiquetado, reactivaciones, resenas, riesgosRecaida, postAlta, informe] =
     await Promise.all([
-      recalcularPuntuaciones(admin, mapa.get('scoring_pesos')),
+      recalcularPuntuaciones(admin),
       ejecutarEtiquetado(admin),
       reactivarPerdidos(admin, Number(mapa.get('reactivacion_dias')) || 90),
       proponerResenas(admin, mapa.get('resena_activa') !== false),
