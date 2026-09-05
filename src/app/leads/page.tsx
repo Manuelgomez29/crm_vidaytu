@@ -7,6 +7,10 @@ import { hace, hoyMadrid } from '@/lib/fechas';
 import Kanban, { type TarjetaLead } from './kanban';
 import { DrawerCaso } from './drawer-caso';
 import { NavegacionCaso } from './navegacion-caso';
+import { BarraVistas } from './barra-vistas';
+import { TablaCasos } from './tabla-casos';
+import { Presencia } from '@/components/presencia';
+import { misVistas } from './vistas';
 
 /** Estados exentos del aviso "sin próxima acción": cerrados o ya resueltos. */
 const ESTADOS_SIN_AVISO_ACCION: string[] = [...ESTADOS_CERRADOS, 'convertido', 'derivado'];
@@ -40,6 +44,8 @@ export default async function LeadsPage({
     canal?: string;
     urgencia?: string;
     inactivos?: string;
+    vista?: string;
+    modo?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -56,6 +62,20 @@ export default async function LeadsPage({
     if (filtros[clave]) parametrosTablero.set(clave, filtros[clave]!);
   }
   const volverAlTablero = `/leads${parametrosTablero.toString() ? `?${parametrosTablero}` : ''}`;
+
+  // Vistas guardadas de esta persona (solo las suyas: lo garantiza RLS).
+  const vistas = await misVistas('kanban');
+  const [{ data: comerciales }, { data: etiquetasDisponibles }] = await Promise.all([
+    supabase
+      .from('perfiles')
+      .select('id, nombre')
+      .eq('activo', true)
+      .in('rol', ['direccion', 'admisiones'])
+      .order('nombre'),
+    supabase.from('etiquetas').select('id, nombre').order('nombre'),
+  ]);
+  const filtrosPuestos = Object.fromEntries(parametrosTablero.entries());
+  const esTabla = filtros.modo === 'tabla';
 
   // Consultas independientes en paralelo; solo etapas y leads esperan al pipeline.
   const hoy = hoyMadrid();
@@ -194,6 +214,44 @@ export default async function LeadsPage({
       titulo="Kanban comercial"
       descripcion={`Proceso: ${procesosVisibles.find((p) => p.id === pipelineId)?.nombre ?? '—'} · ${tarjetas.length} casos abiertos`}
     >
+        <div className="mb-2">
+          <Presencia canal="tablero-leads" yo={{ id: user.id, nombre: perfil?.nombre ?? 'Alguien' }} />
+        </div>
+
+        {(() => {
+          const p = new URLSearchParams(parametrosTablero);
+          if (filtros.vista) p.set('vista', filtros.vista);
+          const aTablero = new URLSearchParams(p);
+          aTablero.delete('modo');
+          const aTabla = new URLSearchParams(p);
+          aTabla.set('modo', 'tabla');
+          const base =
+            'rounded-lg px-3 py-1 text-[12.5px] font-semibold transition';
+          return (
+            <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
+              <Link
+                href={'/leads?' + aTablero.toString()}
+                className={base + (esTabla ? ' text-ink2 hover:text-primary' : ' bg-surface text-primary shadow-sm')}
+              >
+                Tablero
+              </Link>
+              <Link
+                href={'/leads?' + aTabla.toString()}
+                className={base + (esTabla ? ' bg-surface text-primary shadow-sm' : ' text-ink2 hover:text-primary')}
+              >
+                Tabla
+              </Link>
+            </div>
+          );
+        })()}
+
+        <BarraVistas
+          pantalla="kanban"
+          vistas={vistas}
+          filtrosActuales={filtrosPuestos}
+          vistaActiva={filtros.vista}
+        />
+
         <form method="get" className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           {procesosVisibles.length > 1 && (
             <select
@@ -257,12 +315,21 @@ export default async function LeadsPage({
             No se pudieron cargar los leads: {error.message}
           </p>
         ) : (
-          <Kanban
-            etapas={etapas ?? []}
-            tarjetas={tarjetas}
-            cerradas={cerradas}
-            puedeAutoasignarse={perfil?.rol === 'admisiones'}
-          />
+          esTabla ? (
+            <TablaCasos
+              tarjetas={[...tarjetas, ...cerradas]}
+              etapas={etapas ?? []}
+              comerciales={comerciales ?? []}
+              etiquetas={etiquetasDisponibles ?? []}
+            />
+          ) : (
+            <Kanban
+              etapas={etapas ?? []}
+              tarjetas={tarjetas}
+              cerradas={cerradas}
+              puedeAutoasignarse={perfil?.rol === 'admisiones'}
+            />
+          )
         )}
 
         {filtros.caso && (() => {

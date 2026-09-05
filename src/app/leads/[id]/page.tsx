@@ -27,6 +27,8 @@ import {
 } from './actions';
 import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
 import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
+import { CampoNota } from './campo-nota';
+import { Presencia } from '@/components/presencia';
 
 const TIPO_ACTIVIDAD: Record<string, string> = {
   llamada: '📞 Llamada',
@@ -80,7 +82,7 @@ export default async function FichaLead({
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, nombre')
     .eq('id', user.id)
     .single();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
@@ -201,9 +203,12 @@ export default async function FichaLead({
       seccion="leads"
       titulo="Ficha del caso"
     >
-        <Link href="/leads" className="text-sm text-primary hover:underline">
-          ← Volver al tablero
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/leads" className="text-sm text-primary hover:underline">
+            ← Volver al tablero
+          </Link>
+          <Presencia canal={"caso:" + lead.id} yo={{ id: user.id, nombre: perfil?.nombre ?? "Alguien" }} />
+        </div>
 
         {errorMsg && (
           <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
@@ -297,11 +302,7 @@ export default async function FichaLead({
                     <option value="email">Email</option>
                     <option value="nota">Nota</option>
                   </select>
-                  <input
-                    name="contenido"
-                    placeholder="¿Qué ha pasado?"
-                    className={`${inputClase} min-w-0 flex-1`}
-                  />
+                  <CampoNota leadId={lead.id} className={`${inputClase} min-w-0 flex-1`} />
                   <button type="submit" className={botonClase}>
                     Guardar
                   </button>
