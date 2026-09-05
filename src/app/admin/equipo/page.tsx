@@ -11,6 +11,7 @@ import {
   guardarObjetivos,
   reasignarEnBloque,
   retirarSegundoFactor,
+  traspasarTodo,
 } from '../actions';
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -42,6 +43,16 @@ export default async function AdminEquipo({
       supabase.from('ausencias').select('id, perfil_id, desde, hasta, motivo').order('desde', { ascending: false }),
       supabase.from('objetivos').select('perfil_id, mes, meta_citas, meta_conversiones, meta_ingresos'),
     ]);
+
+  // Que tiene asignado cada persona. Se cuenta en la base (cartera_del_equipo)
+  // para no traerse cuatro tablas enteras solo para contarlas.
+  const { data: filasCartera } = await supabase.rpc('cartera_del_equipo');
+  const cartera = new Map(
+    (filasCartera ?? []).map((f) => [
+      f.perfil_id,
+      { casos: f.casos, tareas: f.tareas_pendientes, citas: f.citas_futuras, pacientes: f.pacientes },
+    ]),
+  );
 
   const mesActual = new Date().toISOString().slice(0, 7);
 
@@ -164,6 +175,95 @@ export default async function AdminEquipo({
               Traspasar
             </button>
           </form>
+        </section>
+
+        <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ink2">
+            Alguien se va del equipo
+          </h3>
+          <p className="mb-3 max-w-[80ch] text-xs text-ink2">
+            Traspasa de una vez <b>todo lo vivo</b> de una persona: sus casos, sus tareas
+            pendientes, sus citas futuras y sus pacientes. Lo ya hecho —tareas completadas, citas
+            pasadas, sesiones— sigue diciendo quién lo hizo: eso no se toca.
+          </p>
+
+          <div className="mb-3 overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-left text-[13px]">
+              <thead className="text-xs uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="pb-1 pr-3 font-medium">Persona</th>
+                  <th className="pb-1 pr-3 text-right font-medium tabular-nums">Casos</th>
+                  <th className="pb-1 pr-3 text-right font-medium tabular-nums">Tareas</th>
+                  <th className="pb-1 pr-3 text-right font-medium tabular-nums">Citas</th>
+                  <th className="pb-1 text-right font-medium tabular-nums">Pacientes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(perfiles ?? []).map((p) => {
+                  const c = cartera.get(p.id);
+                  const total =
+                    (c?.casos ?? 0) + (c?.tareas ?? 0) + (c?.citas ?? 0) + (c?.pacientes ?? 0);
+                  return (
+                    <tr key={p.id} className={`border-t border-line ${p.activo ? '' : 'opacity-55'}`}>
+                      <td className="py-1.5 pr-3">
+                        {p.nombre}
+                        {!p.activo && <span className="ml-1.5 text-xs text-muted">(de baja)</span>}
+                        {!p.activo && total > 0 && (
+                          <span className="ml-1.5 text-xs text-danger">
+                            · sigue teniendo trabajo asignado
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{c?.casos ?? 0}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{c?.tareas ?? 0}</td>
+                      <td className="py-1.5 pr-3 text-right tabular-nums">{c?.citas ?? 0}</td>
+                      <td className="py-1.5 text-right tabular-nums">{c?.pacientes ?? 0}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <form action={traspasarTodo} className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-1 text-xs text-ink2">
+              Todo lo de
+              <select name="origen" defaultValue="" className={inputAdmin} required>
+                <option value="">Elige…</option>
+                {(perfiles ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-ink2">
+              Pasa a
+              <select name="destino" defaultValue="" className={inputAdmin} required>
+                <option value="">Elige…</option>
+                {(perfiles ?? [])
+                  .filter((p) => p.activo)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                      {p.rol === 'terapeuta' || p.acceso_clinico || p.rol === 'direccion'
+                        ? ' · puede recibir pacientes'
+                        : ''}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button type="submit" className={`${botonAdminSecundario} mb-0.5`}>
+              Traspasar todo
+            </button>
+          </form>
+
+          <p className="mt-3 max-w-[80ch] text-xs text-muted">
+            Hazlo <b>antes</b> de desactivar a la persona. La base de datos impide borrar un perfil
+            que aún tenga trabajo asignado, y es a propósito: es lo que evita que un caso se quede
+            sin dueño sin que nadie se entere. Los pacientes solo pueden ir a alguien con acceso
+            clínico; si no, dejarían de verlos todos menos dirección.
+          </p>
         </section>
 
         <div className="flex flex-col gap-4">

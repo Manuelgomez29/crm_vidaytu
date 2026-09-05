@@ -95,7 +95,10 @@ async function centrosVisibles(email: string): Promise<Map<string, number>> {
   if (error) throw new Error(`select de ${email}: ${error.message}`);
   const cuenta = new Map<string, number>();
   for (const fila of data as unknown as { centro: { nombre: string } | null }[]) {
-    const nombre = fila.centro?.nombre ?? '(sin centro)';
+      // Staging rotula sus centros con un sufijo de entorno para que nadie
+    // confunda una base con otra. Esta prueba va de permisos, no de rotulos:
+    // se compara el nombre real, sin la marca.
+    const nombre = (fila.centro?.nombre ?? '(sin centro)').replace(/ [[A-Z]+]$/, '');
     cuenta.set(nombre, (cuenta.get(nombre) ?? 0) + 1);
   }
   await cliente.auth.signOut();

@@ -244,6 +244,133 @@ export async function reasignarEnBloque(formData: FormData) {
   volver('equipo', { aviso: `${ids.length} caso(s) reasignados a ${perfilDestino?.nombre ?? '—'}.` });
 }
 
+/**
+ * Traspaso COMPLETO de todo lo vivo de una persona a otra: lo que hay que hacer
+ * ANTES de dar de baja a alguien que se va del equipo.
+ *
+ * `reasignarEnBloque` mueve solo los casos, y para unas vacaciones vale. Pero
+ * al irse alguien se quedaban atrás sus tareas pendientes, sus citas futuras y
+ * sus pacientes: trabajo que desaparecía de la vista de todos sin que saltara
+ * ningún aviso. El caso extremo es un terapeuta, que no tiene casos: la
+ * herramienta anterior no movía absolutamente nada de lo suyo.
+ *
+ * Se mueve lo VIVO, no lo hecho. Las tareas completadas, las citas pasadas y
+ * las sesiones siguen diciendo quién las hizo; reescribir eso falsearía el
+ * historial, y la regla 11 exige que la auditoría sea veraz.
+ *
+ * Las claves foráneas de asignación siguen bloqueando el borrado de un perfil a
+ * propósito: son la red que obliga a pasar por aquí en vez de dejar casos
+ * huérfanos en silencio.
+ */
+export async function traspasarTodo(formData: FormData) {
+  const { user } = await exigirDireccion();
+
+  const origen = String(formData.get('origen') ?? '');
+  const destino = String(formData.get('destino') ?? '');
+
+  if (!origen || !destino) volver('equipo', { error: 'Elige de quién sale el trabajo y quién lo recibe.' });
+  if (origen === destino) volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+
+  const admin = createAdminClient();
+
+  const { data: personas } = await admin
+    .from('perfiles')
+    .select('id, nombre, rol, activo, acceso_clinico')
+    .in('id', [origen, destino]);
+
+  const sale = personas?.find((p) => p.id === origen);
+  const recibe = personas?.find((p) => p.id === destino);
+  if (!sale || !recibe) volver('equipo', { error: 'No encuentro a alguna de las dos personas.' });
+  if (!recibe.activo) {
+    volver('equipo', { error: `${recibe.nombre} está dada de baja: no puede recibir trabajo.` });
+  }
+
+  const [{ data: leads }, { data: tareas }, { data: citas }, { data: pacientes }] = await Promise.all([
+    admin.from('leads').select('id').eq('propietario_id', origen),
+    admin.from('tareas').select('id').eq('responsable_id', origen).is('completada_at', null),
+    admin.from('citas').select('id').eq('profesional_id', origen).gt('inicio', new Date().toISOString()),
+    admin.from('pacientes').select('id').eq('terapeuta_id', origen),
+  ]);
+
+  const nLeads = leads?.length ?? 0;
+  const nTareas = tareas?.length ?? 0;
+  const nCitas = citas?.length ?? 0;
+  const nPacientes = pacientes?.length ?? 0;
+
+  if (nLeads + nTareas + nCitas + nPacientes === 0) {
+    volver('equipo', { aviso: `${sale.nombre} no tiene nada asignado: ya se le puede dar de baja.` });
+  }
+
+  /**
+   * El muro (regla 14): un paciente asignado a alguien sin acceso clínico no
+   * desaparece, pero deja de verlo nadie salvo dirección. Es peor que no mover
+   * nada, porque el fallo es silencioso.
+   */
+  const recibeEsClinico =
+    recibe.rol === 'direccion' || recibe.rol === 'terapeuta' || recibe.acceso_clinico;
+  if (nPacientes > 0 && !recibeEsClinico) {
+    volver('equipo', {
+      error: `${sale.nombre} tiene ${nPacientes} paciente(s) y ${recibe.nombre} no tiene acceso clínico: nadie podría verlos. Elige a un terapeuta, o dale acceso clínico antes.`,
+    });
+  }
+
+  const hecho: string[] = [];
+
+  if (nLeads > 0) {
+    const ids = leads!.map((l) => l.id);
+    const { error } = await admin.from('leads').update({ propietario_id: destino }).in('id', ids);
+    if (error) volver('equipo', { error: `No se pudieron mover los casos: ${error.message}` });
+
+    // Una anotación por caso: el historial de cada uno debe contarlo (regla 8).
+    await admin.from('actividades').insert(
+      ids.map((lead_id) => ({
+        lead_id,
+        tipo: 'cambio_estado' as const,
+        contenido: `Traspaso por baja de ${sale.nombre}: propietario cambiado a ${recibe.nombre}`,
+        usuario_id: user.id,
+      })),
+    );
+    hecho.push(`${nLeads} caso(s)`);
+  }
+
+  if (nTareas > 0) {
+    const { error } = await admin
+      .from('tareas')
+      .update({ responsable_id: destino })
+      .in('id', tareas!.map((t) => t.id));
+    if (error) volver('equipo', { error: `No se pudieron mover las tareas: ${error.message}` });
+    hecho.push(`${nTareas} tarea(s) pendiente(s)`);
+  }
+
+  if (nCitas > 0) {
+    const { error } = await admin
+      .from('citas')
+      .update({ profesional_id: destino })
+      .in('id', citas!.map((c) => c.id));
+    if (error) volver('equipo', { error: `No se pudieron mover las citas: ${error.message}` });
+    hecho.push(`${nCitas} cita(s) futura(s)`);
+  }
+
+  if (nPacientes > 0) {
+    const { error } = await admin
+      .from('pacientes')
+      .update({ terapeuta_id: destino })
+      .in('id', pacientes!.map((p) => p.id));
+    if (error) volver('equipo', { error: `No se pudieron mover los pacientes: ${error.message}` });
+    hecho.push(`${nPacientes} paciente(s)`);
+  }
+
+  await admin.from('notificaciones').insert({
+    usuario_id: destino,
+    tipo: 'lead_asignado',
+    mensaje: `Traspaso por la baja de ${sale.nombre}: ${hecho.join(', ')}`,
+  });
+
+  volver('equipo', {
+    aviso: `Traspasado a ${recibe.nombre}: ${hecho.join(', ')}. Las citas futuras cambian de profesional, así que avisa a quien corresponda.`,
+  });
+}
+
 export async function guardarObjetivos(perfilId: string, formData: FormData) {
   const { user } = await exigirDireccion();
 
