@@ -23,7 +23,9 @@
     "staging:verificar:seguridad": "tsx --env-file=.env.staging scripts/verificar-seguridad.ts",
     "staging:verificar:retencion": "node --env-file=.env.staging scripts/verificar-retencion.mjs",
     "verificar:paleta": "node --env-file=.env.local scripts/verificar-paleta.mjs",
-    "staging:verificar:paleta": "node --env-file=.env.staging scripts/verificar-paleta.mjs"
+    "staging:verificar:paleta": "node --env-file=.env.staging scripts/verificar-paleta.mjs",
+    "verificar:bloque": "node --env-file=.env.local scripts/verificar-bloque.mjs",
+    "staging:verificar:bloque": "node --env-file=.env.staging scripts/verificar-bloque.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",

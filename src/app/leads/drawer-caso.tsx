@@ -5,6 +5,7 @@ import { fecha } from '@/lib/fechas';
 import { ESTADO_CITA, TIPO_CITA } from '@/lib/citas';
 import { CampoRapido } from './campo-rapido';
 import { BotonLlamada } from './boton-llamada';
+import { Presencia } from '@/components/presencia';
 
 const TIPO_ACTIVIDAD: Record<string, string> = {
   llamada: '📞',
@@ -75,6 +76,13 @@ export async function DrawerCaso({
 
   // Comerciales activos: los posibles destinatarios del caso. Quién puede
   // reasignarlo de verdad lo decide la base (regla 8), no esta lista.
+  const {
+    data: { user: yo },
+  } = await supabase.auth.getUser();
+  const { data: miPerfil } = yo
+    ? await supabase.from('perfiles').select('nombre').eq('id', yo.id).maybeSingle()
+    : { data: null };
+
   const { data: motivos } = await supabase
     .from('motivos_perdida')
     .select('id, nombre')
@@ -149,7 +157,16 @@ export async function DrawerCaso({
           >
             ✕
           </Link>
-          {navegacion && <div className="mb-2">{navegacion}</div>}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            {navegacion ?? <span />}
+            {yo && (
+              <Presencia
+                canal={'caso:' + lead.id}
+                yo={{ id: yo.id, nombre: miPerfil?.nombre ?? 'Alguien' }}
+                compacto
+              />
+            )}
+          </div>
           <h2 className="mb-1.5 pr-8 text-[18px] font-bold">{lead.nombre}</h2>
           <div className="flex flex-wrap gap-1.5">
             <span className={`chip ${CHIP_CENTRO[lead.centro?.slug ?? ''] ?? 'chip-mut'}`}>

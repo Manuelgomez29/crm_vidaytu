@@ -2891,6 +2891,53 @@ export type Database = {
           },
         ]
       }
+      vistas_guardadas: {
+        Row: {
+          columnas: Json | null
+          created_at: string
+          es_favorita: boolean
+          filtros: Json
+          id: string
+          nombre: string
+          orden: Json
+          pantalla: Database["public"]["Enums"]["pantalla_vista"]
+          usada_at: string
+          usuario_id: string
+        }
+        Insert: {
+          columnas?: Json | null
+          created_at?: string
+          es_favorita?: boolean
+          filtros?: Json
+          id?: string
+          nombre: string
+          orden?: Json
+          pantalla: Database["public"]["Enums"]["pantalla_vista"]
+          usada_at?: string
+          usuario_id: string
+        }
+        Update: {
+          columnas?: Json | null
+          created_at?: string
+          es_favorita?: boolean
+          filtros?: Json
+          id?: string
+          nombre?: string
+          orden?: Json
+          pantalla?: Database["public"]["Enums"]["pantalla_vista"]
+          usada_at?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vistas_guardadas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2995,6 +3042,7 @@ export type Database = {
         | "domiciliacion"
         | "otro"
       modalidad_cita: "presencial" | "videollamada" | "telefonica"
+      pantalla_vista: "kanban" | "contactos" | "tabla_casos"
       rol_usuario: "direccion" | "admisiones" | "terapeuta" | "administracion"
       tipo_actividad:
         | "llamada"
@@ -3193,6 +3241,7 @@ export const Constants = {
         "otro",
       ],
       modalidad_cita: ["presencial", "videollamada", "telefonica"],
+      pantalla_vista: ["kanban", "contactos", "tabla_casos"],
       rol_usuario: ["direccion", "admisiones", "terapeuta", "administracion"],
       tipo_actividad: [
         "llamada",
