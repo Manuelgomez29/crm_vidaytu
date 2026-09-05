@@ -66,6 +66,7 @@ export async function guardarVista(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath('/leads');
+  revalidatePath('/contactos');
   return { ok: true, id: data?.id };
 }
 
@@ -86,6 +87,7 @@ export async function alternarFavorita(id: string, valor: boolean): Promise<Resu
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/leads');
+  revalidatePath('/contactos');
   return { ok: true };
 }
 
@@ -94,5 +96,6 @@ export async function borrarVista(id: string): Promise<Resultado> {
   const { error } = await supabase.from('vistas_guardadas').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/leads');
+  revalidatePath('/contactos');
   return { ok: true };
 }

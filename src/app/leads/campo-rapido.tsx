@@ -67,6 +67,13 @@ export function CampoRapido({
       disabled={guardando}
       onChange={(e) => aplicar(e.target.value)}
       onClick={(e) => e.stopPropagation()}
+      /*
+       * Dentro de una tarjeta arrastrable, tocar el desplegable empezaria a
+       * arrastrarla: el gesto nace en el pointerdown, antes de que el navegador
+       * decida que era un clic sobre un <select>. Cortarlo aqui es lo que hace
+       * que se pueda editar en el tablero sin pelearse con el arrastre.
+       */
+      onPointerDown={(e) => e.stopPropagation()}
       className={`cursor-pointer rounded-lg border border-transparent bg-transparent px-1.5 py-0.5 text-[12px] text-ink2 outline-none transition hover:border-line2 hover:bg-surface focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 disabled:opacity-50 ${className}`}
     >
       {opciones.map((o) => (
