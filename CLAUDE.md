@@ -1,10 +1,10 @@
-# Vida y Tu DATA — CRM del Grupo Vida y Tu
+# Vidaitu DATA — CRM del Grupo Vidaitu
 
-Plataforma propia del Grupo Vida y Tu. Next.js 15 (App Router) + TypeScript + Tailwind + Supabase (Postgres, Auth, RLS, Storage, Realtime). Interfaz solo en castellano. Uso real mitad móvil / mitad ordenador: responsive siempre. El nombre de la app es **Vida y Tu DATA** en título, login y toda la interfaz.
+Plataforma propia del Grupo Vidaitu. Next.js 15 (App Router) + TypeScript + Tailwind + Supabase (Postgres, Auth, RLS, Storage, Realtime). Interfaz solo en castellano. Uso real mitad móvil / mitad ordenador: responsive siempre. El nombre de la app es **Vidaitu DATA** en título, login y toda la interfaz.
 
 ## 1. Contexto del negocio
 
-Vida y Tu es el grupo matriz de tres centros de tratamiento de adicciones en España:
+Vidaitu es el grupo matriz de tres centros de tratamiento de adicciones en España:
 
 | Centro | Ubicación | Recursos | Notas |
 |---|---|---|---|
@@ -45,7 +45,7 @@ Detrás de los centros está la marca personal del CEO (**Lolo Drago**, divulgad
 Tema claro único. Tipografía **Kumbh Sans** (la que ya comparten Eclipse y Bellamar), con números tabulares en cifras, tablas y KPIs. Los tokens viven en `src/app/globals.css` (`@theme`) y las clases de componente (`.chip`, `.panel`, `.tarjeta`, `.btn`, `.campo`, `.tabla`, `.avatar`, `.via`) en su capa `components`.
 
 - Superficies: fondo `#F7F6F2` · superficie `#FFFFFF` · superficie 2 `#EFEDE6` · líneas `#E2DFD6`/`#CBC7BB`.
-- Tinta: `#242B3A` · secundaria `#5A6272` · muted `#8A8FA0`.
+- Tinta: `#242B3A` · secundaria `#5A6272` · muted `#717583` (era `#8A8FA0`; sobre blanco daba 3.22:1 y AA pide 4.5:1 — se comprueba con `npm run verificar:contraste`).
 - Primario `#384B71` (azul institucional del grupo): barra lateral, botones de acción, enlaces.
 - Acento coral `#E8836F`: CTA principal, destacados, avatar propio.
 - Semánticos: éxito `#2F9160` · aviso `#C08427` · peligro `#C4483F`, siempre con su fondo suave.

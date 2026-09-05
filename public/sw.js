@@ -1,5 +1,5 @@
 /**
- * Service worker de Vida y Tu DATA.
+ * Service worker de Vidaitu DATA.
  *
  * Hace UNA cosa: recibir notificaciones push y abrir la pantalla que toca al
  * pulsarlas. No cachea nada a proposito — un CRM que muestra datos viejos
@@ -11,7 +11,7 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (evento) => evento.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (evento) => {
-  let datos = { titulo: 'Vida y Tu DATA', cuerpo: 'Tienes algo pendiente', url: '/leads' };
+  let datos = { titulo: 'Vidaitu DATA', cuerpo: 'Tienes algo pendiente', url: '/leads' };
   try {
     if (evento.data) datos = { ...datos, ...evento.data.json() };
   } catch {

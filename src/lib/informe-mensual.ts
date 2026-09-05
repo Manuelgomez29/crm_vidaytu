@@ -182,7 +182,7 @@ export function cuerpoInformeMensual(informe: InformeMensual, url: string): stri
       : '';
 
   return [
-    `Informe de ${informe.titulo} — Grupo Vida y Tu`,
+    `Informe de ${informe.titulo} — Grupo Vidaitu`,
     '',
     `· Leads nuevos: ${informe.leads}${variacion}`,
     `· Citas: ${informe.citas} (${informe.noShows} no presentados)`,

@@ -37,7 +37,7 @@ const t1 = await sql(`
   insert into leads (centro_id, pipeline_id, etapa_id, nombre, telefono, canal_id, estado)
   select c.id, p.id, e.id, 'Verificacion Constraint', '+34600000999', ca.id, 'perdido'
   from centros c, pipelines p, pipeline_etapas e, canales ca
-  where c.slug = 'horizonte' and p.nombre = 'Estándar Vida y Tu'
+  where c.slug = 'horizonte' and p.nombre = 'Estándar Vidaitu'
     and e.pipeline_id = p.id and e.orden = 1 and ca.slug = 'otro';
 `);
 resultado(
@@ -62,7 +62,7 @@ const t3a = await sql(`
   update leads set etapa_id = (
     select e.id from pipeline_etapas e
     join pipelines p on p.id = e.pipeline_id
-    where p.nombre = 'Estándar Vida y Tu' and e.orden = 3)
+    where p.nombre = 'Estándar Vidaitu' and e.orden = 3)
   where origen_sistema = 'seed' and origen_ref = 'lead-2';
   select estado from leads where origen_sistema = 'seed' and origen_ref = 'lead-2';
 `);
@@ -76,7 +76,7 @@ await sql(`
   update leads set etapa_id = (
     select e.id from pipeline_etapas e
     join pipelines p on p.id = e.pipeline_id
-    where p.nombre = 'Estándar Vida y Tu' and e.orden = 1)
+    where p.nombre = 'Estándar Vidaitu' and e.orden = 1)
   where origen_sistema = 'seed' and origen_ref = 'lead-2';
 `);
 
@@ -105,7 +105,7 @@ async function centrosVisibles(email: string): Promise<Map<string, number>> {
   return cuenta;
 }
 
-const bandeja = 'Vida y Tu — Bandeja de grupo';
+const bandeja = 'Vidaitu — Bandeja de grupo';
 
 const vistaHorizonte = await centrosVisibles('horizonte@test.com');
 resultado(

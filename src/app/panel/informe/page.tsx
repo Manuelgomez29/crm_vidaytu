@@ -67,7 +67,7 @@ export default async function InformeMensual({
       </div>
 
       <header className="mb-8 border-b-2 border-ink pb-4">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Grupo Vida y Tu</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Grupo Vidaitu</p>
         <h1 className="text-[24px] font-bold">Informe de {informe.titulo}</h1>
         <p className="text-[13px] text-ink2">
           Del {informe.desde} al {informe.hasta} · solo cuentan las conversiones validadas
@@ -168,7 +168,7 @@ export default async function InformeMensual({
       </div>
 
       <p className="mt-8 border-t border-line pt-4 text-[11px] text-muted">
-        Generado por Vida y Tu DATA. Los ingresos son de conversiones validadas por dirección; las
+        Generado por Vidaitu DATA. Los ingresos son de conversiones validadas por dirección; las
         pendientes de validar no cuentan. Documento interno: contiene cifras del grupo, no datos de
         personas.
       </p>

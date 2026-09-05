@@ -1,5 +1,5 @@
 /**
- * Seed de DESARROLLO para Vida y Tu DATA.
+ * Seed de DESARROLLO para Vidaitu DATA.
  * Crea 3 usuarios de prueba, sus centros y disponibilidades, y 8 leads
  * ficticios obvios con contactos, actividades y una tarea.
  *
@@ -78,7 +78,7 @@ async function main() {
   const { data: pipeline, error: errorPipeline } = await admin
     .from('pipelines')
     .select('id')
-    .eq('nombre', 'Estándar Vida y Tu')
+    .eq('nombre', 'Estándar Vidaitu')
     .single();
   fallar('leer pipeline estándar', errorPipeline);
 
@@ -616,7 +616,7 @@ async function main() {
         nombre: 'Charla divulgativa (ejemplo)',
         asunto: 'Te esperamos en la charla del jueves',
         cuerpo_texto:
-          'Hola {nombre},\n\nEl jueves a las 19:00 hacemos una charla abierta sobre habitos y bienestar. Si te apetece venir, responde a este correo y te guardamos sitio.\n\nUn saludo,\nEquipo de Vida y Tu',
+          'Hola {nombre},\n\nEl jueves a las 19:00 hacemos una charla abierta sobre habitos y bienestar. Si te apetece venir, responde a este correo y te guardamos sitio.\n\nUn saludo,\nEquipo de Vidaitu',
         created_by: direccionId,
       },
     ],

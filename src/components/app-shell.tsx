@@ -48,10 +48,23 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
         { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
         { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
         { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
-        ...(rol === 'direccion'
-          ? [{ clave: 'marketing' as const, texto: 'Marketing', href: '/marketing', icono: '✉' }]
-          : []),
         { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
+      ],
+    });
+  }
+
+  /*
+   * Marketing es un area aparte, no una pantalla del embudo. Trabaja sobre el
+   * directorio de personas y con consentimiento explicito (regla 5), no sobre
+   * casos: mezclarla con el kanban invita a confundir «contacto de un caso» con
+   * «destinatario de una campana», que son cosas distintas y con reglas
+   * distintas.
+   */
+  if (rol === 'direccion') {
+    salida.push({
+      titulo: 'Área de marketing',
+      entradas: [
+        { clave: 'marketing', texto: 'Campañas', href: '/marketing', icono: '✉' },
       ],
     });
   }
@@ -316,10 +329,10 @@ export async function AppShell({
   const marca = (
     <Link href={inicio} className="block">
       <b className="block text-[17px] font-bold tracking-[0.02em] text-white">
-        Vida y Tu <span className="text-[#F08F7E]">DATA</span>
+        Vidaitu <span className="text-[#F08F7E]">DATA</span>
       </b>
       <span className="text-[11px] uppercase tracking-[0.14em] text-[#AEBBD6]">
-        Grupo Vida y Tu
+        Grupo Vidaitu
       </span>
     </Link>
   );

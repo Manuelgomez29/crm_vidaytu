@@ -222,7 +222,7 @@ export async function enviarPrueba(id: string, formData: FormData) {
   const resultado = await enviarCorreo({
     para: destino,
     asunto: `[PRUEBA] ${campana.asunto}`,
-    cuerpo: `${marca(campana.cuerpo_texto)}\n\n—\nEnvío de prueba desde Vida y Tu DATA. El correo real llevará el pie con el enlace de baja.`,
+    cuerpo: `${marca(campana.cuerpo_texto)}\n\n—\nEnvío de prueba desde Vidaitu DATA. El correo real llevará el pie con el enlace de baja.`,
     html: campana.cuerpo_html ? marca(campana.cuerpo_html) : undefined,
   });
 

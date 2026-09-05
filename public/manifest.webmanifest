@@ -1,7 +1,7 @@
 {
-  "name": "Vida y Tu DATA",
-  "short_name": "Vida y Tu",
-  "description": "Plataforma del Grupo Vida y Tu",
+  "name": "Vidaitu DATA",
+  "short_name": "Vidaitu",
+  "description": "Plataforma del Grupo Vidaitu",
   "start_url": "/leads",
   "display": "standalone",
   "background_color": "#F7F6F2",

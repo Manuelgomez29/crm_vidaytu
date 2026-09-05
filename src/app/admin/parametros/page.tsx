@@ -251,7 +251,7 @@ export default async function AdminParametros({
               <input
                 name="marketing_remitente"
                 defaultValue={cadena('marketing_remitente')}
-                placeholder="Vida y Tu <hola@dominio.es>"
+                placeholder="Vidaitu <hola@dominio.es>"
                 className={inputAdmin}
               />
             </label>

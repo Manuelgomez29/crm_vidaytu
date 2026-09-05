@@ -31,7 +31,7 @@ export default async function Baja({ params }: { params: Promise<{ token: string
   return (
     <main className="flex min-h-screen items-center justify-center bg-ground px-4 py-16">
       <div className="panel w-full max-w-md px-6 py-8 text-center">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Vida y Tu</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Vidaitu</p>
 
         {!permitido ? (
           <>

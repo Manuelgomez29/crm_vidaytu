@@ -310,7 +310,7 @@ export async function ejecutarAlertas(admin: Cliente): Promise<ResultadoAlertas>
       const correo = esResumen
         ? {
             para: aviso.usuario!.email,
-            asunto: `Vida y Tu DATA — resumen del ${hoy}`,
+            asunto: `Vidaitu DATA — resumen del ${hoy}`,
             cuerpo: cuerpoResumenDiario({
               nombre: aviso.usuario!.nombre,
               fecha: hoy,
@@ -325,7 +325,7 @@ export async function ejecutarAlertas(admin: Cliente): Promise<ResultadoAlertas>
           }
         : {
             para: aviso.usuario!.email,
-            asunto: 'Vida y Tu DATA — aviso',
+            asunto: 'Vidaitu DATA — aviso',
             cuerpo: `${aviso.mensaje}\n\nEntra en la plataforma: ${url}`,
           };
 
