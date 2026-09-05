@@ -63,12 +63,17 @@ function Tarjeta({
   onAsignarme,
   onEmpezarArrastre,
   atenuada,
+  onMoverConTeclado,
+  posicion,
 }: {
   lead: TarjetaLead;
   puedeAutoasignarse: boolean;
   onAsignarme: (id: string) => void;
   onEmpezarArrastre?: (e: React.PointerEvent, lead: TarjetaLead) => void;
   atenuada: boolean;
+  /** Mover con teclado: -1 a la etapa anterior, +1 a la siguiente. */
+  onMoverConTeclado?: (lead: TarjetaLead, direccion: -1 | 1) => void;
+  posicion?: string;
 }) {
   const centro = colorCentro(lead.centroSlug);
   const iniciales = (lead.propietarioNombre ?? '')
@@ -81,6 +86,29 @@ function Tarjeta({
   return (
     <div
       onPointerDown={onEmpezarArrastre ? (e) => onEmpezarArrastre(e, lead) : undefined}
+      /*
+       * Arrastrar con el raton no es la unica forma de mover una tarjeta.
+       * Enfocada, las flechas izquierda y derecha la pasan de etapa: es la
+       * unica via para quien no usa raton, y de paso la mas rapida para quien
+       * ya tiene las manos en el teclado.
+       */
+      tabIndex={onMoverConTeclado ? 0 : undefined}
+      role={onMoverConTeclado ? 'group' : undefined}
+      aria-label={onMoverConTeclado ? `${lead.nombre}${posicion ? ', ' + posicion : ''}. Flechas izquierda y derecha para cambiar de etapa.` : undefined}
+      onKeyDown={
+        onMoverConTeclado
+          ? (e) => {
+              if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                onMoverConTeclado(lead, -1);
+              }
+              if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                onMoverConTeclado(lead, 1);
+              }
+            }
+          : undefined
+      }
       className={`tarjeta mb-2.5 ${centro.borde} ${
         onEmpezarArrastre ? 'cursor-grab active:cursor-grabbing' : ''
       } ${atenuada ? 'opacity-40' : ''}`}
@@ -182,6 +210,14 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
       supabase.removeChannel(canal);
     };
   }, [router]);
+
+  /** Mueve una tarjeta a la etapa contigua. Se queda quieta en los extremos. */
+  function moverConTeclado(lead: TarjetaLead, direccion: -1 | 1) {
+    const i = etapas.findIndex((e) => e.id === lead.etapaId);
+    const destino = etapas[i + direccion];
+    if (!destino) return;
+    moverLead(lead.id, destino.id);
+  }
 
   function moverLead(leadId: string, etapaId: string) {
     setAviso(null);
@@ -357,6 +393,8 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
                     onAsignarme={asignarme}
                     onEmpezarArrastre={empezarArrastre}
                     atenuada={moviendoId === lead.id || (arrastre?.activo === true && arrastre.leadId === lead.id)}
+                    onMoverConTeclado={moverConTeclado}
+                    posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
                   />
                 ))}
               </div>

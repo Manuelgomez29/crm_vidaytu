@@ -12,6 +12,9 @@ import { TablaCasos } from './tabla-casos';
 import { Presencia } from '@/components/presencia';
 import { misVistas } from './vistas';
 
+/** Casos que se traen de una vez al tablero o a la tabla. */
+const TOPE_TABLERO = 300;
+
 /** Estados exentos del aviso "sin próxima acción": cerrados o ya resueltos. */
 const ESTADOS_SIN_AVISO_ACCION: string[] = [...ESTADOS_CERRADOS, 'convertido', 'derivado'];
 
@@ -130,7 +133,17 @@ export default async function LeadsPage({
     )
     // Solo tareas PENDIENTES: basta para el aviso y evita arrastrar el histórico.
     .is('tareas.completada_at', null)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    /*
+     * Tope duro. Hoy son ocho casos, pero esta consulta no tenia limite: con mil
+     * el tablero se traeria los mil y el navegador pintaria mil tarjetas.
+     *
+     * Se topa aqui y no se virtualiza la lista porque el coste esta en TRAER las
+     * filas, no en pintarlas: virtualizar sobre una consulta sin limite deja la
+     * pagina igual de lenta y ademas rompe el arrastre entre columnas. Mismo
+     * criterio que en Contactos, que lleva tope de 100 desde el principio.
+     */
+    .limit(TOPE_TABLERO);
   if (pipelineId) consulta = consulta.eq('pipeline_id', pipelineId);
   if (filtros.centro) consulta = consulta.eq('centro_id', filtros.centro);
   if (filtros.mias === '1') consulta = consulta.eq('propietario_id', user.id);
@@ -244,6 +257,13 @@ export default async function LeadsPage({
             </div>
           );
         })()}
+
+        {filas.length >= TOPE_TABLERO && (
+          <p className="mb-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-ink ring-1 ring-warn/25">
+            Se muestran los primeros {TOPE_TABLERO} casos. Afina con los filtros de arriba o
+            guarda una vista para no tener que ponerlos cada vez.
+          </p>
+        )}
 
         <BarraVistas
           pantalla="kanban"
