@@ -58,26 +58,80 @@ export function Paleta({ rol }: { rol: string | undefined }) {
   const [termino, setTermino] = useState('');
   const [resultados, setResultados] = useState<ResultadoRapido[]>([]);
   const [buscando, empezarBusqueda] = useTransition();
+  const [chuleta, setChuleta] = useState(false);
   const ultimaPeticion = useRef(0);
+  /** Momento en que se pulsó «G»: los saltos son en dos tiempos, como en Gmail. */
+  const gPulsada = useRef(0);
 
   const acciones = ACCIONES.filter((a) => !a.roles || (rol && a.roles.includes(rol)));
 
-  // Abrir con Ctrl+K / Cmd+K, y con «/» cuando no se está escribiendo.
+  /**
+   * Atajos globales.
+   *
+   * Ninguno responde mientras se escribe: dentro de un campo, «n» es una letra.
+   * Es la diferencia entre un atajo y una trampa, y por eso se comprueba el
+   * foco antes que la tecla.
+   *
+   * Los saltos van en dos tiempos («G» y luego la inicial) para no gastar
+   * letras sueltas que hacen falta al escribir en cualquier sitio.
+   */
   useEffect(() => {
     function alPulsar(e: KeyboardEvent) {
+      // Ctrl+K funciona siempre, también escribiendo: es la salida de emergencia.
       if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setAbierta((v) => !v);
         return;
       }
-      if (e.key === '/' && !escribiendo(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        setAbierta(true);
+      if (e.key === 'Escape') {
+        setChuleta(false);
+        return;
+      }
+      if (escribiendo(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Segundo tiempo de un salto: G seguido de la inicial, dentro de 1,5 s.
+      if (Date.now() - gPulsada.current < 1500) {
+        const destinos: Record<string, string> = {
+          k: '/leads',
+          c: '/contactos',
+          a: '/agenda',
+          d: '/panel',
+          m: '/mi-dia',
+        };
+        const destino = destinos[e.key.toLowerCase()];
+        if (destino) {
+          e.preventDefault();
+          gPulsada.current = 0;
+          router.push(destino);
+          return;
+        }
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'g':
+          gPulsada.current = Date.now();
+          break;
+        case 'n':
+          e.preventDefault();
+          router.push('/leads/nuevo');
+          break;
+        case 't':
+          e.preventDefault();
+          router.push('/tareas');
+          break;
+        case '/':
+          e.preventDefault();
+          setAbierta(true);
+          break;
+        case '?':
+          e.preventDefault();
+          setChuleta((v) => !v);
+          break;
       }
     }
     document.addEventListener('keydown', alPulsar);
     return () => document.removeEventListener('keydown', alPulsar);
-  }, []);
+  }, [router]);
 
   /**
    * Rebote de 140 ms: se busca mientras se teclea, pero no en cada tecla. El
@@ -115,6 +169,8 @@ export function Paleta({ rol }: { rol: string | undefined }) {
   );
 
   return (
+    <>
+      {chuleta && <Chuleta alCerrar={() => setChuleta(false)} />}
     <Command.Dialog
       open={abierta}
       onOpenChange={setAbierta}
@@ -197,5 +253,67 @@ export function Paleta({ rol }: { rol: string | undefined }) {
         </Command.List>
       </div>
     </Command.Dialog>
+    </>
+  );
+}
+
+const ATAJOS: [string, string][] = [
+  ['Ctrl K', 'Buscar o ejecutar una acción'],
+  ['/', 'Lo mismo, sin modificador'],
+  ['N', 'Nuevo lead'],
+  ['T', 'Mis tareas'],
+  ['G luego M', 'Ir a Mi día'],
+  ['G luego K', 'Ir al kanban'],
+  ['G luego C', 'Ir a contactos'],
+  ['G luego A', 'Ir a la agenda'],
+  ['G luego D', 'Ir al dashboard'],
+  ['↑ ↓', 'Caso anterior / siguiente, con la ficha abierta'],
+  ['Esc', 'Cerrar lo que esté abierto'],
+  ['?', 'Esta chuleta'],
+];
+
+/**
+ * La chuleta de atajos.
+ *
+ * Un atajo que nadie conoce no existe. Esto es lo que hace que el resto del
+ * teclado se use: se abre con «?», que es donde la busca cualquiera que venga
+ * de Gmail o de Linear.
+ */
+function Chuleta({ alCerrar }: { alCerrar: () => void }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Atajos de teclado"
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+    >
+      <div className="absolute inset-0 bg-ink/35" onClick={alCerrar} aria-hidden />
+      <div className="panel relative w-[min(92vw,26rem)] p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Atajos de teclado</h2>
+          <button
+            type="button"
+            onClick={alCerrar}
+            aria-label="Cerrar la chuleta"
+            className="text-muted transition hover:text-ink"
+          >
+            ✕
+          </button>
+        </div>
+        <dl className="flex flex-col gap-1.5 text-[13px]">
+          {ATAJOS.map(([tecla, que]) => (
+            <div key={tecla} className="flex items-center gap-3">
+              <dt className="w-24 shrink-0">
+                <kbd className="chip chip-mut">{tecla}</kbd>
+              </dt>
+              <dd className="text-ink2">{que}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-3 text-xs text-muted">
+          Ninguno responde mientras escribes en un campo: dentro de un formulario, «n» es una letra.
+        </p>
+      </div>
+    </div>
   );
 }

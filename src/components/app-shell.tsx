@@ -6,6 +6,7 @@ import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 import { BotonAtras } from './boton-atras';
 import { Paleta } from './paleta';
 import { ProveedorAvisos } from './avisos';
+import { SelectorTema } from './selector-tema';
 
 export type Seccion =
   | 'mi-dia'
@@ -288,7 +289,7 @@ export async function AppShell({
       .limit(15),
     supabase
       .from('perfiles')
-      .select('nombre, rol, acceso_clinico')
+      .select('nombre, rol, acceso_clinico, tema')
       .eq('id', user.id)
       .maybeSingle(),
   ]);
@@ -337,6 +338,7 @@ export async function AppShell({
           <b className="block truncate text-[13px] text-white">{nombre}</b>
           <small className="block text-[11px] text-[#AEBBD6]">{rolTexto}</small>
         </div>
+        <SelectorTema actual={perfil?.tema ?? 'sistema'} />
         <form action={cerrarSesion}>
           <button
             type="submit"

@@ -2419,6 +2419,7 @@ export type Database = {
           id: string
           nombre: string
           rol: Database["public"]["Enums"]["rol_usuario"]
+          tema: Database["public"]["Enums"]["tema_interfaz"]
         }
         Insert: {
           acceso_clinico?: boolean
@@ -2428,6 +2429,7 @@ export type Database = {
           id: string
           nombre: string
           rol: Database["public"]["Enums"]["rol_usuario"]
+          tema?: Database["public"]["Enums"]["tema_interfaz"]
         }
         Update: {
           acceso_clinico?: boolean
@@ -2437,6 +2439,7 @@ export type Database = {
           id?: string
           nombre?: string
           rol?: Database["public"]["Enums"]["rol_usuario"]
+          tema?: Database["public"]["Enums"]["tema_interfaz"]
         }
         Relationships: []
       }
@@ -3044,6 +3047,7 @@ export type Database = {
       modalidad_cita: "presencial" | "videollamada" | "telefonica"
       pantalla_vista: "kanban" | "contactos" | "tabla_casos"
       rol_usuario: "direccion" | "admisiones" | "terapeuta" | "administracion"
+      tema_interfaz: "claro" | "oscuro" | "sistema"
       tipo_actividad:
         | "llamada"
         | "whatsapp"
@@ -3243,6 +3247,7 @@ export const Constants = {
       modalidad_cita: ["presencial", "videollamada", "telefonica"],
       pantalla_vista: ["kanban", "contactos", "tabla_casos"],
       rol_usuario: ["direccion", "admisiones", "terapeuta", "administracion"],
+      tema_interfaz: ["claro", "oscuro", "sistema"],
       tipo_actividad: [
         "llamada",
         "whatsapp",

@@ -25,7 +25,8 @@
     "verificar:paleta": "node --env-file=.env.local scripts/verificar-paleta.mjs",
     "staging:verificar:paleta": "node --env-file=.env.staging scripts/verificar-paleta.mjs",
     "verificar:bloque": "node --env-file=.env.local scripts/verificar-bloque.mjs",
-    "staging:verificar:bloque": "node --env-file=.env.staging scripts/verificar-bloque.mjs"
+    "staging:verificar:bloque": "node --env-file=.env.staging scripts/verificar-bloque.mjs",
+    "verificar:contraste": "node scripts/verificar-contraste.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",

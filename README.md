@@ -412,3 +412,37 @@ Nada con arreglo en el código. Queda una recomendación de despliegue: **poner 
 - `src/lib/enlaces.ts` — defensas contra redirecciones abiertas y comparación de secretos.
 - `src/instrumentation.ts` — Sentry, inerte sin DSN.
 - `CLAUDE.md` — contexto de negocio y reglas innegociables del proyecto.
+
+## Atajos de teclado
+
+Ninguno responde mientras escribes en un campo: dentro de un formulario, «n» es
+una letra. Pulsa **?** en cualquier pantalla para ver esta misma lista.
+
+| Atajo | Qué hace |
+|---|---|
+| `Ctrl K` / `Cmd K` | Paleta de comandos: buscar un caso o una persona, o ejecutar una acción |
+| `/` | Lo mismo, sin modificador |
+| `N` | Nuevo lead |
+| `T` | Mis tareas |
+| `G` luego `M` | Ir a Mi día |
+| `G` luego `K` | Ir al kanban |
+| `G` luego `C` | Ir a contactos |
+| `G` luego `A` | Ir a la agenda |
+| `G` luego `D` | Ir al dashboard |
+| `↑` `↓` | Caso anterior / siguiente, con la ficha lateral abierta |
+| `Esc` | Cerrar lo que esté abierto |
+| `?` | La chuleta |
+
+Los saltos van en dos tiempos —`G` y luego la inicial— para no gastar letras
+sueltas que hacen falta al escribir en cualquier sitio.
+
+## Tema claro y oscuro
+
+Tres estados en la barra lateral: claro, oscuro y el del sistema, que es el de
+serie. La preferencia se guarda **en el perfil**, no en el navegador, para que
+no cambie entre el móvil y el ordenador.
+
+El contraste de la paleta se comprueba con `npm run verificar:contraste`, que
+saca los valores del propio `globals.css` y calcula el ratio WCAG de cada
+combinación texto/fondo que se usa de verdad. El baremo es AA para texto normal
+(4.5:1), no AA grande, porque los chips son de 11px.
