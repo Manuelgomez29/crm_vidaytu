@@ -70,7 +70,13 @@ async function avisar(
 // ---------------------------------------------------------------------------
 // 1. LEAD SCORING
 // ---------------------------------------------------------------------------
-async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
+/*
+ * Exportada para poder lanzarla a mano desde un script. Los cron de Vercel
+ * solo corren en produccion, asi que en staging la puntuacion no se recalcula
+ * sola nunca — y una puntuacion que siempre vale 0 no se puede ni mirar ni
+ * probar.
+ */
+export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
   /*
    * Las reglas salen de la tabla, no de una constante. Si direccion apaga una o
    * le cambia los puntos, la siguiente pasada ya lo respeta sin desplegar nada.

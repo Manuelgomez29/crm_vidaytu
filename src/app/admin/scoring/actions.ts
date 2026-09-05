@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { SENALES, type Senal } from '@/lib/scoring';
+import { recalcularPuntuaciones } from '@/lib/automatizacion';
 
 async function exigirDireccion() {
   const supabase = await createClient();
@@ -103,4 +104,24 @@ export async function borrarRegla(reglaId: string) {
   const { error } = await admin.from('scoring_reglas').delete().eq('id', reglaId);
   if (error) volver({ error: `No se pudo borrar: ${error.message}` });
   volver({ aviso: 'Regla borrada.' });
+}
+
+/**
+ * Recalcular ahora, sin esperar a la pasada del motor.
+ *
+ * Existe por una razón concreta: los cron de Vercel solo corren en despliegues
+ * de producción, así que en staging la puntuación no se recalcula sola nunca.
+ * Sin este botón, probar un cambio de reglas allí era imposible — y probar en
+ * producción es justo lo que el segundo entorno viene a evitar.
+ */
+export async function recalcularAhora() {
+  await exigirDireccion();
+  const admin = createAdminClient();
+  const cambiados = await recalcularPuntuaciones(admin);
+  volver({
+    aviso:
+      cambiados === 0
+        ? 'Recalculado: ningún caso cambia de puntuación con estas reglas.'
+        : `Recalculado: ${cambiados} caso(s) han cambiado de puntuación.`,
+  });
 }
