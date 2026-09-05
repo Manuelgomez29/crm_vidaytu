@@ -2922,6 +2922,16 @@ export type Database = {
         Args: { p_fin: string; p_inicio: string; p_profesional: string }
         Returns: string
       }
+      cartera_del_equipo: {
+        Args: never
+        Returns: {
+          casos: number
+          citas_futuras: number
+          pacientes: number
+          perfil_id: string
+          tareas_pendientes: number
+        }[]
+      }
       consumir_intento: {
         Args: { p_clave: string; p_maximo: number; p_ventana_segundos: number }
         Returns: boolean
