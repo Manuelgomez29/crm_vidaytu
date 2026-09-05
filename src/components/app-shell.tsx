@@ -338,7 +338,6 @@ export async function AppShell({
           <b className="block truncate text-[13px] text-white">{nombre}</b>
           <small className="block text-[11px] text-[#AEBBD6]">{rolTexto}</small>
         </div>
-        <SelectorTema actual={perfil?.tema ?? 'sistema'} />
         <form action={cerrarSesion}>
           <button
             type="submit"
@@ -392,6 +391,10 @@ export async function AppShell({
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {/* El tema se cambia desde arriba: abajo, pegado al nombre, no lo
+                buscaba nadie. */}
+            <SelectorTema actual={perfil?.tema ?? 'sistema'} />
+
             {acciones}
 
             {/* Exportar: solo dirección, y cada descarga queda auditada. */}
