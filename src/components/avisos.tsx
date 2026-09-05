@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type Aviso = {
   id: number;
@@ -21,8 +22,20 @@ const DURACION = 5000;
 
 export function useAviso(): Contexto {
   const ctx = useContext(AvisoContexto);
-  // Sin proveedor no se rompe nada: simplemente no hay aviso visible.
-  return ctx ?? { mostrar: () => {} };
+  if (ctx) return ctx;
+
+  /*
+   * Sin proveedor no se rompe la pantalla, pero SI se dice. La version anterior
+   * devolvia una funcion vacia en silencio, y eso convierte «no hay proveedor»
+   * en «el aviso no sale», que es indistinguible de un fallo de CSS o de la
+   * accion. Costo una tarde averiguar cual de los tres era.
+   */
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[avisos] Se ha pedido un aviso fuera de <ProveedorAvisos>. No se vera nada.',
+    );
+  }
+  return { mostrar: () => {} };
 }
 
 /**
@@ -44,18 +57,37 @@ export function ProveedorAvisos({ children }: { children: React.ReactNode }) {
     setAvisos((v) => [...v, { ...aviso, id }]);
   }, []);
 
+  /**
+   * Los avisos se pintan colgando de <body>, no de donde esta el proveedor.
+   *
+   * `position: fixed` deja de referirse a la ventana si algun ancestro tiene
+   * transform, filter o contain — y en una aplicacion con paneles, drawers y
+   * animaciones eso pasa antes o despues. Sacarlo del arbol de estilos es la
+   * unica forma de que un aviso no pueda quedarse escondido detras de nada.
+   */
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
+  const bandeja = (
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed bottom-4 left-1/2 z-[100] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2"
+    >
+      {avisos.map((a) => (
+        <Tarjeta
+          key={a.id}
+          aviso={a}
+          alCerrar={() => setAvisos((v) => v.filter((x) => x.id !== a.id))}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <AvisoContexto.Provider value={{ mostrar }}>
       {children}
-      <div
-        role="status"
-        aria-live="polite"
-        className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2"
-      >
-        {avisos.map((a) => (
-          <Tarjeta key={a.id} aviso={a} alCerrar={() => setAvisos((v) => v.filter((x) => x.id !== a.id))} />
-        ))}
-      </div>
+      {montado && createPortal(bandeja, document.body)}
     </AvisoContexto.Provider>
   );
 }

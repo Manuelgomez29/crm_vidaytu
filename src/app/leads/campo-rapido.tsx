@@ -49,13 +49,15 @@ export function CampoRapido({
         return;
       }
       if (r.descripcion === 'Sin cambios') return;
-      router.refresh();
+      // Primero el aviso, luego el refresco: si el refresco reordena el arbol,
+      // el aviso ya esta puesto.
       mostrar({
         texto: esReversion ? 'Cambio deshecho.' : `${r.descripcion} actualizado.`,
         tono: 'ok',
         // Al deshacer no se ofrece deshacer otra vez: sería un bucle.
         deshacer: esReversion ? undefined : () => aplicar(r.anterior ?? '', true),
       });
+      router.refresh();
     });
   }
 
