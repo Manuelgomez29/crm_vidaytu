@@ -4,8 +4,11 @@ import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 import { BotonAtras } from './boton-atras';
+import { Paleta } from './paleta';
+import { ProveedorAvisos } from './avisos';
 
 export type Seccion =
+  | 'mi-dia'
   | 'panel'
   | 'leads'
   | 'tareas'
@@ -39,6 +42,7 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
     salida.push({
       titulo: 'Área comercial',
       entradas: [
+        { clave: 'mi-dia', texto: 'Mi día', href: '/mi-dia', icono: '☀' },
         { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
         { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
         { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
@@ -296,7 +300,7 @@ export async function AppShell({
       ? '/agenda'
       : perfil?.rol === 'administracion'
         ? '/facturacion'
-        : '/leads';
+        : '/mi-dia';
   const nombre = perfil?.nombre ?? user.email ?? '';
   const ROL_TEXTO: Record<string, string> = {
     direccion: 'Dirección',
@@ -378,6 +382,9 @@ export async function AppShell({
                 placeholder="Buscar por nombre o teléfono…"
                 className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
               />
+              <kbd className="chip chip-mut hidden shrink-0 md:inline-flex" title="Paleta de comandos">
+                Ctrl K
+              </kbd>
             </label>
           </form>
           )}
@@ -435,9 +442,12 @@ export async function AppShell({
               </div>
             </div>
           </div>
-          {children}
+          <ProveedorAvisos>{children}</ProveedorAvisos>
         </div>
       </div>
+
+      {/* Paleta de comandos: vive en el armazon para estar en todas las pantallas. */}
+      <Paleta rol={perfil?.rol} />
     </div>
   );
 }

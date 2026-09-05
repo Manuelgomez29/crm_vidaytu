@@ -149,3 +149,10 @@ input[type='number'] {
   .via { @apply h-3 overflow-hidden rounded bg-surface2; }
   .via > span { @apply block h-full rounded-r; }
 }
+
+/* Entrada de los avisos. Solo se aplica con motion-safe: quien pide menos
+   movimiento en su sistema los ve aparecer sin desplazamiento. */
+@keyframes subir {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
