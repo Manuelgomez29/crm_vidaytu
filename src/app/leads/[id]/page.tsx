@@ -29,6 +29,7 @@ import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
 import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
 import { CampoNota } from './campo-nota';
 import { Presencia } from '@/components/presencia';
+import { resumenGuardado } from '@/lib/resumen-caso';
 
 const TIPO_ACTIVIDAD: Record<string, string> = {
   llamada: '📞 Llamada',
@@ -196,7 +197,18 @@ export default async function FichaLead({
   const { data: filaResumen } = resumen
     ? await supabase.from('ia_consultas').select('respuesta').eq('id', resumen).maybeSingle()
     : { data: null };
-  const textoResumen = filaResumen?.respuesta ?? null;
+
+  /*
+   * Si no se acaba de pedir uno, se enseña el guardado. Es lo que hace útil el
+   * resumen: quien retoma un caso ajeno se lo encuentra hecho, sin tener que
+   * saber que existe un botón ni esperar a que el modelo conteste.
+   *
+   * El caducado también se enseña, marcado: el de anteayer dice más que un
+   * hueco vacío, siempre que se avise de que es viejo.
+   */
+  const guardado = filaResumen ? null : await resumenGuardado(supabase, lead.id);
+  const textoResumen = filaResumen?.respuesta ?? guardado?.texto ?? null;
+  const resumenCaducado = !filaResumen && guardado ? !guardado.vigente : false;
 
   return (
     <AppShell
@@ -277,9 +289,17 @@ export default async function FichaLead({
             */}
             <Seccion titulo="Resumen del caso">
               {textoResumen ? (
-                <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
-                  {textoResumen}
-                </p>
+                <>
+                  <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
+                    {textoResumen}
+                  </p>
+                  {resumenCaducado && (
+                    <p className="mt-1.5 text-xs text-warn">
+                      Ha pasado algo en el caso desde que se escribió: vuelve a resumir para verlo
+                      al día.
+                    </p>
+                  )}
+                </>
               ) : (
                 <p className="text-sm text-muted">
                   Tres líneas con quién es, qué ha pasado y qué está pendiente. Útil sobre todo

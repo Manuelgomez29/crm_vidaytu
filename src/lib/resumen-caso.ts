@@ -19,11 +19,70 @@ type Cliente = SupabaseClient<Database>;
 
 const MODELO_POR_DEFECTO = 'claude-sonnet-5';
 
+type CacheResumen = { texto: string; generadoAt: string; vigente: boolean };
+
+/**
+ * Huella de la actividad de un caso.
+ *
+ * Cuántas anotaciones tiene y cuál es la más reciente. Con eso basta: si no ha
+ * pasado nada nuevo, el resumen de ayer describe el caso de hoy. No hace falta
+ * un hash criptográfico —esto no protege nada, solo detecta cambios— y una
+ * cadena legible se puede mirar cuando algo no cuadra.
+ */
+export async function huellaActividad(supabase: Cliente, leadId: string): Promise<string> {
+  const { data } = await supabase
+    .from('actividades')
+    .select('created_at')
+    .eq('lead_id', leadId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  const { count } = await supabase
+    .from('actividades')
+    .select('id', { count: 'exact', head: true })
+    .eq('lead_id', leadId);
+
+  return `${count ?? 0}:${data?.[0]?.created_at ?? 'sin-actividad'}`;
+}
+
+/**
+ * El resumen guardado, si lo hay, diciendo si sigue valiendo.
+ *
+ * Devuelve también los caducados a propósito: enseñar el de anteayer marcado
+ * como viejo es más útil que no enseñar nada mientras se genera el nuevo.
+ */
+export async function resumenGuardado(
+  supabase: Cliente,
+  leadId: string,
+): Promise<CacheResumen | null> {
+  const { data } = await supabase
+    .from('resumenes_ia')
+    .select('resumen, hash_actividad, generado_at')
+    .eq('lead_id', leadId)
+    .maybeSingle();
+  if (!data) return null;
+
+  const huella = await huellaActividad(supabase, leadId);
+  return {
+    texto: data.resumen,
+    generadoAt: data.generado_at,
+    vigente: data.hash_actividad === huella,
+  };
+}
+
 export async function resumirCaso(
   supabase: Cliente,
   leadId: string,
   usuarioId: string,
-): Promise<{ ok: boolean; texto?: string; error?: string; consultaId?: string }> {
+  /** Rehacerlo aunque haya uno guardado y vigente. */
+  forzar = false,
+): Promise<{
+  ok: boolean;
+  texto?: string;
+  error?: string;
+  consultaId?: string;
+  deCache?: boolean;
+}> {
   const { data: activa } = await supabase
     .from('configuracion')
     .select('valor')
@@ -34,6 +93,16 @@ export async function resumirCaso(
   }
   if (!iaConfigurada()) {
     return { ok: false, error: 'Falta ANTHROPIC_API_KEY en el servidor.' };
+  }
+
+  /*
+   * Si hay uno guardado y la actividad no ha cambiado, se devuelve ese. Llamar
+   * al modelo cada vez que alguien abre una ficha cuesta dinero y tarda, y la
+   * mayoría de las veces devolvería exactamente lo mismo.
+   */
+  if (!forzar) {
+    const guardado = await resumenGuardado(supabase, leadId);
+    if (guardado?.vigente) return { ok: true, texto: guardado.texto, deCache: true };
   }
 
   // Mismo cubo que el asistente: un resumen cuesta lo mismo que una pregunta.
@@ -179,6 +248,19 @@ export async function resumirCaso(
     if (!texto) {
       return { ok: false, error: 'El asistente no devolvió texto.', consultaId: await registrar({ error: 'sin texto' }) };
     }
+
+    // Se guarda con la huella de AHORA: si mientras se generaba alguien anotó
+    // algo, el resumen nace caducado y la próxima vez se rehace. Es lo correcto.
+    await supabase.from('resumenes_ia').upsert(
+      {
+        lead_id: leadId,
+        resumen: texto,
+        hash_actividad: await huellaActividad(supabase, leadId),
+        generado_at: new Date().toISOString(),
+        generado_por: usuarioId,
+      },
+      { onConflict: 'lead_id' },
+    );
 
     return { ok: true, texto, consultaId: await registrar({ texto }) };
   } catch (e) {
