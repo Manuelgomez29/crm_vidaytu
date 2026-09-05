@@ -228,7 +228,9 @@ async function proponerResenas(admin: Cliente, activa: boolean): Promise<number>
 
   const { data: conversiones } = await admin
     .from('conversiones')
-    .select('id, lead_id, lead:leads (nombre, propietario_id)')
+    .select(
+      'id, lead_id, lead:leads (nombre, propietario_id, centro:centros (nombre, url_resena_google))',
+    )
     .eq('estado', 'validada')
     .is('resena_propuesta_at', null)
     .limit(50);
@@ -240,13 +242,53 @@ async function proponerResenas(admin: Cliente, activa: boolean): Promise<number>
     const propietario = conversion.lead?.propietario_id;
     if (!propietario) continue;
 
+    /*
+     * Sin enlace del centro no se propone nada. Una tarea de «pedir reseña»
+     * sin sitio donde dejarla solo hace perder el tiempo a quien la abre, y
+     * la reseña de Bellamar en la ficha de Horizonte no le sirve a nadie.
+     */
+    const centro = conversion.lead?.centro as
+      | { nombre: string; url_resena_google: string | null }
+      | null;
+    if (!centro?.url_resena_google) continue;
+
+    /*
+     * A una PERSONA se le pide una vez, aunque aparezca en varios casos. La
+     * marca estaba en la conversión, así que una madre con dos hijos en
+     * tratamiento habría recibido dos peticiones — exactamente la clase de
+     * detalle que hace quedar mal a un centro.
+     */
+    const { data: vinculos } = await admin
+      .from('lead_contactos')
+      .select('contacto_id, es_principal, contacto:contactos (id, resena_pedida_at, consentimiento_marketing)')
+      .eq('lead_id', conversion.lead_id)
+      .order('es_principal', { ascending: false });
+
+    const destinatario = (vinculos ?? [])
+      .map((v) => v.contacto as { id: string; resena_pedida_at: string | null; consentimiento_marketing: boolean | null } | null)
+      .find((c) => c && !c.resena_pedida_at && c.consentimiento_marketing !== false);
+
+    if (!destinatario) {
+      // Nadie a quien pedírsela: se marca la conversión para no volver a mirarla.
+      await admin
+        .from('conversiones')
+        .update({ resena_propuesta_at: new Date().toISOString() })
+        .eq('id', conversion.id);
+      continue;
+    }
+
     const { error } = await admin.from('tareas').insert({
       lead_id: conversion.lead_id,
-      titulo: 'Pedir reseña en Google (usar la plantilla discreta)',
+      titulo: `Pedir reseña de ${centro.nombre} (plantilla discreta)`,
       vence_at: new Date(Date.now() + 3 * DIA_MS).toISOString(),
       responsable_id: propietario,
     });
     if (error) continue;
+
+    await admin
+      .from('contactos')
+      .update({ resena_pedida_at: new Date().toISOString() })
+      .eq('id', destinatario.id);
 
     await admin
       .from('conversiones')

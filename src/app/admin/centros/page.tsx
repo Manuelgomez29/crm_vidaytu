@@ -14,7 +14,7 @@ export default async function AdminCentros({
   const [{ data: centros }, { data: leads }] = await Promise.all([
     supabase
       .from('centros')
-      .select('id, nombre, slug, ciudad, activo, es_bandeja_grupo')
+      .select('id, nombre, slug, ciudad, activo, es_bandeja_grupo, url_resena_google')
       .order('es_bandeja_grupo')
       .order('nombre'),
     supabase.from('leads').select('centro_id'),
@@ -70,6 +70,13 @@ export default async function AdminCentros({
               </div>
               <form action={editarCentro.bind(null, c.id)} className="flex flex-wrap items-center gap-2">
                 <input name="nombre" defaultValue={c.nombre} className={`${inputAdmin} min-w-48 flex-1`} />
+                <input
+                  name="url_resena"
+                  defaultValue={c.url_resena_google ?? ''}
+                  placeholder="Enlace de reseña de Google"
+                  title="Sin enlace no se propone pedir reseña para los casos de este centro"
+                  className={`${inputAdmin} min-w-56 flex-1`}
+                />
                 <input
                   name="ciudad"
                   defaultValue={c.ciudad ?? ''}

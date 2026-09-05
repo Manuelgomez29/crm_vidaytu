@@ -485,10 +485,16 @@ export async function editarCentro(centroId: string, formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim();
   const ciudad = String(formData.get('ciudad') ?? '').trim() || null;
   const activo = formData.get('activo') === 'on';
+  // Sin enlace no se propone pedir resena para los casos de este centro: una
+  // tarea de «pedir resena» sin sitio donde dejarla solo hace perder el tiempo.
+  const urlResena = String(formData.get('url_resena') ?? '').trim() || null;
   if (!nombre) volver('centros', { error: 'El centro necesita un nombre.' });
 
   const admin = createAdminClient();
-  const { error } = await admin.from('centros').update({ nombre, ciudad, activo }).eq('id', centroId);
+  const { error } = await admin
+    .from('centros')
+    .update({ nombre, ciudad, activo, url_resena_google: urlResena })
+    .eq('id', centroId);
   if (error) volver('centros', { error: `No se pudo guardar: ${error.message}` });
   volver('centros');
 }

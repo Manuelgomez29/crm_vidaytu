@@ -418,6 +418,7 @@ export type Database = {
           id: string
           nombre: string
           slug: string
+          url_resena_google: string | null
         }
         Insert: {
           activo?: boolean
@@ -429,6 +430,7 @@ export type Database = {
           id?: string
           nombre: string
           slug: string
+          url_resena_google?: string | null
         }
         Update: {
           activo?: boolean
@@ -440,6 +442,7 @@ export type Database = {
           id?: string
           nombre?: string
           slug?: string
+          url_resena_google?: string | null
         }
         Relationships: []
       }
@@ -685,6 +688,7 @@ export type Database = {
           id: string
           nombre: string
           notas: string | null
+          resena_pedida_at: string | null
           telefono: string
           updated_at: string
           zona: string | null
@@ -699,6 +703,7 @@ export type Database = {
           id?: string
           nombre: string
           notas?: string | null
+          resena_pedida_at?: string | null
           telefono: string
           updated_at?: string
           zona?: string | null
@@ -713,6 +718,7 @@ export type Database = {
           id?: string
           nombre?: string
           notas?: string | null
+          resena_pedida_at?: string | null
           telefono?: string
           updated_at?: string
           zona?: string | null
@@ -2694,6 +2700,45 @@ export type Database = {
             columns: ["etiqueta_id"]
             isOneToOne: false
             referencedRelation: "etiquetas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resumenes_ia: {
+        Row: {
+          generado_at: string
+          generado_por: string | null
+          hash_actividad: string
+          lead_id: string
+          resumen: string
+        }
+        Insert: {
+          generado_at?: string
+          generado_por?: string | null
+          hash_actividad: string
+          lead_id: string
+          resumen: string
+        }
+        Update: {
+          generado_at?: string
+          generado_por?: string | null
+          hash_actividad?: string
+          lead_id?: string
+          resumen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resumenes_ia_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resumenes_ia_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
