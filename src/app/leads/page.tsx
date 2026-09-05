@@ -49,6 +49,8 @@ export default async function LeadsPage({
     inactivos?: string;
     vista?: string;
     modo?: string;
+    calientes?: string;
+    orden?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -61,7 +63,16 @@ export default async function LeadsPage({
 
   // Al cerrar la ficha se vuelve al tablero con los mismos filtros.
   const parametrosTablero = new URLSearchParams();
-  for (const clave of ['pipeline', 'centro', 'mias', 'canal', 'urgencia', 'inactivos'] as const) {
+  for (const clave of [
+    'pipeline',
+    'centro',
+    'mias',
+    'canal',
+    'urgencia',
+    'inactivos',
+    'calientes',
+    'orden',
+  ] as const) {
     if (filtros[clave]) parametrosTablero.set(clave, filtros[clave]!);
   }
   const volverAlTablero = `/leads${parametrosTablero.toString() ? `?${parametrosTablero}` : ''}`;
@@ -133,7 +144,7 @@ export default async function LeadsPage({
     )
     // Solo tareas PENDIENTES: basta para el aviso y evita arrastrar el histórico.
     .is('tareas.completada_at', null)
-    .order('created_at', { ascending: false })
+    .order(filtros.orden === 'calor' ? 'puntuacion' : 'created_at', { ascending: false })
     /*
      * Tope duro. Hoy son ocho casos, pero esta consulta no tenia limite: con mil
      * el tablero se traeria los mil y el navegador pintaria mil tarjetas.
@@ -147,6 +158,9 @@ export default async function LeadsPage({
   if (pipelineId) consulta = consulta.eq('pipeline_id', pipelineId);
   if (filtros.centro) consulta = consulta.eq('centro_id', filtros.centro);
   if (filtros.mias === '1') consulta = consulta.eq('propietario_id', user.id);
+  // «Solo calientes»: el mismo corte que el badge, para que lo que se filtra
+  // sea exactamente lo que se ve marcado en la tarjeta.
+  if (filtros.calientes === '1') consulta = consulta.gte('puntuacion', 70);
   if (filtros.canal) consulta = consulta.eq('canal_id', filtros.canal);
   if (filtros.urgencia === 'alta' || filtros.urgencia === 'media' || filtros.urgencia === 'baja') {
     consulta = consulta.eq('urgencia', filtros.urgencia);
@@ -316,6 +330,14 @@ export default async function LeadsPage({
             <option value="7">Sin actividad 7+ días</option>
             <option value="14">Sin actividad 14+ días</option>
           </select>
+          <select name="orden" defaultValue={filtros.orden ?? ''} className="campo">
+            <option value="">Los últimos primero</option>
+            <option value="calor">Los más calientes primero</option>
+          </select>
+          <label className="flex items-center gap-2 rounded-lg border border-line2 bg-surface px-3 py-2 font-medium text-ink2">
+            <input type="checkbox" name="calientes" value="1" defaultChecked={filtros.calientes === '1'} />
+            Solo calientes
+          </label>
           <label className="flex items-center gap-2 rounded-lg border border-line2 bg-surface px-3 py-2 font-medium text-ink2">
             <input type="checkbox" name="mias" value="1" defaultChecked={filtros.mias === '1'} />
             Solo mis leads
@@ -323,7 +345,7 @@ export default async function LeadsPage({
           <button type="submit" className="btn btn-primary">
             Filtrar
           </button>
-          {(filtros.centro || filtros.canal || filtros.urgencia || filtros.inactivos || filtros.mias) && (
+          {(filtros.centro || filtros.canal || filtros.urgencia || filtros.inactivos || filtros.mias || filtros.calientes || filtros.orden) && (
             <Link href="/leads" className="px-2 font-medium text-primary hover:underline">
               Limpiar
             </Link>

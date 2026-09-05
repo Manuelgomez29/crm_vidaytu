@@ -2698,6 +2698,50 @@ export type Database = {
           },
         ]
       }
+      scoring_reglas: {
+        Row: {
+          activa: boolean
+          condicion: Json
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          puntos: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          condicion: Json
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          puntos: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          condicion?: Json
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          puntos?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scoring_reglas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seguimientos_post_alta: {
         Row: {
           completado_at: string | null

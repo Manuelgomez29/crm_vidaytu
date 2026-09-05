@@ -111,6 +111,13 @@ export default async function AdminPortada() {
           descripcion="Canales, modalidades, motivos y adicciones"
         />
         <Seccion
+          href="/admin/scoring"
+          icono="🔥"
+          titulo="Puntuación de casos"
+          dato="Reglas de calor"
+          descripcion="Cuánto pesa cada señal al ordenar la cola"
+        />
+        <Seccion
           href="/admin/parametros"
           icono="⚙"
           titulo="Parámetros"

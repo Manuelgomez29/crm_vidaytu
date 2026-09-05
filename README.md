@@ -446,3 +446,35 @@ El contraste de la paleta se comprueba con `npm run verificar:contraste`, que
 saca los valores del propio `globals.css` y calcula el ratio WCAG de cada
 combinación texto/fondo que se usa de verdad. El baremo es AA para texto normal
 (4.5:1), no AA grande, porque los chips son de 11px.
+
+## Puntuación de casos (lead scoring)
+
+Cada caso abierto lleva una puntuación de 0 a 100 que **ordena la cola, no
+decide a quién se atiende**: un 12 se llama igual que un 90, solo que más tarde.
+Nunca oculta ni cierra un caso.
+
+Las reglas viven en la tabla `scoring_reglas` y las ajusta dirección desde
+**Administración → Puntuación de casos**: cuánto suma o resta cada señal, y si
+está activa. Los cortes visuales son 70 (🔥 caliente) y 40 (templado).
+
+Cada regla apunta a una **señal de un catálogo cerrado** definido en
+`src/lib/scoring.ts`. No son condiciones libres, y es deliberado: una condición
+mal escrita no encaja nunca y baja la puntuación en silencio. Con un catálogo,
+una regla mal puesta se ve al guardarla, y el caso puede explicar por qué puntúa
+lo que puntúa. Añadir una señal nueva es trabajo de código; ajustar su peso, no.
+
+Se comprueba con `npm run verificar:scoring`, que usa la función real y las
+reglas reales de la base.
+
+### Recalibrar cuando haya histórico
+
+Los pesos actuales salen de la experiencia del equipo, **no de datos**. Son una
+hipótesis razonable para empezar.
+
+Cuando haya **100 conversiones validadas o más**, toca recalibrarlos contra el
+histórico real: mirar, para cada señal, qué proporción de los casos que la
+tenían acabó convirtiendo, frente a la proporción general. Las señales que no
+separen nada bajan a cero o desaparecen; las que separen mucho suben. Es
+probable que alguna de las actuales resulte no predecir nada — es lo normal, y
+es justo el motivo de dejar los pesos ajustables desde el panel en vez de
+cablearlos.
