@@ -34,12 +34,16 @@ export function BarraVistas({
 
   const hayFiltros = Object.keys(filtrosActuales).length > 0;
 
+  /* A donde vuelve una vista. Estaba cableado a /leads, que en el directorio de
+     contactos llevaba a la pantalla equivocada. */
+  const rutaBase = pantalla === 'contactos' ? '/contactos' : '/leads';
+
   function aplicar(v: Vista) {
     const p = new URLSearchParams(v.filtros);
     p.set('vista', v.id);
     empezar(async () => {
       await marcarUsada(v.id);
-      router.push(`/leads?${p}`);
+      router.push(rutaBase + '?' + p.toString());
     });
   }
 

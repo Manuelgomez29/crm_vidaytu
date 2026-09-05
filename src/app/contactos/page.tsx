@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
+import { BarraVistas } from '@/app/leads/barra-vistas';
+import { misVistas, type Vista } from '@/app/leads/vistas';
 import { clasesEtiqueta } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
@@ -22,10 +24,22 @@ type FilaContacto = {
 export default async function DirectorioContactos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; etiqueta?: string; lista?: string; consent?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    etiqueta?: string;
+    lista?: string;
+    consent?: string;
+    vista?: string;
+  }>;
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
+
+  // Vistas guardadas de esta persona para el directorio (solo las suyas: RLS).
+  const vistas = await misVistas('contactos');
+  const filtrosPuestos = Object.fromEntries(
+    Object.entries(filtros).filter(([k, v]) => v && k !== 'vista') as [string, string][],
+  );
 
   const {
     data: { user },
@@ -126,6 +140,8 @@ export default async function DirectorioContactos({
       // Filtro que no deja a nadie: evitamos una consulta con lista vacía.
       return (
         <Pagina
+          vistas={vistas}
+          filtrosPuestos={filtrosPuestos}
           etiquetas={etiquetas ?? []}
           listas={listas ?? []}
           recuentos={recuentos}
@@ -142,6 +158,8 @@ export default async function DirectorioContactos({
 
   return (
     <Pagina
+      vistas={vistas}
+      filtrosPuestos={filtrosPuestos}
       etiquetas={etiquetas ?? []}
       listas={listas ?? []}
       recuentos={recuentos}
@@ -161,14 +179,18 @@ function Pagina({
   filtros,
   contactos,
   error,
+  vistas,
+  filtrosPuestos,
 }: {
   etiquetas: { id: string; nombre: string; color: string | null }[];
   listas: { id: string; nombre: string; tipo: string }[];
   recuentos: Map<string, number>;
   total: number;
-  filtros: { q?: string; etiqueta?: string; lista?: string; consent?: string };
+  filtros: { q?: string; etiqueta?: string; lista?: string; consent?: string; vista?: string };
   contactos: FilaContacto[];
   error?: string;
+  vistas: Vista[];
+  filtrosPuestos: Record<string, string>;
 }) {
   const hayFiltros = Boolean(filtros.q || filtros.etiqueta || filtros.lista || filtros.consent);
 
@@ -229,6 +251,13 @@ function Pagina({
         </aside>
 
         <div>
+        <BarraVistas
+          pantalla="contactos"
+          vistas={vistas}
+          filtrosActuales={filtrosPuestos}
+          vistaActiva={filtros.vista}
+        />
+
         <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
           <input
             name="q"

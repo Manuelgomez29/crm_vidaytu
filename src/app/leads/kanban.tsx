@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { asignarmeLead, moverLeadDeEtapa } from './actions';
+import { CampoRapido } from './campo-rapido';
 
 export type TarjetaLead = {
   id: string;
@@ -29,6 +30,7 @@ export type TarjetaLead = {
 
 type Props = {
   etapas: { id: string; nombre: string }[];
+  comerciales?: { id: string; nombre: string }[];
   tarjetas: TarjetaLead[];
   cerradas: TarjetaLead[];
   puedeAutoasignarse: boolean;
@@ -65,6 +67,7 @@ function Tarjeta({
   atenuada,
   onMoverConTeclado,
   posicion,
+  comerciales,
 }: {
   lead: TarjetaLead;
   puedeAutoasignarse: boolean;
@@ -74,6 +77,7 @@ function Tarjeta({
   /** Mover con teclado: -1 a la etapa anterior, +1 a la siguiente. */
   onMoverConTeclado?: (lead: TarjetaLead, direccion: -1 | 1) => void;
   posicion?: string;
+  comerciales?: { id: string; nombre: string }[];
 }) {
   const centro = colorCentro(lead.centroSlug);
   const iniciales = (lead.propietarioNombre ?? '')
@@ -141,6 +145,37 @@ function Tarjeta({
         {lead.conversionPendiente && <span className="chip chip-warn">Pendiente validación</span>}
       </div>
 
+      {/*
+        Edicion sin abrir nada. Solo se pinta si llega la lista de comerciales:
+        asi la tarjeta sigue sirviendo en sitios donde no toque editar.
+      */}
+      {comerciales && (
+        <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted">
+          <CampoRapido
+            leadId={lead.id}
+            campo="urgencia"
+            valor={lead.urgencia}
+            etiqueta={`Urgencia de ${lead.nombre}`}
+            opciones={[
+              { valor: '', texto: 'Sin urgencia' },
+              { valor: 'baja', texto: 'Baja' },
+              { valor: 'media', texto: 'Media' },
+              { valor: 'alta', texto: 'Alta' },
+            ]}
+          />
+          <CampoRapido
+            leadId={lead.id}
+            campo="propietario_id"
+            valor={comerciales.find((c) => c.nombre === lead.propietarioNombre)?.id ?? ''}
+            etiqueta={`Propietario de ${lead.nombre}`}
+            opciones={[
+              { valor: '', texto: 'Sin asignar' },
+              ...comerciales.map((c) => ({ valor: c.id, texto: c.nombre })),
+            ]}
+          />
+        </div>
+      )}
+
       <p
         className={`flex items-center gap-1.5 text-xs ${
           lead.sinProximaAccion ? 'font-semibold text-danger' : 'text-ink2'
@@ -183,7 +218,13 @@ function Tarjeta({
   );
 }
 
-export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse }: Props) {
+export default function Kanban({
+  etapas,
+  tarjetas,
+  cerradas,
+  puedeAutoasignarse,
+  comerciales,
+}: Props) {
   const router = useRouter();
   const [aviso, setAviso] = useState<string | null>(null);
   const [moviendoId, setMoviendoId] = useState<string | null>(null);
@@ -394,6 +435,7 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
                     onEmpezarArrastre={empezarArrastre}
                     atenuada={moviendoId === lead.id || (arrastre?.activo === true && arrastre.leadId === lead.id)}
                     onMoverConTeclado={moverConTeclado}
+                    comerciales={comerciales}
                     posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
                   />
                 ))}

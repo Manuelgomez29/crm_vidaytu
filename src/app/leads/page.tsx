@@ -348,6 +348,7 @@ export default async function LeadsPage({
               tarjetas={tarjetas}
               cerradas={cerradas}
               puedeAutoasignarse={perfil?.rol === 'admisiones'}
+              comerciales={comerciales ?? []}
             />
           )
         )}
