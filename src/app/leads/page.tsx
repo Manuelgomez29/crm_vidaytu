@@ -6,6 +6,7 @@ import { ESTADOS_CERRADOS, type EstadoLead } from '@/lib/estados';
 import { hace, hoyMadrid } from '@/lib/fechas';
 import Kanban, { type TarjetaLead } from './kanban';
 import { DrawerCaso } from './drawer-caso';
+import { NavegacionCaso } from './navegacion-caso';
 
 /** Estados exentos del aviso "sin próxima acción": cerrados o ya resueltos. */
 const ESTADOS_SIN_AVISO_ACCION: string[] = [...ESTADOS_CERRADOS, 'convertido', 'derivado'];
@@ -264,7 +265,37 @@ export default async function LeadsPage({
           />
         )}
 
-        {filtros.caso && <DrawerCaso leadId={filtros.caso} volverA={volverAlTablero} />}
+        {filtros.caso && (() => {
+          /**
+           * Orden de lectura del tablero: columna a columna y, dentro de cada
+           * una, como se ven. Encadenar casos tiene que seguir el mismo orden
+           * que ve la persona, no el que devuelva la base de datos.
+           */
+          const orden = (etapas ?? []).flatMap((e) =>
+            tarjetas.filter((t) => t.etapaId === e.id).map((t) => t.id),
+          );
+          const i = orden.indexOf(filtros.caso!);
+          const enlaceA = (id: string) => {
+            const p = new URLSearchParams(parametrosTablero);
+            p.set('caso', id);
+            return '/leads?' + p.toString();
+          };
+          return (
+            <DrawerCaso
+              leadId={filtros.caso!}
+              volverA={volverAlTablero}
+              navegacion={
+                i >= 0 && orden.length > 1 ? (
+                  <NavegacionCaso
+                    anterior={i > 0 ? enlaceA(orden[i - 1]) : null}
+                    siguiente={i < orden.length - 1 ? enlaceA(orden[i + 1]) : null}
+                    posicion={(i + 1) + ' de ' + orden.length}
+                  />
+                ) : undefined
+              }
+            />
+          );
+        })()}
       </AppShell>
   );
 }

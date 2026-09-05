@@ -12,7 +12,7 @@ export default async function Login2FA() {
   if (!user) redirect('/login');
 
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel === 'aal2') redirect('/leads');
+  if (aal?.currentLevel === 'aal2') redirect('/mi-dia');
 
   const { data: factores } = await supabase.auth.mfa.listFactors();
   const factor = (factores?.totp ?? []).find((f) => f.status === 'verified');

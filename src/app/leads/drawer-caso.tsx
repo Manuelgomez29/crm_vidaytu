@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { etiquetaEstado } from '@/lib/estados';
 import { fecha } from '@/lib/fechas';
 import { ESTADO_CITA, TIPO_CITA } from '@/lib/citas';
+import { CampoRapido } from './campo-rapido';
+import { BotonLlamada } from './boton-llamada';
 
 const TIPO_ACTIVIDAD: Record<string, string> = {
   llamada: '📞',
@@ -44,7 +46,16 @@ function iniciales(nombre: string): string {
  * así el kanban no se pierde de vista y la URL sigue siendo compartible.
  * La edición a fondo vive en la página completa del caso.
  */
-export async function DrawerCaso({ leadId, volverA }: { leadId: string; volverA: string }) {
+export async function DrawerCaso({
+  leadId,
+  volverA,
+  navegacion,
+}: {
+  leadId: string;
+  volverA: string;
+  /** Botones de caso anterior/siguiente. Los calcula quien conoce la lista visible. */
+  navegacion?: React.ReactNode;
+}) {
   const supabase = await createClient();
 
   const { data: lead } = await supabase
@@ -54,12 +65,28 @@ export async function DrawerCaso({ leadId, volverA }: { leadId: string; volverA:
        centro:centros (nombre, slug),
        canal:canales (nombre),
        subcanal,
+       propietario_id,
        propietario:perfiles!leads_propietario_id_fkey (nombre)`,
     )
     .eq('id', leadId)
     .maybeSingle();
 
   if (!lead) return null;
+
+  // Comerciales activos: los posibles destinatarios del caso. Quién puede
+  // reasignarlo de verdad lo decide la base (regla 8), no esta lista.
+  const { data: motivos } = await supabase
+    .from('motivos_perdida')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('nombre');
+
+  const { data: comerciales } = await supabase
+    .from('perfiles')
+    .select('id, nombre')
+    .eq('activo', true)
+    .in('rol', ['direccion', 'admisiones'])
+    .order('nombre');
 
   const [{ data: contactos }, { data: actividades }, { data: tareas }, { data: presupuestos }, { data: citas }] =
     await Promise.all([
@@ -122,6 +149,7 @@ export async function DrawerCaso({ leadId, volverA }: { leadId: string; volverA:
           >
             ✕
           </Link>
+          {navegacion && <div className="mb-2">{navegacion}</div>}
           <h2 className="mb-1.5 pr-8 text-[18px] font-bold">{lead.nombre}</h2>
           <div className="flex flex-wrap gap-1.5">
             <span className={`chip ${CHIP_CENTRO[lead.centro?.slug ?? ''] ?? 'chip-mut'}`}>
@@ -133,14 +161,48 @@ export async function DrawerCaso({ leadId, volverA }: { leadId: string; volverA:
           </div>
         </header>
 
+        {/*
+          Edición en línea: se toca el dato y se cambia, con aviso y deshacer.
+          Sin diálogos: esto se usa entre llamada y llamada.
+        */}
+        <Seccion titulo="Cambio rápido">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-muted">
+            <label className="flex items-center gap-1.5">
+              Urgencia
+              <CampoRapido
+                leadId={lead.id}
+                campo="urgencia"
+                valor={lead.urgencia}
+                etiqueta="Cambiar la urgencia del caso"
+                opciones={[
+                  { valor: '', texto: 'Sin marcar' },
+                  { valor: 'baja', texto: 'Baja' },
+                  { valor: 'media', texto: 'Media' },
+                  { valor: 'alta', texto: 'Alta' },
+                ]}
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              Propietario
+              <CampoRapido
+                leadId={lead.id}
+                campo="propietario_id"
+                valor={lead.propietario_id}
+                etiqueta="Cambiar el comercial propietario"
+                opciones={[
+                  { valor: '', texto: 'Sin asignar' },
+                  ...(comerciales ?? []).map((c) => ({ valor: c.id, texto: c.nombre })),
+                ]}
+              />
+            </label>
+          </div>
+        </Seccion>
+
         <Seccion titulo="Acciones rápidas">
+          <div className="mb-3">
+            <BotonLlamada leadId={lead.id} telefono={telefono} motivos={motivos ?? []} />
+          </div>
           <div className="flex flex-wrap gap-2">
-            <a
-              href={`tel:${telefono}`}
-              className="flex-1 rounded-lg border border-line2 bg-surface px-1.5 py-2 text-center text-[12.5px] font-semibold text-primary transition hover:bg-primary-soft"
-            >
-              📞 Llamar
-            </a>
             <a
               href={`https://wa.me/${telefono.replace('+', '')}`}
               target="_blank"

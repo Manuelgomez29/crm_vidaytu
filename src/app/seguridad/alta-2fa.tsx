@@ -65,7 +65,7 @@ export function Alta2FA({ obligatorio }: { obligatorio: boolean }) {
       setError('El código no es válido. Comprueba que la hora del móvil esté en hora.');
       return;
     }
-    router.push('/leads');
+    router.push('/mi-dia');
     router.refresh();
   }
 

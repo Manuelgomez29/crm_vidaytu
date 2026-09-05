@@ -34,7 +34,7 @@ export function Verificar2FA({ factorId }: { factorId: string }) {
       setCodigo('');
       return;
     }
-    router.push('/leads');
+    router.push('/mi-dia');
     router.refresh();
   }
 

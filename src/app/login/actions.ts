@@ -49,5 +49,5 @@ export async function iniciarSesion(formData: FormData) {
     redirect('/login?error=credenciales');
   }
 
-  redirect('/leads');
+  redirect('/mi-dia');
 }
