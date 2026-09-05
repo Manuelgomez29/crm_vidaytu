@@ -31,7 +31,7 @@ export function SelectorTema({ actual }: { actual: Tema }) {
     <div
       role="group"
       aria-label="Tema de la interfaz"
-      className="flex gap-0.5 rounded-lg bg-white/10 p-0.5"
+      className="flex gap-0.5 rounded-lg bg-surface2 p-0.5"
     >
       {OPCIONES.map((o) => (
         <button
@@ -46,10 +46,10 @@ export function SelectorTema({ actual }: { actual: Tema }) {
               router.refresh();
             })
           }
-          className={`rounded-md px-1.5 py-0.5 text-[12px] leading-5 transition disabled:opacity-50 ${
+          className={`rounded-md px-2 py-1 text-[13px] leading-5 transition disabled:opacity-50 ${
             actual === o.valor
-              ? 'bg-white/85 text-[#2C3C5C]'
-              : 'text-[#AEBBD6] hover:bg-white/10 hover:text-white'
+              ? 'bg-surface text-primary shadow-sm'
+              : 'text-muted hover:text-ink'
           }`}
         >
           <span aria-hidden>{o.icono}</span>
