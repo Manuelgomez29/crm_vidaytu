@@ -2,7 +2,7 @@ import { AppShell } from '@/components/app-shell';
 import { exigirDireccion } from '../guard';
 import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { QUE_MIDE, SENALES, type Senal } from '@/lib/scoring';
-import { borrarRegla, crearRegla, guardarRegla } from './actions';
+import { borrarRegla, crearRegla, guardarRegla, recalcularAhora } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,10 +57,15 @@ export default async function AdminScoring({
         la siguiente pasada del motor, no al instante.
       </p>
 
-      <div className="mb-5 flex flex-wrap gap-2">
+      <div className="mb-5 flex flex-wrap items-center gap-2">
         <span className="chip chip-danger">{calientes} caliente(s) · 70+</span>
         <span className="chip chip-warn">{templados} templado(s) · 40-69</span>
         <span className="chip chip-mut">{abiertos.length} caso(s) abiertos</span>
+        <form action={recalcularAhora} className="ml-auto">
+          <button type="submit" className={botonAdminSecundario}>
+            Recalcular ahora
+          </button>
+        </form>
       </div>
 
       {/* ---------------- Reglas ---------------- */}
