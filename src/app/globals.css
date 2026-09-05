@@ -39,6 +39,14 @@
   --color-danger: #c4483f;
   --color-danger-soft: #f7e3e1;
 
+  /* Variantes SOLO para el texto de los chips. Los colores de arriba son los
+     del sistema de diseno y no se tocan; sobre su fondo suave y a 11px no
+     llegaban a 4.5:1, y ningun fondo mas claro lo arreglaba —ni el blanco—.
+     Misma convencion que --color-coral-ink, que ya existia por lo mismo. */
+  --color-ok-ink: #26754e;
+  --color-warn-ink: #8c601c;
+  --color-danger-ink: #ae4038;
+
   /* Código de color por centro (chips y bordes) */
   --color-hz: #2e5c48;
   --color-hz-bg: #e3ede6;
@@ -82,9 +90,9 @@ input[type='number'] {
   .chip-bm { background: var(--color-bm-bg); color: var(--color-bm); }
   .chip-gr { background: var(--color-gr-bg); color: var(--color-gr); }
   .chip-mut { background: var(--color-surface2); color: var(--color-ink2); }
-  .chip-ok { background: var(--color-ok-soft); color: var(--color-ok); }
-  .chip-warn { background: var(--color-warn-soft); color: var(--color-warn); }
-  .chip-danger { background: var(--color-danger-soft); color: var(--color-danger); }
+  .chip-ok { background: var(--color-ok-soft); color: var(--color-ok-ink); }
+  .chip-warn { background: var(--color-warn-soft); color: var(--color-warn-ink); }
+  .chip-danger { background: var(--color-danger-soft); color: var(--color-danger-ink); }
   .chip-primary { background: var(--color-primary-soft); color: var(--color-primary); }
 
   /* ---- Superficies ------------------------------------------------------ */
@@ -155,4 +163,126 @@ input[type='number'] {
 @keyframes subir {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===========================================================================
+   Tema oscuro
+   ===========================================================================
+   Derivado de la identidad, no invertido: el coral se queda igual porque es la
+   marca, y los azules suben de luminosidad para poder leerse sobre fondo noche.
+   Los colores de centro se recalculan; el codigo de color tiene que seguir
+   funcionando en los dos temas o deja de ser un codigo.
+
+   Los valores estan escritos dos veces a proposito. La alternativa es aplicar
+   la clase con JavaScript despues de cargar, y eso produce un destello blanco
+   en cada navegacion — justo lo que el modo oscuro viene a evitar. Duplicar
+   treinta lineas de variables es mas barato que ese parpadeo.
+   =========================================================================== */
+:root.tema-oscuro {
+  color-scheme: dark;
+  --color-ground: #151b29;
+  --color-surface: #1c2434;
+  --color-surface2: #252e40;
+  --color-line: #2f3a4e;
+  --color-line2: #445064;
+
+  --color-ink: #e8ecf4;
+  --color-ink2: #aab4c6;
+  --color-muted: #8994a8;
+
+  --color-primary: #8fabde;
+  --color-primary-hover: #a7bfe9;
+  --color-primary-soft: #26334c;
+
+  --color-coral: #e8836f;
+  --color-coral-hover: #f09a88;
+  --color-coral-ink: #f0a595;
+  --color-coral-soft: #3a2620;
+
+  --color-ok: #63c795;
+  --color-ok-soft: #17301f;
+  --color-warn: #e0ad55;
+  --color-warn-soft: #33270f;
+  --color-danger: #ef8a7f;
+  --color-danger-soft: #351c1a;
+  --color-ok-ink: #63c795;
+  --color-warn-ink: #e0ad55;
+  --color-danger-ink: #ef8a7f;
+
+  --color-hz: #78cca3;
+  --color-hz-bg: #17301f;
+  --color-ec: #a6a8e8;
+  --color-ec-bg: #262640;
+  --color-bm: #9ab5f5;
+  --color-bm-bg: #1e2740;
+  --color-gr: #dcb05c;
+  --color-gr-bg: #33270f;
+
+  --color-graf-hz: #63c795;
+  --color-graf-ec: #9a93e8;
+  --color-graf-bm: #8fa9f5;
+  --color-graf-gr: #e0ad55;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.tema-sistema {
+    color-scheme: dark;
+    --color-ground: #151b29;
+    --color-surface: #1c2434;
+    --color-surface2: #252e40;
+    --color-line: #2f3a4e;
+    --color-line2: #445064;
+
+    --color-ink: #e8ecf4;
+    --color-ink2: #aab4c6;
+    --color-muted: #8994a8;
+
+    --color-primary: #8fabde;
+    --color-primary-hover: #a7bfe9;
+    --color-primary-soft: #26334c;
+
+    --color-coral: #e8836f;
+    --color-coral-hover: #f09a88;
+    --color-coral-ink: #f0a595;
+    --color-coral-soft: #3a2620;
+
+    --color-ok: #63c795;
+    --color-ok-soft: #17301f;
+    --color-warn: #e0ad55;
+    --color-warn-soft: #33270f;
+    --color-danger: #ef8a7f;
+    --color-danger-soft: #351c1a;
+
+    --color-hz: #78cca3;
+    --color-hz-bg: #17301f;
+    --color-ec: #a6a8e8;
+    --color-ec-bg: #262640;
+    --color-bm: #9ab5f5;
+    --color-bm-bg: #1e2740;
+    --color-gr: #dcb05c;
+    --color-gr-bg: #33270f;
+
+    --color-graf-hz: #63c795;
+    --color-graf-ec: #9a93e8;
+    --color-graf-bm: #8fa9f5;
+    --color-graf-gr: #e0ad55;
+  }
+}
+
+/* La barra lateral lleva su degradado en linea; en oscuro se apaga. */
+:root.tema-oscuro aside[style],
+:root.tema-oscuro .lateral-degradado {
+  background: linear-gradient(180deg, #1a2233 0%, #202b40 100%) !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root.tema-sistema aside[style],
+  :root.tema-sistema .lateral-degradado {
+    background: linear-gradient(180deg, #1a2233 0%, #202b40 100%) !important;
+  }
+}
+
+/* Las tablas resaltan la fila con un blanco calido que en oscuro no vale. */
+:root.tema-oscuro .tabla tbody tr:hover td { background: #232c3e; }
+@media (prefers-color-scheme: dark) {
+  :root.tema-sistema .tabla tbody tr:hover td { background: #232c3e; }
 }

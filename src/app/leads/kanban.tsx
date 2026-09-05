@@ -340,6 +340,15 @@ export default function Kanban({ etapas, tarjetas, cerradas, puedeAutoasignarse 
                 <span className="num rounded-full bg-surface px-2 text-ink">{deEtapa.length}</span>
               </header>
               <div className="flex min-h-24 flex-1 flex-col">
+                {/* Una columna vacia dice por que lo esta y que la llena; un hueco
+                    gris solo hace dudar de si el filtro esta mal puesto. */}
+                {deEtapa.length === 0 && (
+                  <p className="px-3 py-6 text-center text-[12px] leading-relaxed text-muted">
+                    Nada en «{etapa.nombre}».
+                    <br />
+                    Arrastra una tarjeta hasta aqui, o cambia la etapa desde la ficha del caso.
+                  </p>
+                )}
                 {deEtapa.map((lead) => (
                   <Tarjeta
                     key={lead.id}
