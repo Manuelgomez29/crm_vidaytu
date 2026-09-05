@@ -444,19 +444,41 @@ async function informeMensual(admin: Cliente): Promise<number> {
   const nuevos = await avisar(admin, avisos);
   if (nuevos === 0) return 0;
 
-  if (emailConfigurado()) {
-    // Service role: el informe es del grupo entero, y va solo a dirección,
-    // que ve todo de todas formas.
-    const informe = await calcularInformeMensual(admin, mes);
-    const url = `${(process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/$/, '')}/panel/informe?mes=${mes}`;
+  /*
+   * Se genera el PDF, se guarda en el bucket privado y se envia adjunto.
+   *
+   * Antes solo salia un correo con el enlace a la pantalla imprimible, y eso
+   * obligaba a tener sesion para verlo: direccion no podia reenviarlo al asesor
+   * ni archivarlo. El enlace sigue yendo en el cuerpo; lo que se anade es el
+   * fichero.
+   *
+   * Service role a proposito: el informe es del grupo entero y va solo a
+   * direccion, que lo ve todo de todas formas.
+   */
+  const { generarInformeMensual } = await import('@/lib/informe-pdf');
+  const resultado = await generarInformeMensual(admin, mes, { enviar: emailConfigurado() });
 
-    for (const persona of direccion) {
-      if (!persona.email) continue;
-      await enviarCorreo({
-        para: persona.email,
-        asunto: `Informe de ${informe.titulo} — Grupo Vidaitu`,
-        cuerpo: cuerpoInformeMensual(informe, url),
-      });
+  if (!resultado.ok) {
+    /*
+     * Si el PDF falla no se pierde el informe: se manda el correo de siempre con
+     * el enlace. Un fallo de maquetacion no puede dejar a direccion sin su
+     * informe el dia 1, que es cuando lo mira.
+     */
+    if (emailConfigurado()) {
+      const informe = await calcularInformeMensual(admin, mes);
+      const url = `${(process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/$/, '')}/panel/informe?mes=${mes}`;
+      for (const persona of direccion) {
+        if (!persona.email) continue;
+        await enviarCorreo({
+          para: persona.email,
+          asunto: `Informe de ${informe.titulo} — Grupo Vidaitu`,
+          cuerpo:
+            cuerpoInformeMensual(informe, url) +
+            '\n\n(No se pudo adjuntar el PDF: ' +
+            resultado.error +
+            ')',
+        });
+      }
     }
   }
 

@@ -1579,6 +1579,44 @@ export type Database = {
           },
         ]
       }
+      informes_mensuales: {
+        Row: {
+          enviado_at: string | null
+          generado_at: string
+          generado_por: string | null
+          id: string
+          mes: string
+          resumen: Json
+          ruta_fichero: string
+        }
+        Insert: {
+          enviado_at?: string | null
+          generado_at?: string
+          generado_por?: string | null
+          id?: string
+          mes: string
+          resumen?: Json
+          ruta_fichero: string
+        }
+        Update: {
+          enviado_at?: string | null
+          generado_at?: string
+          generado_por?: string | null
+          id?: string
+          mes?: string
+          resumen?: Json
+          ruta_fichero?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "informes_mensuales_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integraciones: {
         Row: {
           activa: boolean
