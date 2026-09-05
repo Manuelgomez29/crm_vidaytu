@@ -16,7 +16,12 @@
     "verificar:muro": "node --env-file=.env.local scripts/verificar-muro.mjs",
     "verificar": "tsx --env-file=.env.local scripts/verificar.ts",
     "verificar:retencion": "node --env-file=.env.local scripts/verificar-retencion.mjs",
-    "verificar:seguridad": "tsx --env-file=.env.local scripts/verificar-seguridad.ts"
+    "verificar:seguridad": "tsx --env-file=.env.local scripts/verificar-seguridad.ts",
+    "staging:seed": "tsx --env-file=.env.staging scripts/seed.ts",
+    "staging:verificar": "tsx --env-file=.env.staging scripts/verificar.ts",
+    "staging:verificar:muro": "node --env-file=.env.staging scripts/verificar-muro.mjs",
+    "staging:verificar:seguridad": "tsx --env-file=.env.staging scripts/verificar-seguridad.ts",
+    "staging:verificar:retencion": "node --env-file=.env.staging scripts/verificar-retencion.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",
