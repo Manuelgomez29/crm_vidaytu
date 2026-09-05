@@ -286,3 +286,53 @@ input[type='number'] {
 @media (prefers-color-scheme: dark) {
   :root.tema-sistema .tabla tbody tr:hover td { background: #232c3e; }
 }
+
+/* ===========================================================================
+   Accesibilidad
+   =========================================================================== */
+
+/* Foco visible en TODO lo que se puede accionar.
+   `:focus-visible` y no `:focus`: el anillo aparece navegando con teclado y no
+   al hacer clic con el raton, que es lo que hace que la gente lo desactive. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Sobre la barra lateral azul el anillo azul no se ve: alli va claro. */
+aside :where(a, button, summary):focus-visible,
+.lateral-degradado :where(a, button, summary):focus-visible {
+  outline-color: #e9edf5;
+}
+
+/* Saltar al contenido: lo primero que encuentra quien navega con teclado. */
+.saltar-al-contenido {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+.saltar-al-contenido:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 14px rgba(36, 43, 58, 0.2);
+}
+
+/* Quien pide menos movimiento en su sistema, lo obtiene. No se desactivan las
+   transiciones del todo —un cambio instantaneo tambien desorienta— sino que se
+   reducen a un parpadeo que no desplaza nada por la pantalla. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

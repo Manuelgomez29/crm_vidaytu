@@ -214,7 +214,9 @@ function Campana({
 }) {
   return (
     <details className="relative">
-      <summary className="relative flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
+      <summary
+        aria-label={sinLeer > 0 ? `Notificaciones, ${sinLeer} sin leer` : 'Notificaciones'}
+        className="relative flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
         <IconoCampana />
         {sinLeer > 0 && (
           <span className="absolute -right-0.5 -top-0.5 rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
@@ -342,6 +344,7 @@ export async function AppShell({
           <button
             type="submit"
             title="Cerrar sesión"
+            aria-label="Cerrar sesión"
             className="rounded-lg p-1.5 text-[#AEBBD6] transition hover:bg-white/10 hover:text-white"
           >
             <IconoSalir />
@@ -361,9 +364,14 @@ export async function AppShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <a href="#contenido" className="saltar-al-contenido">
+          Saltar al contenido
+        </a>
         <header className="sticky top-0 z-20 flex items-center gap-3.5 border-b border-line bg-surface px-4 py-3 sm:px-6">
           <details className="relative lg:hidden">
-            <summary className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
+            <summary
+              aria-label="Abrir el menú de navegación"
+              className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
               <IconoMenu />
             </summary>
             <div
@@ -437,7 +445,7 @@ export async function AppShell({
           </div>
         </header>
 
-        <div className="px-4 pb-16 pt-5 sm:px-6">
+        <main id="contenido" className="px-4 pb-16 pt-5 sm:px-6">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-3">
               <BotonAtras />
@@ -448,7 +456,7 @@ export async function AppShell({
             </div>
           </div>
           <ProveedorAvisos>{children}</ProveedorAvisos>
-        </div>
+        </main>
       </div>
 
       {/* Paleta de comandos: vive en el armazon para estar en todas las pantallas. */}
