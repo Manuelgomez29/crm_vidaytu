@@ -199,22 +199,27 @@ Ejemplo:
 curl -X POST http://localhost:3000/api/formularios -H "content-type: application/json" -H "x-webhook-secret: $FORMULARIOS_WEBHOOK_SECRET" -d '{"nombre":"Ejemplo","telefono":"600123123","mensaje":"Quiero información","landing_url":"https://ejemplo.com/gracias","origen_ref":"wp-123"}'
 ```
 
-## Backups
+## Backups y recuperación
 
-Supabase hace backups diarios automáticos en los planes de pago. Para una recuperación fina se recomienda activar **Point-in-Time Recovery (PITR)**:
+La organización está en plan **Pro**: copias diarias de ambos proyectos con 7
+días de retención, tomadas de madrugada (sobre las 01:30 UTC). **PITR no está
+contratado**, así que la pérdida máxima ante un desastre es de un día de
+trabajo; la decisión y sus motivos están documentados.
 
-1. En el panel de Supabase: **Project Settings → Database → Backups** (o el add-on PITR en **Add-ons**).
-2. Activa PITR y elige la ventana de retención (p. ej. 7 días). Requiere plan Pro o superior y el add-on correspondiente.
-3. PITR permite restaurar la base de datos a cualquier instante dentro de la ventana, no solo al backup diario.
+**El procedimiento completo está en [docs/recuperacion.md](docs/recuperacion.md)**:
+cuándo restaurar y cuándo no, los pasos exactos, qué reconstruir después y qué
+no cubre una copia.
 
-**Probar una restauración (hazlo al menos una vez, y de forma periódica):**
+Dos cosas que conviene saber antes de necesitarlo:
 
-1. Crea un proyecto nuevo de Supabase de prueba (misma región UE).
-2. Desde el panel del proyecto original: **Database → Backups → Restore**, elige un punto en el tiempo y restaura sobre el proyecto de prueba (o descarga el backup y aplícalo con `psql`).
-3. Verifica que las tablas críticas (`leads`, `contactos`, `conversiones`, `auditoria`) tienen los datos esperados en el punto elegido.
-4. Borra el proyecto de prueba.
+- **Restaurar sustituye, no añade.** Devuelve el proyecto al estado de la copia
+  y descarta todo lo posterior. No se puede restaurar sobre otro proyecto.
+- **No se puede hacer por API.** Supabase solo permite la restauración desde el
+  panel, a propósito.
 
-Un backup no probado no es un backup.
+El procedimiento se ensayó sobre staging el 5 de septiembre de 2026 y funcionó:
+restauración, reaplicación de las 25 migraciones, siembra y las cuatro baterías
+de verificación pasando. Un backup no probado no es un backup.
 
 ## El muro entre las dos áreas
 
