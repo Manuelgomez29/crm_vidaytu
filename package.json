@@ -32,9 +32,12 @@
     "verificar:resenas": "node --env-file=.env.local scripts/verificar-resenas.mjs",
     "staging:verificar:resenas": "node --env-file=.env.staging scripts/verificar-resenas.mjs",
     "puntuar": "tsx --env-file=.env.local scripts/recalcular-puntuaciones.ts",
-    "staging:puntuar": "tsx --env-file=.env.staging scripts/recalcular-puntuaciones.ts"
+    "staging:puntuar": "tsx --env-file=.env.staging scripts/recalcular-puntuaciones.ts",
+    "verificar:informes": "node --env-file=.env.local scripts/verificar-informes.mjs",
+    "staging:verificar:informes": "node --env-file=.env.staging scripts/verificar-informes.mjs"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@sentry/nextjs": "^10.73.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.112.4",

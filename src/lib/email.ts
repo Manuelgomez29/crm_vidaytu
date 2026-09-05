@@ -9,7 +9,9 @@
  */
 
 export type Correo = {
-  para: string;
+  /** Uno o varios. Con varios, cada destinatario ve la lista: solo se usa
+   *  para correos internos entre companeros, nunca hacia pacientes. */
+  para: string | string[];
   asunto: string;
   cuerpo: string;
   /** Versión HTML opcional. El texto plano SIEMPRE viaja: es el que ven los
@@ -17,6 +19,8 @@ export type Correo = {
   html?: string;
   /** Remitente distinto del de la plataforma (campañas de marketing). */
   remitente?: string;
+  /** Ficheros adjuntos. El contenido va en binario; aqui se codifica. */
+  adjuntos?: { nombre: string; contenido: Buffer }[];
 };
 
 export function emailConfigurado(): boolean {
@@ -37,10 +41,18 @@ export async function enviarCorreo(correo: Correo): Promise<{ enviado: boolean; 
       },
       body: JSON.stringify({
         from: correo.remitente || process.env.EMAIL_REMITENTE,
-        to: [correo.para],
+        to: Array.isArray(correo.para) ? correo.para : [correo.para],
         subject: correo.asunto,
         text: correo.cuerpo,
         ...(correo.html ? { html: correo.html } : {}),
+        ...(correo.adjuntos?.length
+          ? {
+              attachments: correo.adjuntos.map((a) => ({
+                filename: a.nombre,
+                content: a.contenido.toString('base64'),
+              })),
+            }
+          : {}),
       }),
     });
 

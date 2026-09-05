@@ -13,6 +13,7 @@ import {
   porcentaje,
   variacion,
 } from '@/lib/metricas';
+import { generarInformeAhora, descargarInforme } from './informes';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
 const EMBUDO: EstadoLead[] = [
@@ -148,6 +149,17 @@ export default async function Panel({
     .single();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
   const esDireccion = perfil?.rol === 'direccion';
+
+  /*
+   * Informes guardados. La politica de la tabla ya los reserva a direccion, asi
+   * que esta consulta devuelve vacio para cualquier otro rol sin que haya que
+   * comprobar nada aqui.
+   */
+  const { data: informesGuardados } = await supabase
+    .from('informes_mensuales')
+    .select('mes, ruta_fichero, resumen, generado_at, enviado_at')
+    .order('mes', { ascending: false })
+    .limit(12);
 
   const periodo = periodoDesdeFiltros(filtros);
   const desdeIso = desdeDatetimeLocal(`${periodo.desde}T00:00`)!;
@@ -1012,6 +1024,62 @@ export default async function Panel({
                 </>
               )}
             </Seccion>
+
+            {esDireccion && (
+              <section className="panel p-4">
+                <div className="mb-1 flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-semibold">Informes mensuales</h2>
+                  <form action={generarInformeAhora.bind(null, undefined)} className="ml-auto">
+                    <button type="submit" className="btn btn-ghost btn-mini">
+                      Generar el del mes pasado
+                    </button>
+                  </form>
+                </div>
+                <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+                  Se genera solo el día 1 y se envía a dirección con el PDF adjunto. Aquí quedan
+                  guardados: el enlace de descarga caduca a los cinco minutos, así que no sirve para
+                  reenviarlo — para eso está el correo.
+                </p>
+
+                {(informesGuardados ?? []).length === 0 ? (
+                  <p className="text-[13px] text-muted">
+                    Todavía no hay ninguno. Pulsa «Generar el del mes pasado» para tener el primero
+                    sin esperar al día 1.
+                  </p>
+                ) : (
+                  <div className="flex flex-col">
+                    {(informesGuardados ?? []).map((inf) => {
+                      const r = (inf.resumen ?? {}) as {
+                        leads?: number;
+                        conversiones?: number;
+                        ingresos?: number;
+                      };
+                      return (
+                        <form
+                          key={inf.mes}
+                          action={descargarInforme.bind(null, inf.ruta_fichero)}
+                          className="flex flex-wrap items-center gap-2 border-b border-line py-2 last:border-b-0"
+                        >
+                          <b className="min-w-28 text-[13px]">{inf.mes.slice(0, 7)}</b>
+                          <span className="text-xs text-muted">
+                            {r.leads ?? 0} casos · {r.conversiones ?? 0} conversiones ·{' '}
+                            {euros(Number(r.ingresos ?? 0))}
+                          </span>
+                          {inf.enviado_at ? (
+                            <span className="chip chip-ok">Enviado</span>
+                          ) : (
+                            <span className="chip chip-mut">No enviado</span>
+                          )}
+                          <button type="submit" className="ml-auto btn btn-ghost btn-mini">
+                            Descargar PDF
+                          </button>
+                        </form>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
 
             {!esDireccion && (
               <p className="text-xs text-muted">
