@@ -36,7 +36,9 @@
     "verificar:informes": "node --env-file=.env.local scripts/verificar-informes.mjs",
     "staging:verificar:informes": "node --env-file=.env.staging scripts/verificar-informes.mjs",
     "verificar:reactivacion": "tsx --env-file=.env.local scripts/verificar-reactivacion.ts",
-    "staging:verificar:reactivacion": "tsx --env-file=.env.staging scripts/verificar-reactivacion.ts"
+    "staging:verificar:reactivacion": "tsx --env-file=.env.staging scripts/verificar-reactivacion.ts",
+    "verificar:prevision": "tsx --env-file=.env.local scripts/verificar-prevision.ts",
+    "staging:verificar:prevision": "tsx --env-file=.env.staging scripts/verificar-prevision.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
