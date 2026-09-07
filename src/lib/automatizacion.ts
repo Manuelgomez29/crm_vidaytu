@@ -169,36 +169,131 @@ export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
 // Un «ahora no» no es un no. A los 90 días (configurable) se genera la tarea
 // de retomar el contacto, para el propietario que lo llevaba.
 // ---------------------------------------------------------------------------
-async function reactivarPerdidos(admin: Cliente, dias: number): Promise<number> {
+/* Exportada para poder probarla con la funcion real, no con una copia. */
+export async function reactivarPerdidos(admin: Cliente, dias: number): Promise<number> {
   const limite = new Date(Date.now() - dias * DIA_MS).toISOString();
 
-  const { data: motivo } = await admin
+  /*
+   * Se aceptan las dos grafias del slug.
+   *
+   * El codigo buscaba «no-es-el-momento» y en la base es «no_es_el_momento».
+   * La consulta no fallaba: devolvia null, la funcion devolvia 0 y la
+   * reactivacion no se ejecuto NUNCA sin que nadie se enterara. Un automatismo
+   * que no encuentra su configuracion tiene que quejarse, no callarse — por eso
+   * ahora avisa por consola en vez de irse de puntillas.
+   */
+  const { data: motivos } = await admin
     .from('motivos_perdida')
     .select('id')
-    .eq('slug', 'no-es-el-momento')
-    .maybeSingle();
-  if (!motivo) return 0;
+    .in('slug', ['no_es_el_momento', 'no-es-el-momento'])
+    .limit(1);
 
+  const motivo = motivos?.[0];
+  if (!motivo) {
+    console.warn(
+      '[reactivacion] No existe el motivo de perdida «no_es_el_momento». No se reactivara ningun caso.',
+    );
+    return 0;
+  }
+
+  /*
+   * El reloj corre sobre `cerrado_at`, NO sobre `updated_at`.
+   *
+   * `updated_at` lo reescribe el trigger cada vez que alguien toca el caso —
+   * un cambio de etiqueta, una nota— y eso reiniciaba la cuenta de los noventa
+   * dias sin que nadie se enterara. Es exactamente el mismo fallo que ya
+   * costo arreglar en la politica de retencion, y estaba aqui tambien.
+   *
+   * Para los casos cerrados antes de que existiera la columna se acepta
+   * `updated_at` como respaldo: es impreciso, pero mejor que no reactivarlos
+   * nunca.
+   */
   const { data: casos } = await admin
     .from('leads')
-    .select('id, nombre, propietario_id, updated_at')
+    .select('id, nombre, centro_id, propietario_id, updated_at, cerrado_at')
     .eq('estado', 'perdido')
     .eq('motivo_perdida_id', motivo.id)
     .is('reactivacion_propuesta_at', null)
-    .lte('updated_at', limite)
+    .or(`cerrado_at.lte.${limite},and(cerrado_at.is.null,updated_at.lte.${limite})`)
     .limit(100);
 
   if (!casos || casos.length === 0) return 0;
 
+  const ids = casos.map((c) => c.id);
+
+  /*
+   * Quien pidio explicitamente que no le escriban queda fuera.
+   *
+   * La senal es `bajas_marketing` —una baja activa— y NO
+   * `consentimiento_marketing = false`. Esa columna es false por defecto para
+   * todo el mundo: filtrar por ella dejaria la reactivacion sin nadie a quien
+   * reactivar. Y ademas serian dos cosas distintas: no haber aceptado
+   * publicidad no es lo mismo que no querer que te devuelvan la llamada sobre
+   * tu propia consulta.
+   */
+  const { data: vinculos } = await admin
+    .from('lead_contactos')
+    .select('lead_id, contacto_id')
+    .in('lead_id', ids);
+
+  const contactos = [...new Set((vinculos ?? []).map((v) => v.contacto_id))];
+  const { data: bajas } = contactos.length
+    ? await admin.from('bajas_marketing').select('contacto_id').in('contacto_id', contactos)
+    : { data: [] };
+
+  const conBaja = new Set((bajas ?? []).map((b) => b.contacto_id));
+  const casosConBaja = new Set(
+    (vinculos ?? []).filter((v) => conBaja.has(v.contacto_id)).map((v) => v.lead_id),
+  );
+
+  /*
+   * Si el propietario ya no esta —de baja en la plataforma o ausente hoy— la
+   * tarea va a otra persona activa de ese centro. Sin esto, los casos de quien
+   * se fue del equipo no se reactivan nunca: nadie los ve.
+   */
+  const hoy = hoyMadrid();
+  const [{ data: ausentes }, { data: activos }] = await Promise.all([
+    admin.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
+    admin
+      .from('perfil_centros')
+      .select('perfil_id, centro_id, perfil:perfiles!inner (activo, rol)')
+      .eq('perfiles.activo', true),
+  ]);
+
+  const fueraDeJuego = new Set((ausentes ?? []).map((a) => a.perfil_id));
+  const porCentro = new Map<string, string[]>();
+  for (const pc of activos ?? []) {
+    if (fueraDeJuego.has(pc.perfil_id)) continue;
+    if (!porCentro.has(pc.centro_id)) porCentro.set(pc.centro_id, []);
+    porCentro.get(pc.centro_id)!.push(pc.perfil_id);
+  }
+
   let creadas = 0;
+  let omitidasPorBaja = 0;
+
   for (const caso of casos) {
-    if (!caso.propietario_id) continue;
+    if (casosConBaja.has(caso.id)) {
+      omitidasPorBaja++;
+      // Se marca igual: si no, se vuelve a mirar en cada pasada, para siempre.
+      await admin
+        .from('leads')
+        .update({ reactivacion_propuesta_at: new Date().toISOString() })
+        .eq('id', caso.id);
+      continue;
+    }
+
+    const propietarioDisponible =
+      caso.propietario_id && !fueraDeJuego.has(caso.propietario_id) ? caso.propietario_id : null;
+    const suplente = caso.centro_id ? (porCentro.get(caso.centro_id) ?? [])[0] : undefined;
+    const responsable = propietarioDisponible ?? suplente ?? null;
+
+    if (!responsable) continue;
 
     const { error } = await admin.from('tareas').insert({
       lead_id: caso.id,
       titulo: `Reactivar: «no era el momento» hace ${dias} días`,
       vence_at: new Date(Date.now() + DIA_MS).toISOString(),
-      responsable_id: caso.propietario_id,
+      responsable_id: responsable,
     });
     if (error) continue;
 
@@ -209,7 +304,7 @@ async function reactivarPerdidos(admin: Cliente, dias: number): Promise<number> 
 
     await avisar(admin, [
       {
-        usuario_id: caso.propietario_id,
+        usuario_id: responsable,
         tipo: 'tarea_asignada',
         lead_id: caso.id,
         mensaje: `Toca retomar a ${caso.nombre}: se perdió por «no es el momento» hace ${dias} días`,
@@ -217,6 +312,10 @@ async function reactivarPerdidos(admin: Cliente, dias: number): Promise<number> 
       },
     ]);
     creadas++;
+  }
+
+  if (omitidasPorBaja > 0) {
+    console.info(`[reactivacion] ${omitidasPorBaja} caso(s) omitido(s): el contacto pidió la baja.`);
   }
 
   return creadas;
