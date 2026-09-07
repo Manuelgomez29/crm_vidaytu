@@ -131,14 +131,32 @@ function Barra({ valor, maximo, clases }: { valor: number; maximo: number; clase
   );
 }
 
+type Conversion = { importe_primer_pago: number | null; estado: string };
+
+/*
+ * OJO con `conversiones`: PostgREST devuelve un OBJETO suelto, no una lista,
+ * porque la relacion es uno a uno. Se escribio como array y `.filter` reventaba
+ * en cuanto un caso tenia conversion — el panel abria bien porque la metrica
+ * por defecto («casos») ni la mira.
+ *
+ * El kanban ya lo trataba en singular desde el principio. Aqui se acepta
+ * cualquiera de las dos formas: si algun dia la relacion pasa a ser uno a
+ * muchos, esto sigue funcionando en vez de volver a romperse.
+ */
 type FilaCruce = {
   estado: string;
   urgencia: string | null;
   centro: { nombre: string } | null;
   canal: { nombre: string } | null;
   propietario: { nombre: string } | null;
-  conversiones: { importe_primer_pago: number | null; estado: string }[] | null;
+  conversiones: Conversion | Conversion[] | null;
 };
+
+function conversionesDe(fila: FilaCruce): Conversion[] {
+  const c = fila.conversiones;
+  if (!c) return [];
+  return Array.isArray(c) ? c : [c];
+}
 
 export default async function Panel({
   searchParams,
@@ -1109,12 +1127,12 @@ export default async function Panel({
                 casos: { texto: 'Casos', de: () => 1 },
                 conversiones: {
                   texto: 'Conversiones validadas',
-                  de: (l) => (l.conversiones ?? []).filter((c) => c.estado === 'validada').length,
+                  de: (l) => conversionesDe(l).filter((c) => c.estado === 'validada').length,
                 },
                 ingresos: {
                   texto: 'Ingresos validados',
                   de: (l) =>
-                    (l.conversiones ?? [])
+                    conversionesDe(l)
                       .filter((c) => c.estado === 'validada')
                       .reduce((s, c) => s + Number(c.importe_primer_pago ?? 0), 0),
                 },
