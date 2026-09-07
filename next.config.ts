@@ -62,6 +62,15 @@ const CABECERAS = [
 ];
 
 const nextConfig: NextConfig = {
+  /*
+   * Las fuentes del PDF no son codigo, asi que Next no las incluye sola en el
+   * paquete de la funcion. Sin esto el informe sale en Helvetica en produccion
+   * y en Kumbh Sans en local, que es la clase de diferencia que no se detecta
+   * hasta que alguien abre el PDF del dia 1.
+   */
+  outputFileTracingIncludes: {
+    '/**': ['./src/lib/pdf/fuentes/**'],
+  },
   // No anunciar la versión del framework: es información gratis para quien
   // busca vulnerabilidades conocidas.
   poweredByHeader: false,
