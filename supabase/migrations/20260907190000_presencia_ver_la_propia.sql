@@ -1,0 +1,21 @@
+-- ============================================================================
+-- CADA UNO PUEDE VER SU PROPIA PRESENCIA (Y POR ESO PUEDE MARCARLA)
+-- ============================================================================
+--
+-- El latido no funcionaba: «new row violates row-level security policy». Y no
+-- era el permiso de escritura, que estaba bien, sino uno de lectura que no
+-- parecia hacer falta.
+--
+-- El latido hace un upsert, que en Postgres es `insert ... on conflict do
+-- update`. Para resolver el conflicto, Postgres tiene que MIRAR la fila que ya
+-- existe, y para mirarla aplica las politicas de SELECT. La unica que habia era
+-- `es_direccion()`, asi que un comercial no podia ver su propia fila y el upsert
+-- se caia entero. Un `insert` a secas si pasaba, que es lo que puso sobre la
+-- pista.
+--
+-- Ver la marca de tiempo propia no revela nada de nadie: es la hora a la que uno
+-- mismo estuvo mirando su pantalla. La lista del equipo entero sigue siendo cosa
+-- de direccion.
+-- ----------------------------------------------------------------------------
+create policy presencia_ver_la_propia on presencia_app for select to authenticated
+  using (perfil_id = auth.uid());

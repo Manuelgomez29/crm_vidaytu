@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { fecha, hoyMadrid } from '@/lib/fechas';
 import { estadoDelMotor } from '@/lib/salud-motor';
+import { quienEstaDentro } from '@/lib/accesos';
 import { exigirDireccion } from './guard';
 
 function Seccion({
@@ -42,6 +43,7 @@ export default async function AdminPortada() {
     { data: config },
     { data: auditoria },
     motor,
+    presencia,
   ] = await Promise.all([
     supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('activo', true),
     supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
@@ -60,6 +62,7 @@ export default async function AdminPortada() {
       .order('created_at', { ascending: false })
       .limit(5),
     estadoDelMotor(supabase),
+    quienEstaDentro(supabase),
   ]);
 
   const ausencias = (ausenciasHoy ?? []).length;
@@ -132,6 +135,13 @@ export default async function AdminPortada() {
                 : 'Funcionando'
           }
           descripcion="Reparto, alertas, cadencia y recordatorios: si corre y para qué sirve"
+        />
+        <Seccion
+          href="/admin/accesos"
+          icono="🔑"
+          titulo="Accesos y presencia"
+          dato={`${presencia.gente.filter((p) => p.ahora).length} dentro ahora`}
+          descripcion="Quién ha entrado, quién lo ha intentado sin conseguirlo"
         />
       </div>
 
