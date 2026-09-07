@@ -23,13 +23,26 @@ export type ResultadoInforme =
  * etapa. Misma fórmula y mismos parámetros que la tarjeta del panel — salen de
  * `configuracion.prevision_probabilidad`, no de constantes.
  */
-async function preverIngresos(admin: Cliente): Promise<number | null> {
+export async function preverIngresos(admin: Cliente): Promise<number | null> {
   const [{ data: config }, { data: presupuestos }] = await Promise.all([
     admin.from('configuracion').select('valor').eq('clave', 'prevision_probabilidad').maybeSingle(),
     admin
       .from('presupuestos')
       .select('importe, estado, lead:leads (estado)')
-      .eq('estado', 'propuesto'),
+      /*
+       * MISMA regla que la tarjeta del panel: todo lo no rechazado. Un
+       * presupuesto aceptado sobre un caso que aun no ha convertido sigue
+       * siendo previsión, y muy probable.
+       *
+       * Aqui filtraba solo por «propuesto», asi que el informe y el panel
+       * podian dar cifras distintas del mismo mes. Los casos cerrados quedan
+       * fuera por otra via: su estado no tiene probabilidad configurada, asi
+       * que aportan cero.
+       *
+       * scripts/verificar-prevision.ts comprueba que las dos siguen dando lo
+       * mismo. Si alguien cambia una, salta.
+       */
+      .neq('estado', 'rechazado'),
   ]);
 
   const probabilidades = (config?.valor ?? {}) as Record<string, number>;
