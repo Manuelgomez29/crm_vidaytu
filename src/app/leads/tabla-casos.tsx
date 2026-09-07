@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAviso } from '@/components/avisos';
+import { nivelDeCalor, type Umbrales } from '@/lib/scoring';
 import { etiquetaEstado } from '@/lib/estados';
 import { hace } from '@/lib/fechas';
 import { CampoRapido } from './campo-rapido';
@@ -68,12 +69,15 @@ function leerColumnas(iniciales?: string[]): string[] {
  * columnas es cosa del navegador, sobre lo que RLS dejó pasar.
  */
 export function TablaCasos({
+  umbrales,
   tarjetas,
   etapas,
   comerciales,
   etiquetas,
   columnasIniciales,
 }: {
+  /** Dónde empieza cada nivel de calor. Los mismos cortes que el kanban. */
+  umbrales: Umbrales;
   tarjetas: TarjetaLead[];
   etapas: { id: string; nombre: string }[];
   comerciales: { id: string; nombre: string }[];
@@ -172,7 +176,9 @@ export function TablaCasos({
             aria-label="Reasignar los casos seleccionados"
             defaultValue=""
             disabled={ocupado}
-            onChange={(e) => e.target.value && enBloque(() => reasignarSeleccion(ids, e.target.value))}
+            onChange={(e) =>
+              e.target.value && enBloque(() => reasignarSeleccion(ids, e.target.value))
+            }
             className="campo py-1 text-[12px]"
           >
             <option value="">Reasignar a…</option>
@@ -202,7 +208,9 @@ export function TablaCasos({
             aria-label="Cambiar la urgencia de los casos seleccionados"
             defaultValue=""
             disabled={ocupado}
-            onChange={(e) => e.target.value && enBloque(() => urgenciaSeleccion(ids, e.target.value))}
+            onChange={(e) =>
+              e.target.value && enBloque(() => urgenciaSeleccion(ids, e.target.value))
+            }
             className="campo py-1 text-[12px]"
           >
             <option value="">Urgencia…</option>
@@ -216,7 +224,9 @@ export function TablaCasos({
               aria-label="Etiquetar a las personas de los casos seleccionados"
               defaultValue=""
               disabled={ocupado}
-              onChange={(e) => e.target.value && enBloque(() => etiquetarSeleccion(ids, e.target.value))}
+              onChange={(e) =>
+                e.target.value && enBloque(() => etiquetarSeleccion(ids, e.target.value))
+              }
               className="campo py-1 text-[12px]"
             >
               <option value="">Etiquetar…</option>
@@ -281,7 +291,10 @@ export function TablaCasos({
                   <button
                     type="button"
                     onClick={() =>
-                      setOrden((o) => ({ campo: c.clave, asc: o.campo === c.clave ? !o.asc : true }))
+                      setOrden((o) => ({
+                        campo: c.clave,
+                        asc: o.campo === c.clave ? !o.asc : true,
+                      }))
                     }
                     className="inline-flex items-center gap-1 uppercase tracking-[0.08em] hover:text-primary"
                     aria-label={`Ordenar por ${c.texto}`}
@@ -310,7 +323,10 @@ export function TablaCasos({
                   {columnas.map((c) => (
                     <td key={c.clave} className={c.clases}>
                       {c.clave === 'nombre' && (
-                        <Link href={`/leads/${t.id}`} className="font-medium hover:text-primary hover:underline">
+                        <Link
+                          href={`/leads/${t.id}`}
+                          className="font-medium hover:text-primary hover:underline"
+                        >
                           {t.nombre}
                         </Link>
                       )}
@@ -319,7 +335,9 @@ export function TablaCasos({
                           {t.centroNombre}
                         </span>
                       )}
-                      {c.clave === 'estado' && <span className={`chip ${estado.clases}`}>{estado.texto}</span>}
+                      {c.clave === 'estado' && (
+                        <span className={`chip ${estado.clases}`}>{estado.texto}</span>
+                      )}
                       {c.clave === 'urgencia' && (
                         <CampoRapido
                           leadId={t.id}
@@ -338,7 +356,9 @@ export function TablaCasos({
                         <CampoRapido
                           leadId={t.id}
                           campo="propietario_id"
-                          valor={comerciales.find((x) => x.nombre === t.propietarioNombre)?.id ?? ''}
+                          valor={
+                            comerciales.find((x) => x.nombre === t.propietarioNombre)?.id ?? ''
+                          }
                           etiqueta={`Propietario de ${t.nombre}`}
                           opciones={[
                             { valor: '', texto: 'Sin asignar' },
@@ -346,8 +366,28 @@ export function TablaCasos({
                           ]}
                         />
                       )}
-                      {c.clave === 'canal' && <span className="text-ink2">{t.subcanal || t.canalNombre}</span>}
-                      {c.clave === 'puntuacion' && <span className="num">{t.puntuacion}</span>}
+                      {c.clave === 'canal' && (
+                        <span className="text-ink2">{t.subcanal || t.canalNombre}</span>
+                      )}
+                      {c.clave === 'puntuacion' &&
+                        /*
+                         * La columna se llama «Calor» y enseñaba un número
+                         * pelado. Un 62 sin nada al lado no dice si es mucho o
+                         * poco; el mismo distintivo que en el kanban sí.
+                         */
+                        (t.puntuacion >= umbrales.templado ? (
+                          <span
+                            className={`chip ${
+                              t.puntuacion >= umbrales.caliente ? 'chip-danger' : 'chip-warn'
+                            }`}
+                            title={nivelDeCalor(t.puntuacion, umbrales).texto}
+                          >
+                            {t.puntuacion >= umbrales.caliente ? '🔥 ' : ''}
+                            {t.puntuacion}
+                          </span>
+                        ) : (
+                          <span className="num text-muted">{t.puntuacion}</span>
+                        ))}
                       {c.clave === 'importe' && (
                         <span className="num">{t.importe != null ? `${t.importe} €` : '—'}</span>
                       )}

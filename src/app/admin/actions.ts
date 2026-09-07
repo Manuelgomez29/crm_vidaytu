@@ -805,15 +805,6 @@ export async function guardarParametros(formData: FormData) {
     }
   }
 
-  const pesosTexto = texto('scoring_pesos');
-  if (pesosTexto !== undefined && pesosTexto) {
-    try {
-      filas.push({ clave: 'scoring_pesos', valor: JSON.parse(pesosTexto) });
-    } catch {
-      volver('parametros', { error: 'Los pesos del scoring no son un JSON válido.' });
-    }
-  }
-
   for (const fila of filas) {
     const { error } = await admin
       .from('configuracion')

@@ -7,7 +7,19 @@
  *   npx tsx --env-file=.env.staging scripts/verificar-scoring.ts
  */
 import { createClient } from '@supabase/supabase-js';
-import { puntuar, reglaDesdeFila, nivelDeCalor, type Regla, type SenalesLead } from '../src/lib/scoring';
+import { readFileSync } from 'node:fs';
+import {
+  puntuar,
+  puntuarSenales,
+  reglaDesdeFila,
+  nivelDeCalor,
+  senalesQueCumple,
+  umbralesDesde,
+  UMBRALES_POR_DEFECTO,
+  type Regla,
+  type SenalesLead,
+} from '../src/lib/scoring';
+import { senalesDeCasosAbiertos } from '../src/lib/automatizacion';
 
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICIO = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -113,6 +125,104 @@ async function main() {
     activa: true,
   });
   comprobar('Una regla con una señal desconocida se descarta', inventada === null);
+
+  // ---------------------------------------------------------------------------
+  console.log('\nEl simulador enseña lo que el motor va a guardar:');
+
+  /*
+   * La pantalla de lead scoring calcula en el NAVEGADOR, con las señales que le
+   * manda el servidor; el motor calcula en el servidor con el caso entero. Si
+   * las dos cuentas se separaran, dirección movería unos controles viendo un
+   * resultado y la aplicación acabaría enseñando otro — la misma clase de
+   * divergencia que tuvieron el panel y el informe de previsión.
+   */
+  // Las reglas ya cargadas arriba, las mismas que usa el motor.
+  const abiertos = await senalesDeCasosAbiertos(admin as never);
+  let discrepancias = 0;
+  for (const caso of abiertos) {
+    const delMotor = puntuar(caso.senales, rs).puntuacion;
+    const delSimulador = puntuarSenales(senalesQueCumple(caso.senales), rs);
+    if (delMotor !== delSimulador) discrepancias++;
+  }
+  comprobar(
+    `las dos cuentas coinciden en los ${abiertos.length} casos abiertos`,
+    discrepancias === 0,
+    discrepancias ? `${discrepancias} discrepancia(s)` : 'ni una diferencia',
+  );
+
+  comprobar(
+    'y el desglose suma exactamente la cifra que acompaña',
+    abiertos.every((c) => {
+      const { desglose, puntuacion } = puntuar(c.senales, rs);
+      const suma = desglose.reduce((t, d) => t + d.puntos, 0);
+      return puntuacion === Math.max(0, Math.min(100, suma));
+    }),
+    'un desglose que no cuadra con su número es peor que no tenerlo',
+  );
+
+  // ---------------------------------------------------------------------------
+  console.log('\nLos cortes de calor, en un solo sitio:');
+
+  const { data: cfgUmbrales } = await admin
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'scoring_umbrales')
+    .maybeSingle();
+  const umbrales = umbralesDesde(cfgUmbrales?.valor);
+  comprobar(
+    'están en configuración, no en el código',
+    cfgUmbrales !== null,
+    `caliente ${umbrales.caliente}, templado ${umbrales.templado}`,
+  );
+
+  comprobar(
+    'un valor absurdo no rompe la pantalla, cae en los de fábrica',
+    umbralesDesde({ caliente: 10, templado: 90 }).caliente === UMBRALES_POR_DEFECTO.caliente &&
+      umbralesDesde('cualquier cosa').templado === UMBRALES_POR_DEFECTO.templado,
+  );
+
+  comprobar(
+    'nivelDeCalor respeta el corte que se le pase',
+    nivelDeCalor(50, { caliente: 45, templado: 20 }).texto === 'Caliente' &&
+      nivelDeCalor(50, { caliente: 80, templado: 20 }).texto === 'Templado',
+  );
+
+  /*
+   * Los cortes estaban escritos a mano en el kanban y en el filtro de «solo
+   * calientes», con un comentario que juraba que vivían solo en `nivelDeCalor`.
+   * Se mira en el código porque es donde estaban y donde pueden volver.
+   */
+  const kanban = readFileSync('src/app/leads/kanban.tsx', 'utf8');
+  const listado = readFileSync('src/app/leads/page.tsx', 'utf8');
+  comprobar(
+    'el kanban ya no lleva los cortes escritos a mano',
+    !/puntuacion >= 70|puntuacion >= 40/.test(kanban) && kanban.includes('umbrales.caliente'),
+  );
+  comprobar(
+    'y el filtro «solo calientes» usa el mismo corte que el distintivo',
+    listado.includes("consulta.gte('puntuacion', umbrales.caliente)"),
+  );
+
+  // ---------------------------------------------------------------------------
+  console.log('\nEl editor viejo ya no existe:');
+
+  const { data: pesosMuertos } = await admin
+    .from('configuracion')
+    .select('clave')
+    .eq('clave', 'scoring_pesos')
+    .maybeSingle();
+  comprobar(
+    'la clave `scoring_pesos` está borrada',
+    pesosMuertos === null,
+    'era un JSON editable que ya no leía nadie',
+  );
+
+  const parametros = readFileSync('src/app/admin/parametros/page.tsx', 'utf8');
+  comprobar(
+    'y Parámetros ya no ofrece editarla',
+    !parametros.includes('scoring_pesos'),
+    'un control que no controla nada es peor que no tenerlo',
+  );
 
   console.log(
     fallos === 0

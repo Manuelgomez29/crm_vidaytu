@@ -9,6 +9,7 @@ import { DrawerCaso } from './drawer-caso';
 import { NavegacionCaso } from './navegacion-caso';
 import { BarraVistas } from './barra-vistas';
 import { TablaCasos } from './tabla-casos';
+import { umbralesDesde } from '@/lib/scoring';
 import { Presencia } from '@/components/presencia';
 import { misVistas } from './vistas';
 
@@ -79,6 +80,14 @@ export default async function LeadsPage({
 
   // Vistas guardadas de esta persona (solo las suyas: lo garantiza RLS).
   const vistas = await misVistas('kanban');
+
+  // Dónde empieza cada nivel de calor. Un parámetro, no tres números sueltos.
+  const { data: cfgUmbrales } = await supabase
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'scoring_umbrales')
+    .maybeSingle();
+  const umbrales = umbralesDesde(cfgUmbrales?.valor);
   const [{ data: comerciales }, { data: etiquetasDisponibles }] = await Promise.all([
     supabase
       .from('perfiles')
@@ -158,9 +167,13 @@ export default async function LeadsPage({
   if (pipelineId) consulta = consulta.eq('pipeline_id', pipelineId);
   if (filtros.centro) consulta = consulta.eq('centro_id', filtros.centro);
   if (filtros.mias === '1') consulta = consulta.eq('propietario_id', user.id);
-  // «Solo calientes»: el mismo corte que el badge, para que lo que se filtra
-  // sea exactamente lo que se ve marcado en la tarjeta.
-  if (filtros.calientes === '1') consulta = consulta.gte('puntuacion', 70);
+  /*
+   * «Solo calientes» usa EL MISMO corte que el badge de la tarjeta. Antes eran
+   * dos setentas escritos por separado —aquí y en el kanban—, con lo que el día
+   * que dirección moviera el listón el filtro habría seguido en el viejo y
+   * habría enseñado casos sin marca, o escondido casos marcados.
+   */
+  if (filtros.calientes === '1') consulta = consulta.gte('puntuacion', umbrales.caliente);
   if (filtros.canal) consulta = consulta.eq('canal_id', filtros.canal);
   if (filtros.urgencia === 'alta' || filtros.urgencia === 'media' || filtros.urgencia === 'baja') {
     consulta = consulta.eq('urgencia', filtros.urgencia);
@@ -359,6 +372,7 @@ export default async function LeadsPage({
         ) : (
           esTabla ? (
             <TablaCasos
+              umbrales={umbrales}
               tarjetas={[...tarjetas, ...cerradas]}
               etapas={etapas ?? []}
               comerciales={comerciales ?? []}
@@ -366,6 +380,7 @@ export default async function LeadsPage({
             />
           ) : (
             <Kanban
+              umbrales={umbrales}
               etapas={etapas ?? []}
               tarjetas={tarjetas}
               cerradas={cerradas}
