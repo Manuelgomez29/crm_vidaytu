@@ -1190,6 +1190,36 @@ export type Database = {
           },
         ]
       }
+      ejecuciones_motor: {
+        Row: {
+          duracion_ms: number | null
+          fallos: Json
+          fin: string | null
+          id: string
+          inicio: string
+          ok: boolean
+          resultado: Json
+        }
+        Insert: {
+          duracion_ms?: number | null
+          fallos?: Json
+          fin?: string | null
+          id?: string
+          inicio?: string
+          ok?: boolean
+          resultado?: Json
+        }
+        Update: {
+          duracion_ms?: number | null
+          fallos?: Json
+          fin?: string | null
+          id?: string
+          inicio?: string
+          ok?: boolean
+          resultado?: Json
+        }
+        Relationships: []
+      }
       etiquetas: {
         Row: {
           activa: boolean

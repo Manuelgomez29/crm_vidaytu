@@ -16,6 +16,7 @@ import {
 import { generarInformeAhora, descargarInforme } from './informes';
 import { SECCIONES } from '@/lib/pdf/secciones';
 import { Anillo, BarrasApiladas, Columnas } from '@/components/graficos';
+import { estadoDelMotor } from '@/lib/salud-motor';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
 const EMBUDO: EstadoLead[] = [
@@ -158,6 +159,20 @@ function conversionesDe(fila: FilaCruce): Conversion[] {
   return Array.isArray(c) ? c : [c];
 }
 
+/**
+ * «hora y media», «tres días». Nunca «97 minutos».
+ *
+ * Lo que hay que entender de un vistazo es la magnitud —¿esto es de hace un
+ * rato o lleva así desde el viernes?—, y para eso los minutos exactos estorban.
+ */
+function textoDeEspera(minutos: number): string {
+  if (minutos < 90) return `${minutos} minutos`;
+  const horas = Math.round(minutos / 60);
+  if (horas < 36) return horas === 1 ? 'una hora' : `${horas} horas`;
+  const dias = Math.round(horas / 24);
+  return dias === 1 ? 'un día' : `${dias} días`;
+}
+
 export default async function Panel({
   searchParams,
 }: {
@@ -193,6 +208,13 @@ export default async function Panel({
    * que esta consulta devuelve vacio para cualquier otro rol sin que haya que
    * comprobar nada aqui.
    */
+  /*
+   * Salud del motor de automatizaciones. La politica de la tabla lo reserva a
+   * direccion, asi que para cualquier otro rol esto vuelve vacio y no se enseña
+   * nada: un comercial no puede hacer nada con este dato.
+   */
+  const motor = await estadoDelMotor(supabase);
+
   const { data: informesGuardados } = await supabase
     .from('informes_mensuales')
     .select('mes, ruta_fichero, resumen, generado_at, enviado_at')
@@ -634,6 +656,49 @@ export default async function Panel({
       titulo="Dashboard de dirección"
       descripcion={`${periodo.titulo} · solo cuentan las conversiones validadas`}
     >
+        {/*
+          * El motor parado, dicho en la primera pantalla que mira dirección.
+          *
+          * Cuando el cron deja de correr no se rompe nada de forma visible:
+          * simplemente dejan de llegar avisos. Y no recibir ningún aviso se
+          * parece muchísimo a no tener nada pendiente, así que puede pasar días
+          * sin que nadie lo note. Este recuadro es la única forma de enterarse.
+          */}
+        {motor.nuncaHaCorrido && (
+          <div className="mb-4 rounded-lg bg-warn-soft px-4 py-3 ring-1 ring-warn/25">
+            <p className="text-sm font-medium text-warn-ink">
+              Los automatismos no han corrido nunca en este entorno
+            </p>
+            <p className="mt-1 text-sm text-ink2">
+              Aquí no se reparten leads solos, ni salen alertas de SLA o de cadencia, ni se mandan
+              recordatorios. En staging es lo normal. En producción significa que el cron no está
+              activo.
+            </p>
+          </div>
+        )}
+
+        {motor.parado && (
+          <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 ring-1 ring-danger/25">
+            <p className="text-sm font-bold text-danger">
+              Los automatismos llevan {textoDeEspera(motor.minutosDesdeBuena!)} sin ejecutarse
+            </p>
+            <p className="mt-1 text-sm text-ink2">
+              Mientras siga así no salen alertas de SLA ni de cadencia, los leads sin propietario no
+              se reparten, no se mandan recordatorios de cita y no se proponen reactivaciones ni
+              reseñas. El trabajo no se pierde: se queda esperando. Lo normal es que corra cada 15
+              minutos.
+            </p>
+            {motor.fallos.length > 0 && (
+              <p className="mt-2 text-sm text-ink2">
+                En la última pasada falló:{' '}
+                <span className="font-medium text-ink">
+                  {motor.fallos.map((f) => f.fase).join(', ')}
+                </span>
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
           <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
             {[

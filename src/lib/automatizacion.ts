@@ -16,6 +16,7 @@ import { ejecutarEtiquetado } from '@/lib/etiquetado';
 import { calcularInformeMensual, cuerpoInformeMensual, mesAnterior } from '@/lib/informe-mensual';
 import { anonimizar } from '@/lib/anonimizar';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
+import { fase, type FalloDeFase } from '@/lib/salud-motor';
 
 type Cliente = SupabaseClient<Database>;
 type TipoNotificacion = Database['public']['Enums']['tipo_notificacion'];
@@ -683,7 +684,20 @@ async function retencion(admin: Cliente, activa: boolean, meses: number): Promis
 
 // ---------------------------------------------------------------------------
 
-export async function ejecutarAutomatizaciones(admin: Cliente): Promise<ResultadoAutomatizacion> {
+/**
+ * Todas las automatizaciones de una pasada.
+ *
+ * Cada una va envuelta en `fase()`: si una revienta, se anota y las demas siguen
+ * su camino. Antes esto era un `Promise.all` pelado, y bastaba que fallara una
+ * —la de resenas, pongamos— para que la pasada entera se cayera y los leads se
+ * quedaran sin repartir. Un fallo en lo accesorio no puede apagar lo esencial.
+ *
+ * Los fallos se acumulan en el array que se recibe; quien llama los registra.
+ */
+export async function ejecutarAutomatizaciones(
+  admin: Cliente,
+  fallos: FalloDeFase[] = [],
+): Promise<ResultadoAutomatizacion> {
   const { data: config } = await admin.from('configuracion').select('clave, valor');
   const mapa = new Map((config ?? []).map((f) => [f.clave, f.valor]));
 
@@ -693,28 +707,62 @@ export async function ejecutarAutomatizaciones(admin: Cliente): Promise<Resultad
 
   const [puntuados, etiquetado, reactivaciones, resenas, riesgosRecaida, postAlta, informe] =
     await Promise.all([
-      recalcularPuntuaciones(admin),
-      ejecutarEtiquetado(admin),
-      reactivarPerdidos(admin, Number(mapa.get('reactivacion_dias')) || 90),
-      proponerResenas(admin, mapa.get('resena_activa') !== false),
-      avisarRiesgoRecaida(admin, Number(mapa.get('riesgo_recaida_faltas')) || 2),
-      seguimientoPostAlta(admin, hitos),
-      informeMensual(admin),
+      fase('puntuacion', fallos, () => recalcularPuntuaciones(admin), 0),
+      fase('etiquetado', fallos, () => ejecutarEtiquetado(admin), {
+        reglas: 0,
+        etiquetasAplicadas: 0,
+      }),
+      fase(
+        'reactivacion',
+        fallos,
+        () => reactivarPerdidos(admin, Number(mapa.get('reactivacion_dias')) || 90),
+        0,
+      ),
+      fase('resenas', fallos, () => proponerResenas(admin, mapa.get('resena_activa') !== false), 0),
+      fase(
+        'riesgo_recaida',
+        fallos,
+        () => avisarRiesgoRecaida(admin, Number(mapa.get('riesgo_recaida_faltas')) || 2),
+        0,
+      ),
+      fase('post_alta', fallos, () => seguimientoPostAlta(admin, hitos), {
+        programados: 0,
+        avisados: 0,
+      }),
+      fase('informe_mensual', fallos, () => informeMensual(admin), 0),
     ]);
 
-  const duplicadosDetectados = await duplicadosEntreCentros(admin);
+  const duplicadosDetectados = await fase(
+    'duplicados',
+    fallos,
+    () => duplicadosEntreCentros(admin),
+    0,
+  );
 
   /**
    * Limpieza de los contadores del limite de peticiones. Sin esto la tabla
    * crece para siempre con ventanas ya pasadas. Se llama en cada pasada
    * porque es una sola sentencia y solo borra lo de hace mas de dos dias.
    */
-  await admin.rpc('limpiar_limites');
+  await fase(
+    'limpiar_limites',
+    fallos,
+    async () => {
+      await admin.rpc('limpiar_limites');
+    },
+    undefined,
+  );
 
-  const anonimizados = await retencion(
-    admin,
-    mapa.get('retencion_automatica') === true,
-    Number(mapa.get('retencion_meses')) || 12,
+  const anonimizados = await fase(
+    'retencion',
+    fallos,
+    () =>
+      retencion(
+        admin,
+        mapa.get('retencion_automatica') === true,
+        Number(mapa.get('retencion_meses')) || 12,
+      ),
+    0,
   );
 
   return {
