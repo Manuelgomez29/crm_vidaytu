@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
 import { exigirDireccion } from '../guard';
@@ -151,19 +152,22 @@ export default async function AdminParametros({
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-            Pesos del lead scoring (JSON)
-            <textarea
-              name="scoring_pesos"
-              rows={5}
-              defaultValue={json('scoring_pesos')}
-              className={`${inputAdmin} font-mono text-xs`}
-            />
-            <span className="text-xs font-normal text-ink2">
-              Cuanto suma cada senal a la puntuacion de un caso. Cambiarlos recalcula todo en la
-              siguiente pasada del motor. La puntuacion prioriza la cola: no oculta ni cierra nada.
-            </span>
-          </label>
+          {/*
+            * El lead scoring se ajusta en su propia pantalla, no aqui.
+            *
+            * Aqui habia un JSON rotulado «Pesos del lead scoring» que ya no leia
+            * nadie: la puntuacion paso a la tabla de reglas y este editor se
+            * quedo. Se podian cambiar los numeros, guardar, y no pasaba nada —y
+            * encima no coincidian con los de verdad—. Un control que no controla
+            * nada es peor que no tenerlo.
+            */}
+          <p className="rounded-lg bg-surface2 px-4 py-3 text-sm text-ink2">
+            El <b className="text-ink">lead scoring</b> se ajusta en{' '}
+            <Link href="/leads/scoring" className="font-medium text-primary hover:underline">
+              Area comercial → Lead scoring
+            </Link>
+            , donde se ve el efecto de cada cambio sobre los casos que hay ahora mismo.
+          </p>
 
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Probabilidad de cierre por estado (JSON)

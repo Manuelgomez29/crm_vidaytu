@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { nivelDeCalor, type Umbrales } from '@/lib/scoring';
 import { asignarmeLead, moverLeadDeEtapa } from './actions';
 import { CampoRapido } from './campo-rapido';
 
@@ -29,6 +30,8 @@ export type TarjetaLead = {
 };
 
 type Props = {
+  /** Dónde empieza cada nivel de calor. Viene de configuración, no del código. */
+  umbrales: Umbrales;
   etapas: { id: string; nombre: string }[];
   comerciales?: { id: string; nombre: string }[];
   tarjetas: TarjetaLead[];
@@ -61,6 +64,7 @@ function colorCentro(slug: string) {
 
 function Tarjeta({
   lead,
+  umbrales,
   puedeAutoasignarse,
   onAsignarme,
   onEmpezarArrastre,
@@ -70,6 +74,7 @@ function Tarjeta({
   comerciales,
 }: {
   lead: TarjetaLead;
+  umbrales: Umbrales;
   puedeAutoasignarse: boolean;
   onAsignarme: (id: string) => void;
   onEmpezarArrastre?: (e: React.PointerEvent, lead: TarjetaLead) => void;
@@ -98,7 +103,11 @@ function Tarjeta({
        */
       tabIndex={onMoverConTeclado ? 0 : undefined}
       role={onMoverConTeclado ? 'group' : undefined}
-      aria-label={onMoverConTeclado ? `${lead.nombre}${posicion ? ', ' + posicion : ''}. Flechas izquierda y derecha para cambiar de etapa.` : undefined}
+      aria-label={
+        onMoverConTeclado
+          ? `${lead.nombre}${posicion ? ', ' + posicion : ''}. Flechas izquierda y derecha para cambiar de etapa.`
+          : undefined
+      }
       onKeyDown={
         onMoverConTeclado
           ? (e) => {
@@ -130,16 +139,20 @@ function Tarjeta({
         <span className={`chip ${centro.chip}`}>{lead.centroNombre}</span>
         <span className="chip chip-mut">{lead.subcanal || lead.canalNombre}</span>
         {lead.urgencia === 'alta' && <span className="chip chip-danger">Urgente</span>}
-        {/* El scoring prioriza la cola; no oculta ni cierra nada. */}
-        {/* Los cortes viven en nivelDeCalor, no aqui: dos numeros sueltos en el
-            JSX se olvidan el dia que dirección cambie las reglas. */}
-        {lead.puntuacion >= 70 && (
-          <span className="chip chip-danger" title={`Puntuación ${lead.puntuacion}/100`}>
-            🔥 {lead.puntuacion}
-          </span>
-        )}
-        {lead.puntuacion >= 40 && lead.puntuacion < 70 && (
-          <span className="chip chip-warn" title={`Puntuación ${lead.puntuacion}/100`}>
+        {/*
+         * El scoring prioriza la cola; no oculta ni cierra nada.
+         *
+         * Los cortes vienen de la configuración. El comentario que había aquí
+         * juraba que vivían solo en `nivelDeCalor` y no era verdad: estaban
+         * escritos a mano justo debajo, y también en el filtro de «solo
+         * calientes». Tres copias del mismo número.
+         */}
+        {lead.puntuacion >= umbrales.templado && (
+          <span
+            className={`chip ${lead.puntuacion >= umbrales.caliente ? 'chip-danger' : 'chip-warn'}`}
+            title={`Puntuación ${lead.puntuacion}/100 · ${nivelDeCalor(lead.puntuacion, umbrales).texto}`}
+          >
+            {lead.puntuacion >= umbrales.caliente ? '🔥 ' : ''}
             {lead.puntuacion}
           </span>
         )}
@@ -221,6 +234,7 @@ function Tarjeta({
 }
 
 export default function Kanban({
+  umbrales,
   etapas,
   tarjetas,
   cerradas,
@@ -432,10 +446,14 @@ export default function Kanban({
                   <Tarjeta
                     key={lead.id}
                     lead={lead}
+                    umbrales={umbrales}
                     puedeAutoasignarse={puedeAutoasignarse}
                     onAsignarme={asignarme}
                     onEmpezarArrastre={empezarArrastre}
-                    atenuada={moviendoId === lead.id || (arrastre?.activo === true && arrastre.leadId === lead.id)}
+                    atenuada={
+                      moviendoId === lead.id ||
+                      (arrastre?.activo === true && arrastre.leadId === lead.id)
+                    }
                     onMoverConTeclado={moverConTeclado}
                     comerciales={comerciales}
                     posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
@@ -459,6 +477,7 @@ export default function Kanban({
                 <Tarjeta
                   key={lead.id}
                   lead={lead}
+                  umbrales={umbrales}
                   puedeAutoasignarse={false}
                   onAsignarme={() => {}}
                   atenuada={false}

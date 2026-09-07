@@ -78,36 +78,39 @@ async function avisar(
  * sola nunca — y una puntuacion que siempre vale 0 no se puede ni mirar ni
  * probar.
  */
-export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
-  /*
-   * Las reglas salen de la tabla, no de una constante. Si direccion apaga una o
-   * le cambia los puntos, la siguiente pasada ya lo respeta sin desplegar nada.
-   */
-  const { data: filas } = await admin
-    .from('scoring_reglas')
-    .select('nombre, condicion, puntos, activa');
-  const reglas: Regla[] = (filas ?? [])
-    .map(reglaDesdeFila)
-    .filter((r): r is Regla => r !== null);
+export type CasoConSenales = {
+  id: string;
+  nombre: string;
+  estado: string;
+  puntuacion: number;
+  senales: SenalesLead;
+};
 
-  if (reglas.length === 0) return 0;
-
+/**
+ * Las senales de todos los casos abiertos, en cuatro consultas y no en 4N.
+ *
+ * Estaba metida dentro de `recalcularPuntuaciones`, que es donde nacio, pero la
+ * necesitan dos: el motor para guardar la puntuacion y la pantalla de lead
+ * scoring para SIMULAR sin guardar nada. Repetir la recogida en la pantalla
+ * habria sido tener dos ideas distintas de que le pasa a un caso, y entonces el
+ * simulador ensenaria una cosa y el motor calcularia otra.
+ *
+ * Con doscientos casos abiertos, la diferencia entre una consulta por caso y una
+ * por concepto es la diferencia entre que la pasada de los quince minutos
+ * termine o no.
+ */
+export async function senalesDeCasosAbiertos(admin: Cliente): Promise<CasoConSenales[]> {
   const { data: casos } = await admin
     .from('leads')
     .select(
-      'id, estado, urgencia, quien_contacta, relacion_con_afectado, canal_id, primera_respuesta_at, created_at, puntuacion, updated_at, canal:canales (slug)',
+      'id, nombre, estado, urgencia, quien_contacta, relacion_con_afectado, canal_id, primera_respuesta_at, created_at, puntuacion, updated_at, canal:canales (slug)',
     )
     .not('estado', 'in', '(convertido,perdido,no_valido,derivado)');
 
-  if (!casos || casos.length === 0) return 0;
+  if (!casos || casos.length === 0) return [];
 
   const ids = casos.map((c) => c.id);
 
-  /*
-   * Todo lo que hace falta en cuatro consultas, no en 4N. Con doscientos casos
-   * abiertos la diferencia entre una consulta por caso y una por concepto es la
-   * diferencia entre que la pasada de los quince minutos termine o no.
-   */
   const [{ data: actividades }, { data: presupuestos }, { data: reaperturas }, { data: citas }] =
     await Promise.all([
       admin.from('actividades').select('lead_id, created_at').in('lead_id', ids),
@@ -128,29 +131,53 @@ export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
   for (const c of citas ?? []) noShows.set(c.lead_id, (noShows.get(c.lead_id) ?? 0) + 1);
 
   const ahora = Date.now();
-  let cambiados = 0;
 
-  for (const caso of casos) {
+  return casos.map((caso) => {
     const referencia = ultimaActividad.get(caso.id) ?? Date.parse(caso.updated_at);
-    const senales: SenalesLead = {
+    return {
+      id: caso.id,
+      nombre: caso.nombre,
       estado: caso.estado,
-      urgencia: caso.urgencia,
-      quienContacta: caso.quien_contacta,
-      relacionContacto: caso.relacion_con_afectado,
-      canalSlug: caso.canal?.slug ?? null,
-      respondido: caso.primera_respuesta_at !== null,
-      minutosHastaRespuesta: caso.primera_respuesta_at
-        ? Math.round(
-            (Date.parse(caso.primera_respuesta_at) - Date.parse(caso.created_at)) / 60_000,
-          )
-        : null,
-      tienePresupuesto: conPresupuesto.has(caso.id),
-      fueReabierto: reabiertos.has(caso.id),
-      diasSinActividad: Math.max(0, Math.floor((ahora - referencia) / DIA_MS)),
-      citasNoAsistidas: noShows.get(caso.id) ?? 0,
+      puntuacion: caso.puntuacion ?? 0,
+      senales: {
+        estado: caso.estado,
+        urgencia: caso.urgencia,
+        quienContacta: caso.quien_contacta,
+        relacionContacto: caso.relacion_con_afectado,
+        canalSlug: caso.canal?.slug ?? null,
+        respondido: caso.primera_respuesta_at !== null,
+        minutosHastaRespuesta: caso.primera_respuesta_at
+          ? Math.round((Date.parse(caso.primera_respuesta_at) - Date.parse(caso.created_at)) / 60_000)
+          : null,
+        tienePresupuesto: conPresupuesto.has(caso.id),
+        fueReabierto: reabiertos.has(caso.id),
+        diasSinActividad: Math.max(0, Math.floor((ahora - referencia) / DIA_MS)),
+        citasNoAsistidas: noShows.get(caso.id) ?? 0,
+      },
     };
+  });
+}
 
-    const { puntuacion } = puntuar(senales, reglas);
+export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
+  /*
+   * Las reglas salen de la tabla, no de una constante. Si direccion apaga una o
+   * le cambia los puntos, la siguiente pasada ya lo respeta sin desplegar nada.
+   */
+  const { data: filas } = await admin
+    .from('scoring_reglas')
+    .select('nombre, condicion, puntos, activa');
+  const reglas: Regla[] = (filas ?? [])
+    .map(reglaDesdeFila)
+    .filter((r): r is Regla => r !== null);
+
+  if (reglas.length === 0) return 0;
+
+  const casos = await senalesDeCasosAbiertos(admin);
+  if (casos.length === 0) return 0;
+
+  let cambiados = 0;
+  for (const caso of casos) {
+    const { puntuacion } = puntuar(caso.senales, reglas);
     if (puntuacion === caso.puntuacion) continue;
 
     // Sin `updated_at`: recalcular una puntuación no es tocar el caso, y

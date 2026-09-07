@@ -29,35 +29,84 @@ function volver(aviso?: { error?: string; aviso?: string }): never {
     : aviso?.aviso
       ? `?aviso=${encodeURIComponent(aviso.aviso)}`
       : '';
-  revalidatePath('/leads/puntuacion');
+  revalidatePath('/leads/scoring');
   revalidatePath('/leads');
-  redirect(`/leads/puntuacion${q}`);
+  redirect(`/leads/scoring${q}`);
 }
 
 /**
- * Cambiar cuánto pesa una regla, o apagarla.
+ * Guarda de una vez todo lo que se ha movido en el simulador.
  *
- * No recalcula nada aquí: la puntuación se rehace en la pasada del motor, cada
- * quince minutos. Recalcular doscientos casos dentro de un formulario dejaría a
- * dirección mirando una pantalla en blanco para ver un número que puede esperar.
+ * De una vez y no regla a regla porque el ajuste se hace en conjunto: bajar la
+ * urgencia y subir el presupuesto es UN cambio de criterio, y guardarlo en dos
+ * pasos deja un rato en el que las reglas dicen algo que nadie ha querido decir.
+ *
+ * Y aquí sí se recalcula al terminar, al contrario que antes. La razon de no
+ * hacerlo era no dejar a direccion esperando; pero acabas de mover unos
+ * controles viendo el efecto en pantalla, y que la aplicacion siga enseñando las
+ * puntuaciones viejas quince minutos convierte todo eso en una promesa. Con
+ * doscientos casos son un par de segundos.
  */
-export async function guardarRegla(reglaId: string, formData: FormData) {
+export async function guardarTodo(formData: FormData) {
   await exigirDireccion();
 
-  const puntos = Number(formData.get('puntos'));
-  if (!Number.isFinite(puntos) || puntos < -100 || puntos > 100) {
-    volver({ error: 'Los puntos van de -100 a 100.' });
+  let reglas: { id: string; puntos: number; activa: boolean }[];
+  let umbrales: { caliente: number; templado: number };
+  try {
+    reglas = JSON.parse(String(formData.get('reglas') ?? '[]'));
+    umbrales = JSON.parse(String(formData.get('umbrales') ?? '{}'));
+  } catch {
+    volver({ error: 'No se entendió lo que se envió. Vuelve a intentarlo.' });
   }
-  const activa = formData.get('activa') === 'on';
+
+  /*
+   * Todo se valida aquí otra vez. Lo que llega es un JSON de un campo oculto:
+   * que el control de la pantalla no deje pasar un 500 no significa nada sobre
+   * lo que puede llegar por la puerta de atrás.
+   */
+  for (const r of reglas) {
+    if (!Number.isFinite(r.puntos) || r.puntos < -100 || r.puntos > 100) {
+      volver({ error: 'Los puntos van de -100 a 100.' });
+    }
+  }
+  const caliente = Number(umbrales?.caliente);
+  const templado = Number(umbrales?.templado);
+  if (
+    !Number.isFinite(caliente) ||
+    !Number.isFinite(templado) ||
+    templado >= caliente ||
+    templado < 1 ||
+    caliente > 100
+  ) {
+    volver({
+      error: 'Los cortes tienen que ir de 1 a 100, y el de templado por debajo del de caliente.',
+    });
+  }
 
   const admin = createAdminClient();
-  const { error } = await admin
-    .from('scoring_reglas')
-    .update({ puntos: Math.round(puntos), activa })
-    .eq('id', reglaId);
 
-  if (error) volver({ error: `No se pudo guardar: ${error.message}` });
-  volver({ aviso: 'Regla guardada. El calor se recalcula en la próxima pasada.' });
+  for (const r of reglas) {
+    const { error } = await admin
+      .from('scoring_reglas')
+      .update({ puntos: Math.round(r.puntos), activa: r.activa })
+      .eq('id', r.id);
+    if (error) volver({ error: `No se pudo guardar: ${error.message}` });
+  }
+
+  const { error: errorUmbrales } = await admin
+    .from('configuracion')
+    .update({ valor: { caliente: Math.round(caliente), templado: Math.round(templado) } })
+    .eq('clave', 'scoring_umbrales');
+  if (errorUmbrales)
+    volver({ error: `No se pudieron guardar los cortes: ${errorUmbrales.message}` });
+
+  const cambiados = await recalcularPuntuaciones(admin);
+  volver({
+    aviso:
+      cambiados === 0
+        ? 'Guardado. Ningún caso cambia de puntuación con estas reglas.'
+        : `Guardado y recalculado: ${cambiados} caso(s) han cambiado de puntuación.`,
+  });
 }
 
 /**

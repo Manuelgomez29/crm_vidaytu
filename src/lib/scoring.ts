@@ -136,23 +136,77 @@ export function puntuar(
   const cerrados: EstadoLead[] = ['convertido', 'perdido', 'no_valido', 'derivado'];
   if (cerrados.includes(senales.estado)) return { puntuacion: 0, desglose: [] };
 
-  const desglose: DesglosePuntuacion = [];
-  for (const regla of reglas) {
-    if (!regla.activa || regla.puntos === 0) continue;
-    if (cumple(regla.senal, senales)) desglose.push({ motivo: regla.nombre, puntos: regla.puntos });
-  }
+  /*
+   * La cuenta la hace `puntuarSenales` y solo ella. Tener dos sitios que suman
+   * lo mismo —uno para la pantalla y otro para el motor— es como acabaron
+   * discrepando el panel y el informe de previsión: nadie lo nota hasta que
+   * alguien compara dos cifras que deberían ser la misma.
+   */
+  const activas = senalesQueCumple(senales);
+  const desglose: DesglosePuntuacion = reglas
+    .filter((r) => r.activa && r.puntos !== 0 && activas.includes(r.senal))
+    .map((r) => ({ motivo: r.nombre, puntos: r.puntos }));
 
-  const total = desglose.reduce((suma, d) => suma + d.puntos, 0);
-  return { puntuacion: Math.max(0, Math.min(100, Math.round(total))), desglose };
+  return { puntuacion: puntuarSenales(activas, reglas), desglose };
+}
+
+export type Umbrales = { caliente: number; templado: number };
+
+/**
+ * Los cortes por defecto, para cuando la configuración no dice otra cosa.
+ *
+ * Estaban escritos a mano en tres sitios distintos —esta función, la tarjeta del
+ * kanban y el filtro de «solo calientes»— y con un comentario que aseguraba que
+ * vivían solo aquí. No era verdad, y tres copias de un número es una forma
+ * conocida de que un día dejen de coincidir.
+ */
+export const UMBRALES_POR_DEFECTO: Umbrales = { caliente: 70, templado: 40 };
+
+/** Lee los cortes de la configuración, con red de seguridad si vienen mal. */
+export function umbralesDesde(valor: unknown): Umbrales {
+  const v = (valor ?? {}) as { caliente?: unknown; templado?: unknown };
+  const caliente = Number(v.caliente);
+  const templado = Number(v.templado);
+  if (!Number.isFinite(caliente) || !Number.isFinite(templado) || templado >= caliente) {
+    return UMBRALES_POR_DEFECTO;
+  }
+  return { caliente, templado };
 }
 
 /**
- * Etiqueta visual. Los cortes son 70 y 40: por debajo de 40 un caso no es
- * «frío» en el sentido de descartable, solo es uno más de la cola.
+ * Etiqueta visual. Por debajo del corte un caso no es «frío» en el sentido de
+ * descartable: solo es uno más de la cola.
  */
-export function nivelDeCalor(puntuacion: number): { texto: string; clase: string } {
-  if (puntuacion >= 70) return { texto: 'Caliente', clase: 'chip-danger' };
-  if (puntuacion >= 40) return { texto: 'Templado', clase: 'chip-warn' };
+export function nivelDeCalor(
+  puntuacion: number,
+  umbrales: Umbrales = UMBRALES_POR_DEFECTO,
+): { texto: string; clase: string } {
+  if (puntuacion >= umbrales.caliente) return { texto: 'Caliente', clase: 'chip-danger' };
+  if (puntuacion >= umbrales.templado) return { texto: 'Templado', clase: 'chip-warn' };
   if (puntuacion > 0) return { texto: 'Frío', clase: 'chip-mut' };
   return { texto: 'Sin puntuar', clase: 'chip-mut' };
+}
+
+/**
+ * Qué señales cumple un caso, sin puntuarlas todavía.
+ *
+ * Separar «qué le pasa a este caso» de «cuánto vale cada cosa» es lo que
+ * permite simular: el servidor calcula las señales una vez, y el navegador
+ * puede recalcular la puntuación de todos los casos a cada movimiento de un
+ * control, sin volver a preguntar nada.
+ */
+export function senalesQueCumple(s: SenalesLead): Senal[] {
+  const cerrados: EstadoLead[] = ['convertido', 'perdido', 'no_valido', 'derivado'];
+  if (cerrados.includes(s.estado)) return [];
+  return SENALES.filter((senal) => cumple(senal, s));
+}
+
+/** La puntuación a partir de las señales ya calculadas. Misma cuenta que `puntuar`. */
+export function puntuarSenales(activas: Senal[], reglas: Regla[]): number {
+  let total = 0;
+  for (const regla of reglas) {
+    if (!regla.activa || regla.puntos === 0) continue;
+    if (activas.includes(regla.senal)) total += regla.puntos;
+  }
+  return Math.max(0, Math.min(100, Math.round(total)));
 }
