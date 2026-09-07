@@ -22,27 +22,84 @@ const MODELO_POR_DEFECTO = 'claude-sonnet-5';
 type CacheResumen = { texto: string; generadoAt: string; vigente: boolean };
 
 /**
- * Huella de la actividad de un caso.
+ * Huella del caso: cambia cuando cambia algo que el resumen cuenta.
  *
- * Cuántas anotaciones tiene y cuál es la más reciente. Con eso basta: si no ha
- * pasado nada nuevo, el resumen de ayer describe el caso de hoy. No hace falta
- * un hash criptográfico —esto no protege nada, solo detecta cambios— y una
- * cadena legible se puede mirar cuando algo no cuadra.
+ * Cubre las CUATRO listas que entran en el contexto —anotaciones, presupuestos,
+ * citas y tareas— más el estado del caso. Durante un tiempo miró solo las
+ * anotaciones, y eso dejaba un agujero feo: mandar un presupuesto de 3.000 € o
+ * completar la tarea pendiente no crea ninguna anotación, así que el resumen
+ * seguía marcado como vigente mientras decía que no constaba presupuesto y
+ * enumeraba tareas ya hechas. Justo lo que alguien está a punto de leer antes
+ * de llamar a una familia.
+ *
+ * Del caso se mira el ESTADO, no `updated_at`: el trigger reescribe
+ * `updated_at` con cualquier roce —una etiqueta, una coma en una nota— y eso
+ * haría regenerar el resumen (y pagarlo) por nada. El estado sí sale en el
+ * texto, y cuando cambia el resumen tiene que cambiar.
+ *
+ * Contar filas no basta en tres de las cuatro: un presupuesto pasa de
+ * «propuesto» a «aceptado», una cita se marca como no presentada y una tarea se
+ * completa sin que aparezca ni desaparezca ninguna fila. Y las tres cosas salen
+ * escritas en el resumen. Así que de esas listas entra en la huella lo mismo que
+ * entra en el texto. Las anotaciones no: son inmutables, y con cuántas hay y
+ * cuál es la última se sabe todo.
+ *
+ * La huella lleva delante una parte legible —para poder mirarla cuando algo no
+ * cuadre— y detrás un resumen corto del detalle. No es criptográfico a
+ * propósito: esto no protege nada, solo detecta cambios.
  */
-export async function huellaActividad(supabase: Cliente, leadId: string): Promise<string> {
-  const { data } = await supabase
-    .from('actividades')
-    .select('created_at')
-    .eq('lead_id', leadId)
-    .order('created_at', { ascending: false })
-    .limit(1);
+export async function huellaDelCaso(supabase: Cliente, leadId: string): Promise<string> {
+  const [actividades, presupuestos, citas, tareas, lead] = await Promise.all([
+    supabase
+      .from('actividades')
+      .select('created_at', { count: 'exact' })
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false })
+      .limit(1),
+    supabase
+      .from('presupuestos')
+      .select('importe, estado, created_at')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase
+      .from('citas')
+      .select('tipo, estado, inicio')
+      .eq('lead_id', leadId)
+      .order('inicio', { ascending: false })
+      .limit(5),
+    supabase
+      .from('tareas')
+      .select('titulo, vence_at, completada_at')
+      .eq('lead_id', leadId)
+      .order('vence_at'),
+    supabase.from('leads').select('estado').eq('id', leadId).maybeSingle(),
+  ]);
 
-  const { count } = await supabase
-    .from('actividades')
-    .select('id', { count: 'exact', head: true })
-    .eq('lead_id', leadId);
+  const detalle = [
+    ...(presupuestos.data ?? []).map((p) => `${p.importe}${p.estado}${p.created_at}`),
+    ...(citas.data ?? []).map((c) => `${c.tipo}${c.estado}${c.inicio}`),
+    ...(tareas.data ?? []).map((t) => `${t.titulo}${t.vence_at}${t.completada_at ?? ''}`),
+  ].join('|');
 
-  return `${count ?? 0}:${data?.[0]?.created_at ?? 'sin-actividad'}`;
+  return [
+    `a:${actividades.count ?? 0}/${actividades.data?.[0]?.created_at ?? '-'}`,
+    `p:${(presupuestos.data ?? []).length}`,
+    `c:${(citas.data ?? []).length}`,
+    `t:${(tareas.data ?? []).length}`,
+    `e:${lead.data?.estado ?? '-'}`,
+    `#${firma(detalle)}`,
+  ].join(' ');
+}
+
+/** Firma corta y estable de una cadena (FNV-1a). Solo para detectar cambios. */
+function firma(texto: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < texto.length; i++) {
+    h ^= texto.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
 /**
@@ -62,7 +119,7 @@ export async function resumenGuardado(
     .maybeSingle();
   if (!data) return null;
 
-  const huella = await huellaActividad(supabase, leadId);
+  const huella = await huellaDelCaso(supabase, leadId);
   return {
     texto: data.resumen,
     generadoAt: data.generado_at,
@@ -255,7 +312,7 @@ export async function resumirCaso(
       {
         lead_id: leadId,
         resumen: texto,
-        hash_actividad: await huellaActividad(supabase, leadId),
+        hash_actividad: await huellaDelCaso(supabase, leadId),
         generado_at: new Date().toISOString(),
         generado_por: usuarioId,
       },
