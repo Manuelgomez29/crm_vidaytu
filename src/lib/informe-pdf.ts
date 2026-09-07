@@ -56,7 +56,7 @@ async function preverIngresos(admin: Cliente): Promise<number | null> {
 export async function generarInformeMensual(
   admin: Cliente,
   mes: string,
-  opciones: { enviar: boolean; generadoPor?: string },
+  opciones: { enviar: boolean; generadoPor?: string; secciones?: string[] },
 ): Promise<ResultadoInforme> {
   try {
     const informe = await calcularInformeMensual(admin, mes);
@@ -65,8 +65,16 @@ export async function generarInformeMensual(
 
     // La maquetación se carga aquí y no arriba: es pesada y solo hace falta al
     // generar, no cada vez que alguien importa este módulo.
-    const { generarPdfInforme } = await import('@/lib/pdf/informe');
-    const pdf = await generarPdfInforme(informe, prevision, generado);
+    const { generarPdfInforme, TODAS } = await import('@/lib/pdf/informe');
+    /*
+     * Si no se elige nada, van todas. Y si lo que llega no contiene ninguna
+     * seccion valida —una URL manipulada, un formulario viejo— tambien: es
+     * preferible un informe de mas a uno que sale con la portada vacia y
+     * parece que el mes no tuvo actividad.
+     */
+    const validas = (opciones.secciones ?? []).filter((s) => (TODAS as string[]).includes(s));
+    const elegidas = (validas.length ? validas : TODAS) as typeof TODAS;
+    const pdf = await generarPdfInforme(informe, prevision, generado, elegidas);
 
     const ruta = `${mes}/informe-${mes}.pdf`;
     const { error: errorSubida } = await admin.storage

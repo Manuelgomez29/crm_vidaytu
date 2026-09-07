@@ -30,12 +30,19 @@ async function exigirDireccion() {
  * cron no corren nunca, así que sin esto el informe no se podría probar en
  * ningún sitio salvo producción — que es justo lo que hay que evitar.
  */
-export async function generarInformeAhora(mes?: string) {
+export async function generarInformeAhora(mes: string | undefined, formData?: FormData) {
   const user = await exigirDireccion();
   const admin = createAdminClient();
 
+  // Casillas marcadas. Sin formulario (o sin ninguna marcada) van todas.
+  const secciones = formData ? formData.getAll('seccion').map(String) : [];
+
   const objetivo = mes || mesAnterior();
-  const r = await generarInformeMensual(admin, objetivo, { enviar: false, generadoPor: user.id });
+  const r = await generarInformeMensual(admin, objetivo, {
+    enviar: false,
+    generadoPor: user.id,
+    secciones,
+  });
 
   revalidatePath('/panel');
   redirect(

@@ -29,9 +29,9 @@ function volver(aviso?: { error?: string; aviso?: string }): never {
     : aviso?.aviso
       ? `?aviso=${encodeURIComponent(aviso.aviso)}`
       : '';
-  revalidatePath('/admin/scoring');
+  revalidatePath('/leads/puntuacion');
   revalidatePath('/leads');
-  redirect(`/admin/scoring${q}`);
+  redirect(`/leads/puntuacion${q}`);
 }
 
 /**

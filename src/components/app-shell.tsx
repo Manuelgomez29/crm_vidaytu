@@ -110,6 +110,7 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
   leads: [
     { texto: 'Kanban', href: '/leads' },
     { texto: 'Procesos de venta', href: '/leads/procesos' },
+    { texto: 'Puntuación', href: '/leads/puntuacion' },
   ],
   contactos: [
     { texto: 'Directorio', href: '/contactos' },

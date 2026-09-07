@@ -1,6 +1,7 @@
 import { AppShell } from '@/components/app-shell';
-import { exigirDireccion } from '../guard';
-import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '@/app/admin/nav';
 import { QUE_MIDE, SENALES, type Senal } from '@/lib/scoring';
 import { borrarRegla, crearRegla, guardarRegla, recalcularAhora } from './actions';
 
@@ -20,7 +21,18 @@ export default async function AdminScoring({
   searchParams: Promise<{ error?: string; aviso?: string }>;
 }) {
   const { error: errorMsg, aviso } = await searchParams;
-  const { supabase } = await exigirDireccion();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('rol')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (perfil?.rol !== 'direccion') redirect('/leads');
 
   const [{ data: reglas }, { data: casos }] = await Promise.all([
     supabase
@@ -44,8 +56,8 @@ export default async function AdminScoring({
 
   return (
     <AppShell
-      seccion="admin"
-      subseccion="/admin/scoring"
+      seccion="leads"
+      subseccion="/leads/puntuacion"
       titulo="Puntuación de casos"
       descripcion="Cuánto pesa cada señal al ordenar la cola"
     >
