@@ -15,7 +15,7 @@ import {
 } from '@/lib/metricas';
 import { generarInformeAhora, descargarInforme } from './informes';
 import { SECCIONES } from '@/lib/pdf/secciones';
-import { Anillo, Columnas } from '@/components/graficos';
+import { Anillo, BarrasApiladas, Columnas } from '@/components/graficos';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
 const EMBUDO: EstadoLead[] = [
@@ -169,6 +169,7 @@ export default async function Panel({
     cruceFila?: string;
     cruceCol?: string;
     cruceMetrica?: string;
+    cruceVista?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -1116,7 +1117,10 @@ export default async function Panel({
               const DIMENSIONES: Record<string, { texto: string; de: (l: FilaCruce) => string }> = {
                 centro: { texto: 'Centro', de: (l) => l.centro?.nombre ?? 'Sin centro' },
                 canal: { texto: 'Canal', de: (l) => l.canal?.nombre ?? 'Sin canal' },
-                estado: { texto: 'Estado', de: (l) => ETIQUETA_ESTADO[l.estado as EstadoLead]?.texto ?? l.estado },
+                estado: {
+                  texto: 'Estado',
+                  de: (l) => ETIQUETA_ESTADO[l.estado as EstadoLead]?.texto ?? l.estado,
+                },
                 propietario: {
                   texto: 'Propietario',
                   de: (l) => l.propietario?.nombre ?? 'Sin asignar',
@@ -1137,12 +1141,28 @@ export default async function Panel({
                       .reduce((s, c) => s + Number(c.importe_primer_pago ?? 0), 0),
                 },
               };
+              const VISTAS: Record<string, string> = {
+                tabla: 'Tabla',
+                apiladas: 'Barras apiladas',
+                columnas: 'Columnas',
+                anillo: 'Anillo',
+              };
 
               const claveFila = DIMENSIONES[filtros.cruceFila ?? ''] ? filtros.cruceFila! : 'centro';
-              const claveCol = DIMENSIONES[filtros.cruceCol ?? ''] ? filtros.cruceCol! : 'canal';
+              /*
+               * Cruzar una dimensión consigo misma da una diagonal y nada más.
+               * En vez de dejar elegirlo y que la pantalla salga vacía de
+               * sentido, se corrige sola a la primera dimensión distinta.
+               */
+              const pedidaCol = DIMENSIONES[filtros.cruceCol ?? ''] ? filtros.cruceCol! : 'canal';
+              const claveCol =
+                pedidaCol === claveFila
+                  ? Object.keys(DIMENSIONES).find((d) => d !== claveFila)!
+                  : pedidaCol;
               const claveMetrica = METRICAS[filtros.cruceMetrica ?? '']
                 ? filtros.cruceMetrica!
                 : 'casos';
+              const vista = VISTAS[filtros.cruceVista ?? ''] ? filtros.cruceVista! : 'tabla';
 
               const dimFila = DIMENSIONES[claveFila];
               const dimCol = DIMENSIONES[claveCol];
@@ -1161,18 +1181,39 @@ export default async function Panel({
               }
 
               const cols = [...columnas].sort();
-              const filas = [...matriz.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-              const maximo = Math.max(
-                1,
-                ...filas.flatMap(([, m]) => cols.map((c) => m.get(c) ?? 0)),
+              const totalDeFila = (m: Map<string, number>) =>
+                cols.reduce((s, c) => s + (m.get(c) ?? 0), 0);
+              // De mayor a menor: comparar longitudes desordenadas no lo hace nadie.
+              const filas = [...matriz.entries()].sort(
+                (a, b) => totalDeFila(b[1]) - totalDeFila(a[1]),
               );
-              const totalPorCol = cols.map((c) =>
-                filas.reduce((s, [, m]) => s + (m.get(c) ?? 0), 0),
-              );
+              const maximo = Math.max(1, ...filas.flatMap(([, m]) => cols.map((c) => m.get(c) ?? 0)));
+              const totalPorCol = cols.map((c) => filas.reduce((s, [, m]) => s + (m.get(c) ?? 0), 0));
+              const totalGeneral = totalPorCol.reduce((s, n) => s + n, 0);
               const esDinero = claveMetrica === 'ingresos';
+              const cifra = (n: number) => (esDinero ? euros(n) : String(n));
+
+              /** Enlace que conserva TODO lo puesto y cambia solo lo que se pide. */
+              const enlaceCon = (cambios: Record<string, string>) => {
+                const p = new URLSearchParams();
+                for (const [k, v] of Object.entries({
+                  periodo: filtros.periodo ?? '',
+                  desde: filtros.desde ?? '',
+                  hasta: filtros.hasta ?? '',
+                  centro: filtros.centro ?? '',
+                  cruceFila: claveFila,
+                  cruceCol: claveCol,
+                  cruceMetrica: claveMetrica,
+                  cruceVista: vista,
+                  ...cambios,
+                })) {
+                  if (v) p.set(k, v);
+                }
+                return '/panel?' + p.toString() + '#cruce';
+              };
 
               return (
-                <section className="panel p-4">
+                <section className="panel p-4" id="cruce">
                   <h2 className="mb-1 text-sm font-semibold">Cruce de datos</h2>
                   <p className="mb-3 max-w-[72ch] text-xs text-ink2">
                     Dos dimensiones cualesquiera. Sirve para las preguntas que ninguna tarjeta
@@ -1180,9 +1221,14 @@ export default async function Panel({
                     recomendación, dónde se atascan los casos urgentes.
                   </p>
 
-                  <form method="get" className="mb-3 flex flex-wrap items-end gap-2 text-sm">
+                  <form method="get" action="/panel" className="mb-3 flex flex-wrap items-end gap-2 text-sm">
+                    {/* Los otros filtros viajan escondidos: cruzar no puede tirar el periodo. */}
+                    <input type="hidden" name="periodo" value={filtros.periodo ?? ''} />
                     <input type="hidden" name="desde" value={filtros.desde ?? ''} />
                     <input type="hidden" name="hasta" value={filtros.hasta ?? ''} />
+                    <input type="hidden" name="centro" value={filtros.centro ?? ''} />
+                    <input type="hidden" name="cruceVista" value={vista} />
+
                     <label className="flex flex-col gap-1 text-xs text-ink2">
                       Filas
                       <select name="cruceFila" defaultValue={claveFila} className="campo">
@@ -1193,16 +1239,27 @@ export default async function Panel({
                         ))}
                       </select>
                     </label>
+
+                    <Link
+                      href={enlaceCon({ cruceFila: claveCol, cruceCol: claveFila })}
+                      title="Intercambiar los ejes"
+                      aria-label="Intercambiar filas y columnas"
+                      className="mb-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-line2 text-ink2 transition hover:border-primary hover:text-primary"
+                    >
+                      ⇄
+                    </Link>
+
                     <label className="flex flex-col gap-1 text-xs text-ink2">
                       Columnas
                       <select name="cruceCol" defaultValue={claveCol} className="campo">
                         {Object.entries(DIMENSIONES).map(([k, d]) => (
-                          <option key={k} value={k}>
+                          <option key={k} value={k} disabled={k === claveFila}>
                             {d.texto}
                           </option>
                         ))}
                       </select>
                     </label>
+
                     <label className="flex flex-col gap-1 text-xs text-ink2">
                       Qué se cuenta
                       <select name="cruceMetrica" defaultValue={claveMetrica} className="campo">
@@ -1213,10 +1270,29 @@ export default async function Panel({
                         ))}
                       </select>
                     </label>
+
                     <button type="submit" className="btn btn-ghost btn-mini mb-0.5">
                       Cruzar
                     </button>
                   </form>
+
+                  {/* Selector de vista: enlaces, no formulario. Cambiar de gráfico
+                      no cambia los datos, así que no tiene por qué enviar nada. */}
+                  <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
+                    {Object.entries(VISTAS).map(([k, texto]) => (
+                      <Link
+                        key={k}
+                        href={enlaceCon({ cruceVista: k })}
+                        className={`rounded-md px-2.5 py-1 text-[12.5px] font-semibold transition ${
+                          vista === k
+                            ? 'bg-surface text-primary shadow-sm'
+                            : 'text-ink2 hover:text-primary'
+                        }`}
+                      >
+                        {texto}
+                      </Link>
+                    ))}
+                  </div>
 
                   {filas.length === 0 ? (
                     <p className="text-[13px] text-muted">
@@ -1224,30 +1300,34 @@ export default async function Panel({
                     </p>
                   ) : (
                     <>
-                      <div className="overflow-x-auto">
-                        <table className="tabla">
-                          <thead>
-                            <tr>
-                              <th>{dimFila.texto}</th>
-                              {cols.map((c) => (
-                                <th key={c} className="text-right">
-                                  {c}
-                                </th>
-                              ))}
-                              <th className="text-right">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filas.map(([f, m]) => {
-                              const totalFila = cols.reduce((s, c) => s + (m.get(c) ?? 0), 0);
-                              return (
+                      <p className="mb-3 text-xs text-muted">
+                        {metrica.texto} por {dimFila.texto.toLowerCase()} y{' '}
+                        {dimCol.texto.toLowerCase()} · <b className="num">{cifra(totalGeneral)}</b>{' '}
+                        en total
+                      </p>
+
+                      {vista === 'tabla' && (
+                        <div className="overflow-x-auto">
+                          <table className="tabla">
+                            <thead>
+                              <tr>
+                                <th>{dimFila.texto}</th>
+                                {cols.map((c) => (
+                                  <th key={c} className="text-right">
+                                    {c}
+                                  </th>
+                                ))}
+                                <th className="text-right">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filas.map(([f, m]) => (
                                 <tr key={f}>
                                   <td className="font-medium">{f}</td>
                                   {cols.map((c) => {
                                     const v = m.get(c) ?? 0;
                                     return (
                                       <td key={c} className="num text-right">
-                                        {/* Sombreado por intensidad: el numero se lee igual sin el. */}
                                         <span
                                           className="inline-block rounded px-1.5 py-0.5"
                                           style={
@@ -1258,43 +1338,64 @@ export default async function Panel({
                                               : undefined
                                           }
                                         >
-                                          {v === 0 ? '—' : esDinero ? euros(v) : v}
+                                          {v === 0 ? '—' : cifra(v)}
                                         </span>
                                       </td>
                                     );
                                   })}
                                   <td className="num text-right font-semibold">
-                                    {esDinero ? euros(totalFila) : totalFila}
+                                    {cifra(totalDeFila(m))}
                                   </td>
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                              ))}
+                              {/* Fila de totales: la pregunta «¿y en total?» siempre llega. */}
+                              <tr>
+                                <td className="font-semibold">Total</td>
+                                {cols.map((c, i) => (
+                                  <td key={c} className="num text-right font-semibold">
+                                    {cifra(totalPorCol[i])}
+                                  </td>
+                                ))}
+                                <td className="num text-right font-bold">{cifra(totalGeneral)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
 
-                      <div className="mt-4 grid gap-5 lg:grid-cols-2">
-                        <div>
-                          <h3 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">
-                            Total por {dimCol.texto.toLowerCase()}
-                          </h3>
-                          <Columnas
-                            series={cols.map((c, i) => ({ etiqueta: c, valor: totalPorCol[i] }))}
-                            sufijo={esDinero ? ' €' : ''}
-                          />
-                        </div>
-                        <div>
-                          <h3 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">
-                            Reparto por {dimFila.texto.toLowerCase()}
-                          </h3>
-                          <Anillo
-                            series={filas.map(([f, m]) => ({
-                              etiqueta: f,
-                              valor: cols.reduce((s, c) => s + (m.get(c) ?? 0), 0),
-                            }))}
-                          />
-                        </div>
-                      </div>
+                      {vista === 'apiladas' && (
+                        <BarrasApiladas
+                          columnas={cols}
+                          sufijo={esDinero ? ' €' : ''}
+                          filas={filas.map(([f, m]) => ({
+                            etiqueta: f,
+                            trozos: cols.map((c) => ({ etiqueta: c, valor: m.get(c) ?? 0 })),
+                          }))}
+                        />
+                      )}
+
+                      {vista === 'columnas' && (
+                        <Columnas
+                          series={cols.map((c, i) => ({ etiqueta: c, valor: totalPorCol[i] }))}
+                          sufijo={esDinero ? ' €' : ''}
+                        />
+                      )}
+
+                      {vista === 'anillo' && (
+                        <Anillo
+                          series={filas.map(([f, m]) => ({
+                            etiqueta: f,
+                            valor: totalDeFila(m),
+                          }))}
+                        />
+                      )}
+
+                      {vista !== 'tabla' && vista !== 'apiladas' && (
+                        <p className="mt-3 text-xs text-muted">
+                          Este gráfico resume un solo eje. Para ver de qué está hecha cada barra
+                          —el cruce de verdad— usa «Barras apiladas».
+                        </p>
+                      )}
                     </>
                   )}
                 </section>

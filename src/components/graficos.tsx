@@ -164,3 +164,90 @@ export function Anillo({ series }: { series: Serie[] }) {
     </div>
   );
 }
+
+export type Apilada = { etiqueta: string; trozos: { etiqueta: string; valor: number }[] };
+
+/**
+ * Barras apiladas: el único de los tres que enseña el CRUCE.
+ *
+ * Los otros dos resumen un eje —cuánto suma cada canal, cómo se reparten los
+ * centros— y eso ya lo dice la fila de totales. Esto enseña de qué está hecha
+ * cada barra, que es la pregunta que lleva a alguien a cruzar dos dimensiones:
+ * no «cuántos casos tiene Bellamar», sino «de dónde le llegan a Bellamar».
+ *
+ * Las barras se ordenan de mayor a menor porque comparar longitudes desiguales
+ * es fácil, y comparar longitudes desordenadas no.
+ */
+export function BarrasApiladas({
+  filas,
+  columnas,
+  sufijo = '',
+}: {
+  filas: Apilada[];
+  columnas: string[];
+  sufijo?: string;
+}) {
+  const totalDe = (f: Apilada) => f.trozos.reduce((s, t) => s + t.valor, 0);
+  const ordenadas = [...filas].sort((a, b) => totalDe(b) - totalDe(a));
+  const max = Math.max(1, ...ordenadas.map(totalDe));
+  const colorCol = (c: string) => PALETA[columnas.indexOf(c) % PALETA.length];
+
+  if (ordenadas.length === 0) return null;
+
+  return (
+    <div>
+      {/* Leyenda arriba: hay que saber qué es cada color antes de leer las barras. */}
+      <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
+        {columnas.map((c) => (
+          <li key={c} className="flex items-center gap-1.5 text-[11.5px] text-ink2">
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-sm"
+              style={{ background: colorCol(c) }}
+              aria-hidden
+            />
+            {c}
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-col gap-2.5">
+        {ordenadas.map((f) => {
+          const total = totalDe(f);
+          return (
+            <div key={f.etiqueta}>
+              <div className="mb-1 flex items-baseline justify-between gap-2 text-[12.5px]">
+                <span className="truncate text-ink2">{f.etiqueta}</span>
+                <span className="num shrink-0 font-semibold text-ink">
+                  {formatea(total)}
+                  {sufijo}
+                </span>
+              </div>
+              <div
+                className="flex h-3 overflow-hidden rounded-full bg-surface2"
+                style={{ width: `${Math.max(4, (total / max) * 100)}%` }}
+                role="img"
+                aria-label={`${f.etiqueta}: ${f.trozos
+                  .filter((t) => t.valor > 0)
+                  .map((t) => `${t.etiqueta} ${formatea(t.valor)}`)
+                  .join(', ')}`}
+              >
+                {f.trozos
+                  .filter((t) => t.valor > 0)
+                  .map((t) => (
+                    <div
+                      key={t.etiqueta}
+                      style={{
+                        width: `${(t.valor / total) * 100}%`,
+                        background: colorCol(t.etiqueta),
+                      }}
+                      title={`${t.etiqueta}: ${formatea(t.valor)}${sufijo}`}
+                    />
+                  ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
