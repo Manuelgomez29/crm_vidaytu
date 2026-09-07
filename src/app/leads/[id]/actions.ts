@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { sugerirReactivacion } from '@/lib/sugerencia-reactivacion';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { desdeDatetimeLocal } from '@/lib/fechas';
 import { asegurarContacto, centroDeAtribucion, reabrirCaso } from '@/lib/casos';
@@ -564,4 +565,25 @@ export async function pedirResumen(leadId: string) {
   // query string acaba en el historial del navegador y en los registros.
   revalidatePath(`/leads/${leadId}`);
   redirect(`/leads/${leadId}?resumen=${resultado.consultaId ?? ''}`);
+}
+
+/**
+ * Sugerir cómo retomar un caso perdido por «no es el momento».
+ *
+ * Igual que el resumen: solo viaja el id de la consulta, nunca el texto. Un
+ * mensaje dirigido a una persona concreta en un query string acaba en el
+ * historial del navegador y en los registros del servidor.
+ */
+export async function pedirSugerenciaReactivacion(leadId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const r = await sugerirReactivacion(supabase, leadId, user.id);
+  if (!r.ok) volver(leadId, { error: r.error });
+
+  revalidatePath(`/leads/${leadId}`);
+  redirect(`/leads/${leadId}?sugerencia=${r.consultaId}`);
 }

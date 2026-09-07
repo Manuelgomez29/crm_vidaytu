@@ -24,6 +24,7 @@ import {
   borrarAdjunto,
   validarConversion,
   pedirResumen,
+  pedirSugerenciaReactivacion,
 } from './actions';
 import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
 import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
@@ -70,10 +71,10 @@ export default async function FichaLead({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string; resumen?: string }>;
+  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string; resumen?: string; sugerencia?: string }>;
 }) {
   const { id } = await params;
-  const { error: errorMsg, aviso, sugerir, resumen } = await searchParams;
+  const { error: errorMsg, aviso, sugerir, resumen, sugerencia } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -207,6 +208,13 @@ export default async function FichaLead({
    * hueco vacío, siempre que se avise de que es viejo.
    */
   const guardado = filaResumen ? null : await resumenGuardado(supabase, lead.id);
+
+  // La sugerencia de reactivación, también por id: es un mensaje dirigido a una
+  // persona concreta y no puede viajar en la URL.
+  const { data: filaSugerencia } = sugerencia
+    ? await supabase.from('ia_consultas').select('respuesta').eq('id', sugerencia).maybeSingle()
+    : { data: null };
+  const textoSugerencia = filaSugerencia?.respuesta ?? null;
   const textoResumen = filaResumen?.respuesta ?? guardado?.texto ?? null;
   const resumenCaducado = !filaResumen && guardado ? !guardado.vigente : false;
 
@@ -287,6 +295,32 @@ export default async function FichaLead({
               Resumen en tres líneas para quien retoma un caso que no es suyo:
               un traspaso de cartera, una baja, una guardia de fin de semana.
             */}
+            {lead.estado === 'perdido' && (
+              <Seccion titulo="Retomar el contacto">
+                {textoSugerencia ? (
+                  <>
+                    <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
+                      {textoSugerencia}
+                    </p>
+                    <p className="mt-1.5 text-xs text-muted">
+                      Repásalo antes de enviarlo. No menciona el motivo de consulta a propósito:
+                      quien lea ese móvil no puede deducir nada.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted">
+                    Un «ahora no» no es un no. Si toca retomarlo, la IA propone cómo hacerlo sin
+                    presionar y sin recordarle por qué llamó.
+                  </p>
+                )}
+                <form action={pedirSugerenciaReactivacion.bind(null, lead.id)} className="mt-2">
+                  <button type="submit" className={botonSecundario}>
+                    {textoSugerencia ? 'Proponer otro' : 'Sugerir cómo retomarlo'}
+                  </button>
+                </form>
+              </Seccion>
+            )}
+
             <Seccion titulo="Resumen del caso">
               {textoResumen ? (
                 <>

@@ -165,6 +165,40 @@ export default async function Panel({
   const desdeIso = desdeDatetimeLocal(`${periodo.desde}T00:00`)!;
   const hastaIso = desdeDatetimeLocal(`${periodo.hasta}T00:00`)!;
 
+  /*
+   * Reseñas propuestas y reactivaciones del periodo.
+   *
+   * Se miden las PROPUESTAS, no los envíos: la plataforma nunca escribe sola a
+   * un paciente, así que lo único que puede contar es cuántas veces propuso
+   * hacerlo. Cuántas se enviaron de verdad lo sabe quien las mandó.
+   */
+  const [{ data: resenasPeriodo }, { data: reactivadosPeriodo }] = await Promise.all([
+    supabase
+      .from('conversiones')
+      .select('id, resena_propuesta_at, lead:leads (centro:centros (nombre))')
+      .not('resena_propuesta_at', 'is', null)
+      .gte('resena_propuesta_at', desdeIso)
+      .lt('resena_propuesta_at', hastaIso),
+    supabase
+      .from('leads')
+      .select('id, estado, reactivacion_propuesta_at, centro:centros (nombre)')
+      .not('reactivacion_propuesta_at', 'is', null)
+      .gte('reactivacion_propuesta_at', desdeIso)
+      .lt('reactivacion_propuesta_at', hastaIso),
+  ]);
+
+  const resenasPorCentro = new Map<string, number>();
+  for (const r of resenasPeriodo ?? []) {
+    const nombre =
+      ((r.lead as { centro: { nombre: string } | null } | null)?.centro?.nombre) ?? 'Sin centro';
+    resenasPorCentro.set(nombre, (resenasPorCentro.get(nombre) ?? 0) + 1);
+  }
+
+  const reactivaciones = reactivadosPeriodo ?? [];
+  // «Funcionó» = ya no está perdido: se reabrió, o avanzó por su cuenta.
+  const reactivacionesQueFuncionaron = reactivaciones.filter((l) => l.estado !== 'perdido').length;
+
+
   let consultaLeads = supabase
     .from('leads')
     .select(
@@ -1024,6 +1058,59 @@ export default async function Panel({
                 </>
               )}
             </Seccion>
+
+            <section className="panel p-4">
+              <h2 className="mb-1 text-sm font-semibold">Reseñas y reactivaciones</h2>
+              <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+                Se cuentan las <b>propuestas</b>, no los envíos: la plataforma nunca escribe sola a
+                un paciente, así que lo único que sabe es cuántas veces propuso hacerlo.
+              </p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
+                    Reseñas propuestas ({(resenasPeriodo ?? []).length})
+                  </h3>
+                  {resenasPorCentro.size === 0 ? (
+                    <p className="text-[13px] text-muted">
+                      Ninguna en este periodo. Se proponen al validar una conversión, y solo si el
+                      centro tiene su enlace de Google configurado.
+                    </p>
+                  ) : (
+                    [...resenasPorCentro.entries()].map(([centro, n]) => (
+                      <div key={centro} className="flex items-center gap-2 border-b border-line py-1.5 last:border-b-0">
+                        <span className="flex-1 text-[13px]">{centro}</span>
+                        <span className="num text-[13px] font-semibold">{n}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
+                    Reactivaciones ({reactivaciones.length})
+                  </h3>
+                  {reactivaciones.length === 0 ? (
+                    <p className="text-[13px] text-muted">
+                      Ninguna en este periodo. Se proponen sobre los casos perdidos por «no es el
+                      momento» cuando cumplen el plazo configurado.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-[13px]">
+                        <b className="num">{reactivacionesQueFuncionaron}</b> de{' '}
+                        <b className="num">{reactivaciones.length}</b> han vuelto a moverse
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        Un caso «vuelve a moverse» cuando deja de estar perdido. No prueba que la
+                        reactivación fuera la causa, pero es lo más cerca que se puede medir sin
+                        preguntárselo a la persona.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </section>
 
             {esDireccion && (
               <section className="panel p-4">
