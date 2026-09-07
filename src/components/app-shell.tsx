@@ -146,6 +146,7 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Integraciones', href: '/admin/integraciones' },
     { texto: 'Retención', href: '/admin/retencion' },
     { texto: 'Parámetros', href: '/admin/parametros' },
+    { texto: 'Motor', href: '/admin/motor' },
   ],
 };
 

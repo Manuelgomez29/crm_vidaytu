@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
 import { fecha, hoyMadrid } from '@/lib/fechas';
+import { estadoDelMotor } from '@/lib/salud-motor';
 import { exigirDireccion } from './guard';
 
 function Seccion({
@@ -40,6 +41,7 @@ export default async function AdminPortada() {
     { count: centros },
     { data: config },
     { data: auditoria },
+    motor,
   ] = await Promise.all([
     supabase.from('perfiles').select('id', { count: 'exact', head: true }).eq('activo', true),
     supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
@@ -57,6 +59,7 @@ export default async function AdminPortada() {
       .select('tabla, accion, created_at')
       .order('created_at', { ascending: false })
       .limit(5),
+    estadoDelMotor(supabase),
   ]);
 
   const ausencias = (ausenciasHoy ?? []).length;
@@ -116,6 +119,19 @@ export default async function AdminPortada() {
           titulo="Parámetros"
           dato={`SLA ${Number(config?.valor) || 60} min`}
           descripcion="Cadencia, alertas y plantilla del recordatorio"
+        />
+        <Seccion
+          href="/admin/motor"
+          icono="🔁"
+          titulo="Motor de automatizaciones"
+          dato={
+            motor.nuncaHaCorrido
+              ? 'Sin arrancar'
+              : motor.parado
+                ? 'Parado'
+                : 'Funcionando'
+          }
+          descripcion="Reparto, alertas, cadencia y recordatorios: si corre y para qué sirve"
         />
       </div>
 

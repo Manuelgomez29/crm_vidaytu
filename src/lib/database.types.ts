@@ -3162,6 +3162,7 @@ export type Database = {
         }[]
       }
       puedo_ver_contacto: { Args: { p_contacto: string }; Returns: boolean }
+      resumen_motor: { Args: { dias?: number }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       siguiente_numero_factura: {
