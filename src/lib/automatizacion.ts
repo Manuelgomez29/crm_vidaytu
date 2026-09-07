@@ -17,6 +17,7 @@ import { calcularInformeMensual, cuerpoInformeMensual, mesAnterior } from '@/lib
 import { anonimizar } from '@/lib/anonimizar';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
 import { fase, type FalloDeFase } from '@/lib/salud-motor';
+import { limpiarAccesos } from '@/lib/accesos';
 
 type Cliente = SupabaseClient<Database>;
 type TipoNotificacion = Database['public']['Enums']['tipo_notificacion'];
@@ -744,6 +745,14 @@ export async function ejecutarAutomatizaciones(
    * crece para siempre con ventanas ya pasadas. Se llama en cada pasada
    * porque es una sola sentencia y solo borra lo de hace mas de dos dias.
    */
+  /*
+   * El registro de accesos guarda IP, que es dato personal: se conserva el
+   * plazo mas corto que siga sirviendo para detectar un ataque, y lo borra el
+   * motor en cada pasada. No hay boton para esto a proposito — una limpieza que
+   * depende de que alguien se acuerde no se hace.
+   */
+  await fase('limpiar_accesos', fallos, () => limpiarAccesos(admin), 0);
+
   await fase(
     'limpiar_limites',
     fallos,

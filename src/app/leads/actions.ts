@@ -1,11 +1,37 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { registrarAcceso } from '@/lib/accesos';
+import { ipDeLaPeticion } from '@/lib/limites';
 
 export async function cerrarSesion() {
   const supabase = await createClient();
+
+  /*
+   * Quién se ha ido y cuándo, antes de cerrar. Después de `signOut` ya no hay
+   * usuario del que dejar constancia — y una salida sin registrar deja el
+   * registro de accesos contando entradas que parecen no terminar nunca.
+   */
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user?.email) {
+    const cabeceras = await headers();
+    await registrarAcceso(createAdminClient(), {
+      email: user.email,
+      usuarioId: user.id,
+      exito: true,
+      etapa: 'salida',
+      ip: ipDeLaPeticion(cabeceras),
+      agente: cabeceras.get('user-agent'),
+    });
+    await supabase.from('presencia_app').delete().eq('perfil_id', user.id);
+  }
+
   await supabase.auth.signOut();
   redirect('/login');
 }

@@ -5,6 +5,7 @@ import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 import { BotonAtras } from './boton-atras';
 import { Paleta } from './paleta';
+import { Latido } from './latido';
 import { ProveedorAvisos } from './avisos';
 import { SelectorTema } from './selector-tema';
 
@@ -147,6 +148,7 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
     { texto: 'Retención', href: '/admin/retencion' },
     { texto: 'Parámetros', href: '/admin/parametros' },
     { texto: 'Motor', href: '/admin/motor' },
+    { texto: 'Accesos', href: '/admin/accesos' },
   ],
 };
 
@@ -476,6 +478,9 @@ export async function AppShell({
 
       {/* Paleta de comandos: vive en el armazon para estar en todas las pantallas. */}
       <Paleta rol={perfil?.rol} />
+
+      {/* Late mientras la pestana este a la vista, para que «quien esta dentro» sea verdad. */}
+      <Latido />
     </div>
   );
 }

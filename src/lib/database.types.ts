@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      accesos: {
+        Row: {
+          agente: string | null
+          created_at: string
+          email: string
+          etapa: string
+          exito: boolean
+          id: number
+          ip: string | null
+          motivo: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          agente?: string | null
+          created_at?: string
+          email: string
+          etapa: string
+          exito: boolean
+          id?: never
+          ip?: string | null
+          motivo?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          agente?: string | null
+          created_at?: string
+          email?: string
+          etapa?: string
+          exito?: boolean
+          id?: never
+          ip?: string | null
+          motivo?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accesos_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       actividades: {
         Row: {
           contenido: string | null
@@ -2636,6 +2680,29 @@ export type Database = {
             foreignKeyName: "plantillas_email_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presencia_app: {
+        Row: {
+          perfil_id: string
+          visto_at: string
+        }
+        Insert: {
+          perfil_id: string
+          visto_at?: string
+        }
+        Update: {
+          perfil_id?: string
+          visto_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presencia_app_perfil_id_fkey"
+            columns: ["perfil_id"]
+            isOneToOne: true
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },

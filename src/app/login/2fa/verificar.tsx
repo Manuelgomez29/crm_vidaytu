@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { anotarSegundoFactor } from './actions';
 
 export function Verificar2FA({ factorId }: { factorId: string }) {
   const router = useRouter();
@@ -30,10 +31,13 @@ export function Verificar2FA({ factorId }: { factorId: string }) {
     });
     setOcupado(false);
     if (errorVerif) {
+      // El registro no puede hacer esperar a nadie: se manda y se sigue.
+      void anotarSegundoFactor(false);
       setError('Código incorrecto o caducado. Prueba con el siguiente que muestre la app.');
       setCodigo('');
       return;
     }
+    void anotarSegundoFactor(true);
     router.push('/mi-dia');
     router.refresh();
   }
