@@ -14,7 +14,7 @@ import {
   variacion,
 } from '@/lib/metricas';
 import { generarInformeAhora, descargarInforme } from './informes';
-import { SECCIONES } from '@/lib/pdf/informe';
+import { SECCIONES } from '@/lib/pdf/secciones';
 import { Anillo, Columnas } from '@/components/graficos';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */

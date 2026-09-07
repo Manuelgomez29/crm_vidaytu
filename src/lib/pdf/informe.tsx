@@ -14,39 +14,43 @@ import path from 'node:path';
 import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import type { InformeMensual } from '@/lib/informe-mensual';
 
-/**
- * Secciones que puede llevar el informe.
- *
- * Existen porque un informe para el asesor fiscal y uno para la reunión de
- * equipo no son el mismo documento: al primero le sobran los canales de
- * captación y al segundo le sobra poco. Todas van marcadas por defecto — quien
- * no quiera elegir, no elige.
- */
-export const SECCIONES = {
-  centros: 'Desglose por centro',
-  canales: 'De dónde llegan los casos',
-  perdidas: 'Motivos de pérdida',
-  prevision: 'Previsión del mes entrante',
-  clinica: 'Altas del área clínica',
-} as const;
-
-export type SeccionInforme = keyof typeof SECCIONES;
-export const TODAS: SeccionInforme[] = Object.keys(SECCIONES) as SeccionInforme[];
+export { SECCIONES, TODAS, type SeccionInforme } from './secciones';
+import { TODAS, type SeccionInforme } from './secciones';
 
 /*
  * La fuente va en el repositorio y no se descarga al generar. Una llamada a
  * fonts.gstatic.com el día 1 de mes es un punto de fallo gratuito: si falla, no
  * hay informe, y nadie se entera hasta que dirección lo echa en falta.
  */
-const dirFuentes = path.join(process.cwd(), 'src', 'lib', 'pdf', 'fuentes');
-Font.register({
-  family: 'Kumbh Sans',
-  fonts: [
-    { src: path.join(dirFuentes, 'KumbhSans-400.ttf'), fontWeight: 400 },
-    { src: path.join(dirFuentes, 'KumbhSans-600.ttf'), fontWeight: 600 },
-    { src: path.join(dirFuentes, 'KumbhSans-700.ttf'), fontWeight: 700 },
-  ],
-});
+let fuentesListas = false;
+
+/**
+ * Registro PEREZOSO de la fuente.
+ *
+ * Antes se hacia al cargar el modulo, y eso convertia cualquier import —aunque
+ * solo fuera para leer una constante— en una lectura de disco. En la funcion
+ * de Vercel las fuentes no estaban, asi que el modulo fallaba al importarse y
+ * tumbaba la pantalla entera. Ahora solo se toca el disco al generar un PDF, y
+ * si falla se sigue con la tipografia de serie: un informe en Helvetica es
+ * peor que en Kumbh Sans, pero infinitamente mejor que ningun informe.
+ */
+function asegurarFuentes() {
+  if (fuentesListas) return;
+  fuentesListas = true;
+  try {
+    const dir = path.join(process.cwd(), 'src', 'lib', 'pdf', 'fuentes');
+    Font.register({
+      family: 'Kumbh Sans',
+      fonts: [
+        { src: path.join(dir, 'KumbhSans-400.ttf'), fontWeight: 400 },
+        { src: path.join(dir, 'KumbhSans-600.ttf'), fontWeight: 600 },
+        { src: path.join(dir, 'KumbhSans-700.ttf'), fontWeight: 700 },
+      ],
+    });
+  } catch {
+    // Sin la fuente, react-pdf cae a Helvetica. El informe sale igual.
+  }
+}
 
 const AZUL = '#384B71';
 const CORAL = '#E8836F';
@@ -329,6 +333,7 @@ export async function generarPdfInforme(
   generado: string,
   secciones: SeccionInforme[] = TODAS,
 ): Promise<Buffer> {
+  asegurarFuentes();
   return renderToBuffer(
     <DocumentoInforme
       informe={informe}
