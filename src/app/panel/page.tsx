@@ -17,6 +17,14 @@ import { generarInformeAhora, descargarInforme } from './informes';
 import { SECCIONES } from '@/lib/pdf/secciones';
 import { Anillo, BarrasApiladas, Columnas } from '@/components/graficos';
 import { estadoDelMotor } from '@/lib/salud-motor';
+import {
+  DIMENSIONES,
+  METRICAS,
+  VISTAS,
+  cruzar,
+  resolverCruce,
+  type FilaCruce,
+} from '@/lib/cruce';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
 const EMBUDO: EstadoLead[] = [
@@ -132,33 +140,6 @@ function Barra({ valor, maximo, clases }: { valor: number; maximo: number; clase
   );
 }
 
-type Conversion = { importe_primer_pago: number | null; estado: string };
-
-/*
- * OJO con `conversiones`: PostgREST devuelve un OBJETO suelto, no una lista,
- * porque la relacion es uno a uno. Se escribio como array y `.filter` reventaba
- * en cuanto un caso tenia conversion — el panel abria bien porque la metrica
- * por defecto («casos») ni la mira.
- *
- * El kanban ya lo trataba en singular desde el principio. Aqui se acepta
- * cualquiera de las dos formas: si algun dia la relacion pasa a ser uno a
- * muchos, esto sigue funcionando en vez de volver a romperse.
- */
-type FilaCruce = {
-  estado: string;
-  urgencia: string | null;
-  centro: { nombre: string } | null;
-  canal: { nombre: string } | null;
-  propietario: { nombre: string } | null;
-  conversiones: Conversion | Conversion[] | null;
-};
-
-function conversionesDe(fila: FilaCruce): Conversion[] {
-  const c = fila.conversiones;
-  if (!c) return [];
-  return Array.isArray(c) ? c : [c];
-}
-
 /**
  * «hora y media», «tres días». Nunca «97 minutos».
  *
@@ -203,82 +184,28 @@ export default async function Panel({
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
   const esDireccion = perfil?.rol === 'direccion';
 
-  /*
-   * Informes guardados. La politica de la tabla ya los reserva a direccion, asi
-   * que esta consulta devuelve vacio para cualquier otro rol sin que haya que
-   * comprobar nada aqui.
-   */
-  /*
-   * Salud del motor de automatizaciones. La politica de la tabla lo reserva a
-   * direccion, asi que para cualquier otro rol esto vuelve vacio y no se enseña
-   * nada: un comercial no puede hacer nada con este dato.
-   */
-  const motor = await estadoDelMotor(supabase);
-
-  const { data: informesGuardados } = await supabase
-    .from('informes_mensuales')
-    .select('mes, ruta_fichero, resumen, generado_at, enviado_at')
-    .order('mes', { ascending: false })
-    .limit(12);
-
   const periodo = periodoDesdeFiltros(filtros);
   const desdeIso = desdeDatetimeLocal(`${periodo.desde}T00:00`)!;
   const hastaIso = desdeDatetimeLocal(`${periodo.hasta}T00:00`)!;
 
-  /*
-   * Reseñas propuestas y reactivaciones del periodo.
-   *
-   * Se miden las PROPUESTAS, no los envíos: la plataforma nunca escribe sola a
-   * un paciente, así que lo único que puede contar es cuántas veces propuso
-   * hacerlo. Cuántas se enviaron de verdad lo sabe quien las mandó.
-   */
-  const [{ data: resenasPeriodo }, { data: reactivadosPeriodo }] = await Promise.all([
-    supabase
-      .from('conversiones')
-      .select('id, resena_propuesta_at, lead:leads (centro:centros (nombre))')
-      .not('resena_propuesta_at', 'is', null)
-      .gte('resena_propuesta_at', desdeIso)
-      .lt('resena_propuesta_at', hastaIso),
-    supabase
-      .from('leads')
-      .select('id, estado, reactivacion_propuesta_at, centro:centros (nombre)')
-      .not('reactivacion_propuesta_at', 'is', null)
-      .gte('reactivacion_propuesta_at', desdeIso)
-      .lt('reactivacion_propuesta_at', hastaIso),
-  ]);
 
   /*
-   * Cruce de datos: dos dimensiones cualesquiera, una metrica.
+   * Los casos del periodo, UNA vez.
    *
-   * Se calcula en la aplicacion y no en la base porque las combinaciones son
-   * pocas y los datos ya estan filtrados por RLS: pedirle a Postgres un pivote
-   * dinamico obligaria a construir SQL con nombres de columna que vienen de la
-   * URL, y eso no se hace.
+   * Se pedian dos: una consulta con los identificadores para las metricas y
+   * otra con los nombres para la tabla cruzada. El mismo periodo, las mismas
+   * filas, dos viajes — y dos sitios donde el filtro podia divergir, que es
+   * justo lo que paso: al de las metricas se le aplicaba el centro elegido y al
+   * del cruce no. Pidiendolo una sola vez con todo, no pueden discrepar.
    */
-  const { data: casosCruce } = await supabase
-    .from('leads')
-    .select(
-      'id, estado, urgencia, created_at, centro:centros (nombre), canal:canales (nombre), propietario:perfiles!leads_propietario_id_fkey (nombre), conversiones (importe_primer_pago, estado)',
-    )
-    .gte('created_at', desdeIso)
-    .lt('created_at', hastaIso);
-
-  const resenasPorCentro = new Map<string, number>();
-  for (const r of resenasPeriodo ?? []) {
-    const nombre =
-      ((r.lead as { centro: { nombre: string } | null } | null)?.centro?.nombre) ?? 'Sin centro';
-    resenasPorCentro.set(nombre, (resenasPorCentro.get(nombre) ?? 0) + 1);
-  }
-
-  const reactivaciones = reactivadosPeriodo ?? [];
-  // «Funcionó» = ya no está perdido: se reabrió, o avanzó por su cuenta.
-  const reactivacionesQueFuncionaron = reactivaciones.filter((l) => l.estado !== 'perdido').length;
-
-
   let consultaLeads = supabase
     .from('leads')
     .select(
-      'id, estado, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at, quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id, utm_campaign',
+      `id, estado, urgencia, centro_id, canal_id, propietario_id, created_at, primera_respuesta_at,
+       quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id, utm_campaign,
+       centro:centros (nombre), canal:canales (nombre),
+       propietario:perfiles!leads_propietario_id_fkey (nombre),
+       conversiones (importe_primer_pago, estado)`,
     )
     .gte('created_at', desdeIso)
     .lt('created_at', hastaIso);
@@ -300,6 +227,38 @@ export default async function Panel({
     .lt('inicio', hastaIso);
   if (filtros.centro) consultaCitas = consultaCitas.eq('centro_id', filtros.centro);
 
+  // Comparativa con el periodo anterior de la misma duración.
+  const anterior = periodoAnterior(periodo);
+  const anteriorDesde = desdeDatetimeLocal(`${anterior.desde}T00:00`)!;
+  const anteriorHasta = desdeDatetimeLocal(`${anterior.hasta}T00:00`)!;
+
+  let leadsAnteriores = supabase
+    .from('leads')
+    .select('id, estado', { count: 'exact' })
+    .gte('created_at', anteriorDesde)
+    .lt('created_at', anteriorHasta);
+  if (filtros.centro) leadsAnteriores = leadsAnteriores.eq('centro_id', filtros.centro);
+
+  let conversionesAnteriores = supabase
+    .from('conversiones')
+    .select('id, estado, importe_primer_pago')
+    .eq('estado', 'validada')
+    .gte('created_at', anteriorDesde)
+    .lt('created_at', anteriorHasta);
+  if (filtros.centro) conversionesAnteriores = conversionesAnteriores.eq('centro_id', filtros.centro);
+
+  /*
+   * TODO lo que necesita la pantalla, en UN viaje.
+   *
+   * Iban en ocho olas encadenadas: la salud del motor, los informes guardados,
+   * las reseñas del periodo, los casos del cruce, este bloque y la comparativa
+   * con el periodo anterior, cada una esperando a que terminara la de antes sin
+   * necesitarla para nada. Medido contra staging: 903 ms de los que 690 eran
+   * puro turno de espera.
+   *
+   * Solo quedan fuera las dos que de verdad dependen de algo: saber quién eres,
+   * y leer tu perfil para saber si te toca redirigirte.
+   */
   const [
     { data: leadsData, error },
     { data: conversiones },
@@ -318,6 +277,12 @@ export default async function Panel({
     { data: presupuestosVivos },
     { data: gastos },
     { data: configPrevision },
+    { data: resenasPeriodo },
+    { data: reactivadosPeriodo },
+    { data: informesGuardados },
+    motor,
+    { data: leadsPrevios },
+    { data: conversionesPrevias },
   ] = await Promise.all([
     consultaLeads,
     consultaConversiones,
@@ -368,39 +333,59 @@ export default async function Panel({
       .select('valor')
       .eq('clave', 'prevision_probabilidad')
       .maybeSingle(),
+    /*
+     * Reseñas propuestas y reactivaciones del periodo.
+     *
+     * Se miden las PROPUESTAS, no los envíos: la plataforma nunca escribe sola
+     * a un paciente, así que lo único que puede contar es cuántas veces propuso
+     * hacerlo. Cuántas se enviaron de verdad lo sabe quien las mandó.
+     */
+    supabase
+      .from('conversiones')
+      .select('id, resena_propuesta_at, lead:leads (centro:centros (nombre))')
+      .not('resena_propuesta_at', 'is', null)
+      .gte('resena_propuesta_at', desdeIso)
+      .lt('resena_propuesta_at', hastaIso),
+    supabase
+      .from('leads')
+      .select('id, estado, reactivacion_propuesta_at, centro:centros (nombre)')
+      .not('reactivacion_propuesta_at', 'is', null)
+      .gte('reactivacion_propuesta_at', desdeIso)
+      .lt('reactivacion_propuesta_at', hastaIso),
+    /*
+     * Informes guardados y salud del motor. Las dos tablas estan reservadas a
+     * direccion por politica, asi que para cualquier otro rol vuelven vacias sin
+     * que haya que comprobar el rol aqui.
+     */
+    supabase
+      .from('informes_mensuales')
+      .select('mes, ruta_fichero, resumen, generado_at, enviado_at')
+      .order('mes', { ascending: false })
+      .limit(12),
+    estadoDelMotor(supabase),
+    leadsAnteriores,
+    conversionesAnteriores,
   ]);
+
+  const resenasPorCentro = new Map<string, number>();
+  for (const r of resenasPeriodo ?? []) {
+    const nombre =
+      ((r.lead as { centro: { nombre: string } | null } | null)?.centro?.nombre) ?? 'Sin centro';
+    resenasPorCentro.set(nombre, (resenasPorCentro.get(nombre) ?? 0) + 1);
+  }
+
+  const reactivaciones = reactivadosPeriodo ?? [];
+  // «Funcionó» = ya no está perdido: se reabrió, o avanzó por su cuenta.
+  const reactivacionesQueFuncionaron = reactivaciones.filter((l) => l.estado !== 'perdido').length;
 
   // Admisiones solo elige entre sus centros; dirección, entre todos.
   const centrosElegibles = esDireccion
     ? (centros ?? [])
     : (centros ?? []).filter((c) => (misCentros ?? []).some((m) => m.centro_id === c.id));
 
-  // Comparativa con el periodo anterior de la misma duración.
-  const anterior = periodoAnterior(periodo);
-  const anteriorDesde = desdeDatetimeLocal(`${anterior.desde}T00:00`)!;
-  const anteriorHasta = desdeDatetimeLocal(`${anterior.hasta}T00:00`)!;
-
-  let leadsAnteriores = supabase
-    .from('leads')
-    .select('id, estado', { count: 'exact' })
-    .gte('created_at', anteriorDesde)
-    .lt('created_at', anteriorHasta);
-  if (filtros.centro) leadsAnteriores = leadsAnteriores.eq('centro_id', filtros.centro);
-
-  let conversionesAnteriores = supabase
-    .from('conversiones')
-    .select('id, estado, importe_primer_pago')
-    .eq('estado', 'validada')
-    .gte('created_at', anteriorDesde)
-    .lt('created_at', anteriorHasta);
-  if (filtros.centro) conversionesAnteriores = conversionesAnteriores.eq('centro_id', filtros.centro);
-
-  const [{ data: leadsPrevios }, { data: conversionesPrevias }] = await Promise.all([
-    leadsAnteriores,
-    conversionesAnteriores,
-  ]);
-
-  const leads = (leadsData ?? []) as LeadMetrica[];
+  const leads = (leadsData ?? []) as unknown as LeadMetrica[];
+  // Las mismas filas, vistas como las quiere el cruce. Nunca dos consultas.
+  const casosCruce = (leadsData ?? []) as unknown as FilaCruce[];
   const slaMinutos = Number(configSla?.valor) || 60;
   const mesActual = mesDelPeriodo(periodo);
 
@@ -1179,82 +1164,18 @@ export default async function Panel({
             </Seccion>
 
             {(() => {
-              const DIMENSIONES: Record<string, { texto: string; de: (l: FilaCruce) => string }> = {
-                centro: { texto: 'Centro', de: (l) => l.centro?.nombre ?? 'Sin centro' },
-                canal: { texto: 'Canal', de: (l) => l.canal?.nombre ?? 'Sin canal' },
-                estado: {
-                  texto: 'Estado',
-                  de: (l) => ETIQUETA_ESTADO[l.estado as EstadoLead]?.texto ?? l.estado,
-                },
-                propietario: {
-                  texto: 'Propietario',
-                  de: (l) => l.propietario?.nombre ?? 'Sin asignar',
-                },
-                urgencia: { texto: 'Urgencia', de: (l) => l.urgencia ?? 'Sin marcar' },
-              };
-              const METRICAS: Record<string, { texto: string; de: (l: FilaCruce) => number }> = {
-                casos: { texto: 'Casos', de: () => 1 },
-                conversiones: {
-                  texto: 'Conversiones validadas',
-                  de: (l) => conversionesDe(l).filter((c) => c.estado === 'validada').length,
-                },
-                ingresos: {
-                  texto: 'Ingresos validados',
-                  de: (l) =>
-                    conversionesDe(l)
-                      .filter((c) => c.estado === 'validada')
-                      .reduce((s, c) => s + Number(c.importe_primer_pago ?? 0), 0),
-                },
-              };
-              const VISTAS: Record<string, string> = {
-                tabla: 'Tabla',
-                apiladas: 'Barras apiladas',
-                columnas: 'Columnas',
-                anillo: 'Anillo',
-              };
-
-              const claveFila = DIMENSIONES[filtros.cruceFila ?? ''] ? filtros.cruceFila! : 'centro';
-              /*
-               * Cruzar una dimensión consigo misma da una diagonal y nada más.
-               * En vez de dejar elegirlo y que la pantalla salga vacía de
-               * sentido, se corrige sola a la primera dimensión distinta.
-               */
-              const pedidaCol = DIMENSIONES[filtros.cruceCol ?? ''] ? filtros.cruceCol! : 'canal';
-              const claveCol =
-                pedidaCol === claveFila
-                  ? Object.keys(DIMENSIONES).find((d) => d !== claveFila)!
-                  : pedidaCol;
-              const claveMetrica = METRICAS[filtros.cruceMetrica ?? '']
-                ? filtros.cruceMetrica!
-                : 'casos';
-              const vista = VISTAS[filtros.cruceVista ?? ''] ? filtros.cruceVista! : 'tabla';
-
+              const { claveFila, claveCol, claveMetrica, vista } = resolverCruce(filtros);
               const dimFila = DIMENSIONES[claveFila];
               const dimCol = DIMENSIONES[claveCol];
               const metrica = METRICAS[claveMetrica];
 
-              const matriz = new Map<string, Map<string, number>>();
-              const columnas = new Set<string>();
-              for (const l of (casosCruce ?? []) as unknown as FilaCruce[]) {
-                const f = dimFila.de(l);
-                const c = dimCol.de(l);
-                const v = metrica.de(l);
-                columnas.add(c);
-                if (!matriz.has(f)) matriz.set(f, new Map());
-                const fila = matriz.get(f)!;
-                fila.set(c, (fila.get(c) ?? 0) + v);
-              }
-
-              const cols = [...columnas].sort();
-              const totalDeFila = (m: Map<string, number>) =>
-                cols.reduce((s, c) => s + (m.get(c) ?? 0), 0);
-              // De mayor a menor: comparar longitudes desordenadas no lo hace nadie.
-              const filas = [...matriz.entries()].sort(
-                (a, b) => totalDeFila(b[1]) - totalDeFila(a[1]),
+              const { filas, cols, totalPorCol, totalGeneral, maximo, totalDeFila } = cruzar(
+                casosCruce,
+                claveFila,
+                claveCol,
+                claveMetrica,
               );
-              const maximo = Math.max(1, ...filas.flatMap(([, m]) => cols.map((c) => m.get(c) ?? 0)));
-              const totalPorCol = cols.map((c) => filas.reduce((s, [, m]) => s + (m.get(c) ?? 0), 0));
-              const totalGeneral = totalPorCol.reduce((s, n) => s + n, 0);
+
               const esDinero = claveMetrica === 'ingresos';
               const cifra = (n: number) => (esDinero ? euros(n) : String(n));
 

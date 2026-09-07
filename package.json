@@ -42,7 +42,9 @@
     "verificar:resumen": "tsx --env-file=.env.local scripts/verificar-resumen.ts",
     "staging:verificar:resumen": "tsx --env-file=.env.staging scripts/verificar-resumen.ts",
     "verificar:motor": "tsx --env-file=.env.local scripts/verificar-motor.ts",
-    "staging:verificar:motor": "tsx --env-file=.env.staging scripts/verificar-motor.ts"
+    "staging:verificar:motor": "tsx --env-file=.env.staging scripts/verificar-motor.ts",
+    "verificar:cruce": "tsx --env-file=.env.local scripts/verificar-cruce.ts",
+    "staging:verificar:cruce": "tsx --env-file=.env.staging scripts/verificar-cruce.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
