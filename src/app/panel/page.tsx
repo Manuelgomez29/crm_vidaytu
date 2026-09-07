@@ -14,6 +14,8 @@ import {
   variacion,
 } from '@/lib/metricas';
 import { generarInformeAhora, descargarInforme } from './informes';
+import { SECCIONES } from '@/lib/pdf/informe';
+import { Anillo, Columnas } from '@/components/graficos';
 
 /** Etapas del embudo, en orden. Cada lead cuenta en la más avanzada que alcanzó. */
 const EMBUDO: EstadoLead[] = [
@@ -129,10 +131,27 @@ function Barra({ valor, maximo, clases }: { valor: number; maximo: number; clase
   );
 }
 
+type FilaCruce = {
+  estado: string;
+  urgencia: string | null;
+  centro: { nombre: string } | null;
+  canal: { nombre: string } | null;
+  propietario: { nombre: string } | null;
+  conversiones: { importe_primer_pago: number | null; estado: string }[] | null;
+};
+
 export default async function Panel({
   searchParams,
 }: {
-  searchParams: Promise<{ periodo?: string; desde?: string; hasta?: string; centro?: string }>;
+  searchParams: Promise<{
+    periodo?: string;
+    desde?: string;
+    hasta?: string;
+    centro?: string;
+    cruceFila?: string;
+    cruceCol?: string;
+    cruceMetrica?: string;
+  }>;
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
@@ -186,6 +205,22 @@ export default async function Panel({
       .gte('reactivacion_propuesta_at', desdeIso)
       .lt('reactivacion_propuesta_at', hastaIso),
   ]);
+
+  /*
+   * Cruce de datos: dos dimensiones cualesquiera, una metrica.
+   *
+   * Se calcula en la aplicacion y no en la base porque las combinaciones son
+   * pocas y los datos ya estan filtrados por RLS: pedirle a Postgres un pivote
+   * dinamico obligaria a construir SQL con nombres de columna que vienen de la
+   * URL, y eso no se hace.
+   */
+  const { data: casosCruce } = await supabase
+    .from('leads')
+    .select(
+      'id, estado, urgencia, created_at, centro:centros (nombre), canal:canales (nombre), propietario:perfiles!leads_propietario_id_fkey (nombre), conversiones (importe_primer_pago, estado)',
+    )
+    .gte('created_at', desdeIso)
+    .lt('created_at', hastaIso);
 
   const resenasPorCentro = new Map<string, number>();
   for (const r of resenasPeriodo ?? []) {
@@ -1059,6 +1094,195 @@ export default async function Panel({
               )}
             </Seccion>
 
+            {(() => {
+              const DIMENSIONES: Record<string, { texto: string; de: (l: FilaCruce) => string }> = {
+                centro: { texto: 'Centro', de: (l) => l.centro?.nombre ?? 'Sin centro' },
+                canal: { texto: 'Canal', de: (l) => l.canal?.nombre ?? 'Sin canal' },
+                estado: { texto: 'Estado', de: (l) => ETIQUETA_ESTADO[l.estado as EstadoLead]?.texto ?? l.estado },
+                propietario: {
+                  texto: 'Propietario',
+                  de: (l) => l.propietario?.nombre ?? 'Sin asignar',
+                },
+                urgencia: { texto: 'Urgencia', de: (l) => l.urgencia ?? 'Sin marcar' },
+              };
+              const METRICAS: Record<string, { texto: string; de: (l: FilaCruce) => number }> = {
+                casos: { texto: 'Casos', de: () => 1 },
+                conversiones: {
+                  texto: 'Conversiones validadas',
+                  de: (l) => (l.conversiones ?? []).filter((c) => c.estado === 'validada').length,
+                },
+                ingresos: {
+                  texto: 'Ingresos validados',
+                  de: (l) =>
+                    (l.conversiones ?? [])
+                      .filter((c) => c.estado === 'validada')
+                      .reduce((s, c) => s + Number(c.importe_primer_pago ?? 0), 0),
+                },
+              };
+
+              const claveFila = DIMENSIONES[filtros.cruceFila ?? ''] ? filtros.cruceFila! : 'centro';
+              const claveCol = DIMENSIONES[filtros.cruceCol ?? ''] ? filtros.cruceCol! : 'canal';
+              const claveMetrica = METRICAS[filtros.cruceMetrica ?? '']
+                ? filtros.cruceMetrica!
+                : 'casos';
+
+              const dimFila = DIMENSIONES[claveFila];
+              const dimCol = DIMENSIONES[claveCol];
+              const metrica = METRICAS[claveMetrica];
+
+              const matriz = new Map<string, Map<string, number>>();
+              const columnas = new Set<string>();
+              for (const l of (casosCruce ?? []) as unknown as FilaCruce[]) {
+                const f = dimFila.de(l);
+                const c = dimCol.de(l);
+                const v = metrica.de(l);
+                columnas.add(c);
+                if (!matriz.has(f)) matriz.set(f, new Map());
+                const fila = matriz.get(f)!;
+                fila.set(c, (fila.get(c) ?? 0) + v);
+              }
+
+              const cols = [...columnas].sort();
+              const filas = [...matriz.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+              const maximo = Math.max(
+                1,
+                ...filas.flatMap(([, m]) => cols.map((c) => m.get(c) ?? 0)),
+              );
+              const totalPorCol = cols.map((c) =>
+                filas.reduce((s, [, m]) => s + (m.get(c) ?? 0), 0),
+              );
+              const esDinero = claveMetrica === 'ingresos';
+
+              return (
+                <section className="panel p-4">
+                  <h2 className="mb-1 text-sm font-semibold">Cruce de datos</h2>
+                  <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+                    Dos dimensiones cualesquiera. Sirve para las preguntas que ninguna tarjeta
+                    responde sola: qué canal funciona en qué centro, quién cierra lo que entra por
+                    recomendación, dónde se atascan los casos urgentes.
+                  </p>
+
+                  <form method="get" className="mb-3 flex flex-wrap items-end gap-2 text-sm">
+                    <input type="hidden" name="desde" value={filtros.desde ?? ''} />
+                    <input type="hidden" name="hasta" value={filtros.hasta ?? ''} />
+                    <label className="flex flex-col gap-1 text-xs text-ink2">
+                      Filas
+                      <select name="cruceFila" defaultValue={claveFila} className="campo">
+                        {Object.entries(DIMENSIONES).map(([k, d]) => (
+                          <option key={k} value={k}>
+                            {d.texto}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-ink2">
+                      Columnas
+                      <select name="cruceCol" defaultValue={claveCol} className="campo">
+                        {Object.entries(DIMENSIONES).map(([k, d]) => (
+                          <option key={k} value={k}>
+                            {d.texto}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-ink2">
+                      Qué se cuenta
+                      <select name="cruceMetrica" defaultValue={claveMetrica} className="campo">
+                        {Object.entries(METRICAS).map(([k, d]) => (
+                          <option key={k} value={k}>
+                            {d.texto}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="submit" className="btn btn-ghost btn-mini mb-0.5">
+                      Cruzar
+                    </button>
+                  </form>
+
+                  {filas.length === 0 ? (
+                    <p className="text-[13px] text-muted">
+                      Ningún caso en este periodo con los filtros puestos.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="tabla">
+                          <thead>
+                            <tr>
+                              <th>{dimFila.texto}</th>
+                              {cols.map((c) => (
+                                <th key={c} className="text-right">
+                                  {c}
+                                </th>
+                              ))}
+                              <th className="text-right">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filas.map(([f, m]) => {
+                              const totalFila = cols.reduce((s, c) => s + (m.get(c) ?? 0), 0);
+                              return (
+                                <tr key={f}>
+                                  <td className="font-medium">{f}</td>
+                                  {cols.map((c) => {
+                                    const v = m.get(c) ?? 0;
+                                    return (
+                                      <td key={c} className="num text-right">
+                                        {/* Sombreado por intensidad: el numero se lee igual sin el. */}
+                                        <span
+                                          className="inline-block rounded px-1.5 py-0.5"
+                                          style={
+                                            v > 0
+                                              ? {
+                                                  background: `color-mix(in srgb, var(--color-primary) ${Math.round((v / maximo) * 22)}%, transparent)`,
+                                                }
+                                              : undefined
+                                          }
+                                        >
+                                          {v === 0 ? '—' : esDinero ? euros(v) : v}
+                                        </span>
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="num text-right font-semibold">
+                                    {esDinero ? euros(totalFila) : totalFila}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="mt-4 grid gap-5 lg:grid-cols-2">
+                        <div>
+                          <h3 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">
+                            Total por {dimCol.texto.toLowerCase()}
+                          </h3>
+                          <Columnas
+                            series={cols.map((c, i) => ({ etiqueta: c, valor: totalPorCol[i] }))}
+                            sufijo={esDinero ? ' €' : ''}
+                          />
+                        </div>
+                        <div>
+                          <h3 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">
+                            Reparto por {dimFila.texto.toLowerCase()}
+                          </h3>
+                          <Anillo
+                            series={filas.map(([f, m]) => ({
+                              etiqueta: f,
+                              valor: cols.reduce((s, c) => s + (m.get(c) ?? 0), 0),
+                            }))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </section>
+              );
+            })()}
+
             <section className="panel p-4">
               <h2 className="mb-1 text-sm font-semibold">Reseñas y reactivaciones</h2>
               <p className="mb-3 max-w-[72ch] text-xs text-ink2">
@@ -1116,12 +1340,25 @@ export default async function Panel({
               <section className="panel p-4">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-semibold">Informes mensuales</h2>
-                  <form action={generarInformeAhora.bind(null, undefined)} className="ml-auto">
-                    <button type="submit" className="btn btn-ghost btn-mini">
-                      Generar el del mes pasado
-                    </button>
-                  </form>
                 </div>
+
+                <form action={generarInformeAhora.bind(null, undefined)} className="mb-3 rounded-lg bg-ground p-3">
+                  <p className="mb-2 text-xs text-ink2">
+                    Qué secciones lleva. El informe para el asesor y el de la reunión de equipo no
+                    son el mismo documento.
+                  </p>
+                  <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1.5">
+                    {Object.entries(SECCIONES).map(([clave, texto]) => (
+                      <label key={clave} className="flex items-center gap-1.5 text-[12.5px] text-ink2">
+                        <input type="checkbox" name="seccion" value={clave} defaultChecked />
+                        {texto}
+                      </label>
+                    ))}
+                  </div>
+                  <button type="submit" className="btn btn-ghost btn-mini">
+                    Generar el del mes pasado
+                  </button>
+                </form>
                 <p className="mb-3 max-w-[72ch] text-xs text-ink2">
                   Se genera solo el día 1 y se envía a dirección con el PDF adjunto. Aquí quedan
                   guardados: el enlace de descarga caduca a los cinco minutos, así que no sirve para

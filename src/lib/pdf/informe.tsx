@@ -14,6 +14,25 @@ import path from 'node:path';
 import { Document, Font, Page, StyleSheet, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import type { InformeMensual } from '@/lib/informe-mensual';
 
+/**
+ * Secciones que puede llevar el informe.
+ *
+ * Existen porque un informe para el asesor fiscal y uno para la reunión de
+ * equipo no son el mismo documento: al primero le sobran los canales de
+ * captación y al segundo le sobra poco. Todas van marcadas por defecto — quien
+ * no quiera elegir, no elige.
+ */
+export const SECCIONES = {
+  centros: 'Desglose por centro',
+  canales: 'De dónde llegan los casos',
+  perdidas: 'Motivos de pérdida',
+  prevision: 'Previsión del mes entrante',
+  clinica: 'Altas del área clínica',
+} as const;
+
+export type SeccionInforme = keyof typeof SECCIONES;
+export const TODAS: SeccionInforme[] = Object.keys(SECCIONES) as SeccionInforme[];
+
 /*
  * La fuente va en el repositorio y no se descarga al generar. Una llamada a
  * fonts.gstatic.com el día 1 de mes es un punto de fallo gratuito: si falla, no
@@ -135,11 +154,14 @@ export function DocumentoInforme({
   informe,
   prevision,
   generado,
+  secciones = TODAS,
 }: {
   informe: InformeMensual;
   prevision: number | null;
   generado: string;
+  secciones?: SeccionInforme[];
 }) {
+  const lleva = (s: SeccionInforme) => secciones.includes(s);
   const maxLeadsCentro = Math.max(1, ...informe.porCentro.map((c) => c.leads));
   const maxCanal = Math.max(1, ...informe.porCanal.map(([, n]) => n));
   const tasaConversion =
@@ -177,6 +199,8 @@ export function DocumentoInforme({
         </View>
 
         {/* ---- Por centro ---- */}
+        {lleva('centros') && (
+          <>
         <Text style={e.seccion}>POR CENTRO</Text>
         <View style={e.cabecera}>
           <Text style={[e.th, { flex: 3 }]}>CENTRO</Text>
@@ -207,6 +231,8 @@ export function DocumentoInforme({
           Los ingresos son de conversiones validadas por dirección. Las registradas y aún sin
           validar no cuentan aquí, para que este número no dependa de quién se apresure a anotar.
         </Text>
+          </>
+        )}
 
         <Pie generado={generado} />
       </Page>
@@ -215,6 +241,8 @@ export function DocumentoInforme({
         <Cabecera />
 
         {/* ---- Canales ---- */}
+        {lleva('canales') && (
+          <>
         <Text style={e.seccion}>DE DÓNDE LLEGAN</Text>
         {informe.porCanal.length === 0 ? (
           <Text style={e.nota}>Ningún caso nuevo este mes.</Text>
@@ -234,8 +262,12 @@ export function DocumentoInforme({
           La bandeja de grupo aportó {informe.bandeja} caso(s) este mes. Son los que entran sin
           centro claro —sobre todo por el Instagram de Lolo Drago— y se reparten después.
         </Text>
+          </>
+        )}
 
         {/* ---- Pérdidas ---- */}
+        {lleva('perdidas') && (
+          <>
         <Text style={e.seccion}>POR QUÉ SE PIERDEN</Text>
         {informe.motivosPerdida.length === 0 ? (
           <Text style={e.nota}>Ningún caso cerrado como perdido este mes.</Text>
@@ -248,7 +280,12 @@ export function DocumentoInforme({
           ))
         )}
 
+          </>
+        )}
+
         {/* ---- Previsión ---- */}
+        {lleva('prevision') && (
+          <>
         <Text style={e.seccion}>PREVISIÓN DEL MES ENTRANTE</Text>
         {prevision === null ? (
           <Text style={e.nota}>Sin presupuestos vivos suficientes para estimar.</Text>
@@ -264,8 +301,15 @@ export function DocumentoInforme({
           </>
         )}
 
+          </>
+        )}
+
+        {lleva('clinica') && (
+          <>
         <Text style={e.seccion}>ÁREA CLÍNICA</Text>
         <Text style={e.td}>{informe.pacientesAlta} paciente(s) dados de alta este mes.</Text>
+          </>
+        )}
 
         <Text style={[e.nota, { marginTop: 26 }]}>
           Documento interno del Grupo Vidaitu. No contiene datos identificativos de ninguna persona
@@ -283,8 +327,14 @@ export async function generarPdfInforme(
   informe: InformeMensual,
   prevision: number | null,
   generado: string,
+  secciones: SeccionInforme[] = TODAS,
 ): Promise<Buffer> {
   return renderToBuffer(
-    <DocumentoInforme informe={informe} prevision={prevision} generado={generado} />,
+    <DocumentoInforme
+      informe={informe}
+      prevision={prevision}
+      generado={generado}
+      secciones={secciones}
+    />,
   );
 }
