@@ -8,6 +8,7 @@ import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
+import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
 
 /**
  * Motor periódico de la plataforma. Pensado para llamarse cada 15–30 minutos
@@ -43,37 +44,75 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
+  const inicio = new Date();
+
   try {
     const admin = createAdminClient();
 
-    // En serie y en este orden: el etiquetado y el scoring dejan datos que
-    // las alertas y las campañas usan en la misma pasada.
-    // El reparto va primero: si asigna un lead, las alertas de la misma
-    // pasada ya avisan a su propietario nuevo y no a dirección.
-    const reparto = await repartirLeadsSinPropietario(admin);
-    const automatizacion = await ejecutarAutomatizaciones(admin);
-    const alertas = await ejecutarAlertas(admin);
-    const recordatorios = await enviarRecordatoriosCita(admin);
-    const campanas = await procesarCampanas(admin);
+    /*
+     * Cada fase, aislada de las demás.
+     *
+     * Iban encadenadas con `await` a secas: la primera que fallara se llevaba
+     * por delante toda la pasada, y las siguientes ni se intentaban. Que las
+     * campañas de marketing estén rotas no puede dejar los leads sin repartir
+     * ni las citas sin recordatorio; son cosas que no tienen nada que ver.
+     *
+     * El orden sí importa y se mantiene: el reparto va primero para que las
+     * alertas de esta misma pasada avisen al propietario nuevo y no a
+     * dirección, y el envío al móvil va el último para que empuje todo lo que
+     * los pasos anteriores acaban de crear.
+     */
+    const fallos: FalloDeFase[] = [];
 
-    // El último, para que empuje al móvil todo lo que los pasos anteriores
-    // acaban de crear en la misma pasada.
-    const push = await enviarPushPendientes(admin);
+    const reparto = await fase('reparto', fallos, () => repartirLeadsSinPropietario(admin), {
+      asignados: 0,
+      sinCandidato: 0,
+    });
+    const automatizacion = await ejecutarAutomatizaciones(admin, fallos);
+    const alertas = await fase('alertas', fallos, () => ejecutarAlertas(admin), null);
+    const recordatorios = await fase('recordatorios', fallos, () => enviarRecordatoriosCita(admin), {
+      enviados: 0,
+      sinDestinatario: 0,
+    });
+    const campanas = await fase('campanas', fallos, () => procesarCampanas(admin), null);
+    const push = await fase('push', fallos, () => enviarPushPendientes(admin), {
+      enviados: 0,
+      dispositivosRetirados: 0,
+    });
 
+    const resultado = {
+      ...(alertas ?? {}),
+      ...automatizacion,
+      ...(campanas ?? {}),
+      repartidos: reparto.asignados,
+      recordatorios: recordatorios.enviados,
+      push: push.enviados,
+    };
+
+    await registrarEjecucion(admin, { inicio, resultado, fallos });
+
+    /*
+     * Si algo falló se devuelve 500 aunque el resto haya funcionado: así el
+     * panel de Vercel marca la ejecución en rojo. La pasada ya ha hecho todo lo
+     * que podía hacer —eso es lo que separa esto de caerse— y en la tabla queda
+     * escrito qué fase falló y por qué.
+     */
     return NextResponse.json(
-      {
-        ok: true,
-        ...alertas,
-        ...automatizacion,
-        ...campanas,
-        repartidos: reparto.asignados,
-        recordatorios: recordatorios.enviados,
-        push: push.enviados,
-      },
-      { status: 200 },
+      { ok: fallos.length === 0, ...resultado, ...(fallos.length ? { fallos } : {}) },
+      { status: fallos.length === 0 ? 200 : 500 },
     );
   } catch (e) {
+    // Aquí solo se llega si falla lo de fuera de las fases: crear el cliente.
     const mensaje = e instanceof Error ? e.message : 'Error desconocido';
+    try {
+      await registrarEjecucion(createAdminClient(), {
+        inicio,
+        resultado: {},
+        fallos: [{ fase: 'arranque', error: mensaje }],
+      });
+    } catch {
+      // Si ni el cliente se puede crear, no hay dónde escribirlo.
+    }
     return NextResponse.json({ error: mensaje }, { status: 500 });
   }
 }
