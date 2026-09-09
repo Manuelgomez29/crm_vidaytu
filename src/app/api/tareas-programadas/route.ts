@@ -70,10 +70,15 @@ export async function POST(req: NextRequest) {
     });
     const automatizacion = await ejecutarAutomatizaciones(admin, fallos);
     const alertas = await fase('alertas', fallos, () => ejecutarAlertas(admin), null);
-    const recordatorios = await fase('recordatorios', fallos, () => enviarRecordatoriosCita(admin), {
-      enviados: 0,
-      sinDestinatario: 0,
-    });
+    const recordatorios = await fase(
+      'recordatorios',
+      fallos,
+      () => enviarRecordatoriosCita(admin),
+      {
+        enviados: 0,
+        sinDestinatario: 0,
+      },
+    );
     const campanas = await fase('campanas', fallos, () => procesarCampanas(admin), null);
     const push = await fase('push', fallos, () => enviarPushPendientes(admin), {
       enviados: 0,

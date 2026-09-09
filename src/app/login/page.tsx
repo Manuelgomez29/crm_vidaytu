@@ -1,5 +1,7 @@
 import { iniciarSesion } from './actions';
 
+import { LimpiarBorradores } from './limpiar-borradores';
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -9,12 +11,17 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
+      {/* Lo que quedara a medio escribir de la sesión anterior no es de quien
+          venga ahora. Los equipos de un centro se comparten. */}
+      <LimpiarBorradores />
       <div className="w-full max-w-sm">
         <div className="panel p-8">
           <h1 className="text-center text-2xl font-bold tracking-tight">
             Vidaitu <span className="text-coral">DATA</span>
           </h1>
-          <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">Grupo Vidaitu</p>
+          <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">
+            Grupo Vidaitu
+          </p>
 
           {error === 'credenciales' && (
             <p
@@ -56,10 +63,7 @@ export default async function LoginPage({
                 className="campo !text-base"
               />
             </label>
-            <button
-              type="submit"
-              className="btn btn-primary mt-2 py-2.5"
-            >
+            <button type="submit" className="btn btn-primary mt-2 py-2.5">
               Entrar
             </button>
           </form>

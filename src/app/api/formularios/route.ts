@@ -214,12 +214,13 @@ export async function POST(req: NextRequest) {
 
   const minutos = await slaMinutos(admin);
   const usuariosBandeja = centro.es_bandeja_grupo
-    ? ((
-        await admin
-          .from('perfil_centros')
-          .select('perfil_id, perfil:perfiles (activo)')
-          .eq('centro_id', centro.id)
-      ).data ?? []
+    ? (
+        (
+          await admin
+            .from('perfil_centros')
+            .select('perfil_id, perfil:perfiles (activo)')
+            .eq('centro_id', centro.id)
+        ).data ?? []
       ).filter((u) => u.perfil?.activo)
     : [];
 

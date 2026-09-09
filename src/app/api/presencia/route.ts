@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { sesionVerificada } from '@/lib/sesion-verificada';
 
 /**
  * Latido: «sigo aquí».
@@ -15,10 +15,7 @@ import { createClient } from '@/lib/supabase/server';
  * presencia de un compañero ni borrarla.
  */
 export async function POST() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await sesionVerificada();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const { error } = await supabase
