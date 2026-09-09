@@ -160,6 +160,27 @@ input[type='number'] {
   /* ---- Barras de progreso ---------------------------------------------- */
   .via { @apply h-3 overflow-hidden rounded bg-surface2; }
   .via > span { @apply block h-full rounded-r; }
+
+  /* La barra de «voy» de la navegacion.
+
+     No es un porcentaje: no sabemos cuanto falta. Avanza deprisa al principio y
+     se va frenando, que es la forma honesta de decir «esto sigue vivo» sin
+     prometer un final.
+
+     `forwards` importa para quien pide menos movimiento: la regla global de
+     `prefers-reduced-motion` deja la animacion en 0.01ms, y con `forwards` la
+     barra salta al estado final y se queda quieta y visible en vez de
+     desaparecer. Sin movimiento, pero sin dejar de avisar. */
+  .barra-progreso {
+    width: 100%;
+    transform-origin: left;
+    animation: avanzar 12s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+  }
+}
+
+@keyframes avanzar {
+  from { transform: scaleX(0.03); }
+  to   { transform: scaleX(0.92); }
 }
 
 /* Entrada de los avisos. Solo se aplica con motion-safe: quien pide menos

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { normalizarTelefono } from '@/lib/telefonos';
+import { patronesDeBusqueda, valorSeguro } from '@/lib/busqueda';
 
 export type ResultadoRapido = {
   tipo: 'caso' | 'contacto';
@@ -20,12 +21,17 @@ export type ResultadoRapido = {
  * por mucho que se retuerza el filtro— pero un buscador que revienta al teclear
  * «Garcia, Ana» es un buscador que nadie usa.
  */
+/*
+ * Antes esto sustituía por espacios las comas, paréntesis y dos puntos, para que
+ * no rompieran el filtro. No rompía —pero tampoco encontraba: quien buscaba
+ * «García, Ana» acababa buscando «García Ana», que no está en ningún sitio, y
+ * la paleta contestaba «sin resultados» con toda la seguridad del mundo.
+ *
+ * Ahora el valor se escapa como es debido en `@/lib/busqueda` y aquí solo se
+ * normalizan espacios y se recorta la longitud.
+ */
 function sanear(texto: string): string {
-  return texto
-    .replace(/[,()*:\\]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 60);
+  return texto.replace(/\s+/g, ' ').trim().slice(0, 60);
 }
 
 /**
@@ -48,9 +54,8 @@ export async function buscarRapido(termino: string): Promise<ResultadoRapido[]> 
 
   const comoTelefono = normalizarTelefono(busqueda);
   const patrones = [
-    `nombre.ilike.%${busqueda}%`,
-    `telefono.ilike.%${busqueda}%`,
-    ...(comoTelefono ? [`telefono.eq.${comoTelefono}`] : []),
+    patronesDeBusqueda(busqueda, ['nombre', 'telefono']),
+    ...(comoTelefono ? [`telefono.eq.${valorSeguro(comoTelefono)}`] : []),
   ].join(',');
 
   const [{ data: leads }, { data: contactos }] = await Promise.all([
@@ -63,7 +68,7 @@ export async function buscarRapido(termino: string): Promise<ResultadoRapido[]> 
     supabase
       .from('contactos')
       .select('id, nombre, telefono, email')
-      .or(`${patrones},email.ilike.%${busqueda}%`)
+      .or(`${patrones},${patronesDeBusqueda(busqueda, ['email'])}`)
       .order('nombre')
       .limit(6),
   ]);

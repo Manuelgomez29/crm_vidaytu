@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useAviso } from '@/components/avisos';
 import { nivelDeCalor, type Umbrales } from '@/lib/scoring';
 import { asignarmeLead, moverLeadDeEtapa } from './actions';
 import { CampoRapido } from './campo-rapido';
@@ -242,6 +243,7 @@ export default function Kanban({
   comerciales,
 }: Props) {
   const router = useRouter();
+  const { mostrar } = useAviso();
   const [aviso, setAviso] = useState<string | null>(null);
   const [moviendoId, setMoviendoId] = useState<string | null>(null);
   const [arrastre, setArrastre] = useState<Arrastre | null>(null);
@@ -276,13 +278,45 @@ export default function Kanban({
     moverLead(lead.id, destino.id);
   }
 
-  function moverLead(leadId: string, etapaId: string) {
+  /**
+   * Mueve una tarjeta, y deja deshacerlo.
+   *
+   * Cambiar un campo en línea siempre ofreció «Deshacer»; arrastrar una tarjeta,
+   * no —y es lo más fácil de hacer sin querer, sobre todo con el dedo—. Cambia
+   * el estado del caso, queda auditado, y el único aviso era el silencio.
+   *
+   * Deshacer NO borra nada del historial: escribe el movimiento de vuelta, así
+   * que en la ficha se ven las dos anotaciones. Es lo correcto —el caso estuvo
+   * un momento en la otra etapa y eso pasó de verdad— y además hace imposible
+   * usar el deshacer para tapar un movimiento.
+   */
+  function moverLead(leadId: string, etapaId: string, esVuelta = false) {
     setAviso(null);
     setMoviendoId(leadId);
+
+    const tarjeta = [...tarjetas, ...cerradas].find((t) => t.id === leadId);
+    const etapaOrigen = tarjeta?.etapaId ?? null;
+    const nombreDestino = etapas.find((e) => e.id === etapaId)?.nombre;
+
     startTransition(async () => {
       const r = await moverLeadDeEtapa(leadId, etapaId);
-      if (r?.error) setAviso(r.error);
       setMoviendoId(null);
+      if (r?.error) {
+        setAviso(r.error);
+        mostrar({ texto: r.error, tono: 'error' });
+        return;
+      }
+      mostrar({
+        texto: esVuelta
+          ? 'Movimiento deshecho.'
+          : `${tarjeta?.nombre ?? 'El caso'} → ${nombreDestino ?? 'otra etapa'}`,
+        tono: 'ok',
+        // Al deshacer no se ofrece deshacer otra vez: sería un bucle.
+        deshacer:
+          esVuelta || !etapaOrigen || etapaOrigen === etapaId
+            ? undefined
+            : () => moverLead(leadId, etapaOrigen, true),
+      });
     });
   }
 
