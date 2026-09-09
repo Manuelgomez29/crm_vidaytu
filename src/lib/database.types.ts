@@ -2532,6 +2532,7 @@ export type Database = {
         Row: {
           acceso_clinico: boolean
           activo: boolean
+          alcance: Database["public"]["Enums"]["alcance_perfil"]
           created_at: string
           email: string
           id: string
@@ -2542,6 +2543,7 @@ export type Database = {
         Insert: {
           acceso_clinico?: boolean
           activo?: boolean
+          alcance?: Database["public"]["Enums"]["alcance_perfil"]
           created_at?: string
           email: string
           id: string
@@ -2552,6 +2554,7 @@ export type Database = {
         Update: {
           acceso_clinico?: boolean
           activo?: boolean
+          alcance?: Database["public"]["Enums"]["alcance_perfil"]
           created_at?: string
           email?: string
           id?: string
@@ -3213,6 +3216,10 @@ export type Database = {
       darse_de_baja: { Args: { p_token: string }; Returns: boolean }
       es_direccion: { Args: never; Returns: boolean }
       limpiar_limites: { Args: never; Returns: number }
+      manda_en: { Args: { p_centro: string }; Returns: boolean }
+      manda_en_grupo: { Args: never; Returns: boolean }
+      manda_en_lead: { Args: { p_lead: string }; Returns: boolean }
+      manda_sobre_perfil: { Args: { p_perfil: string }; Returns: boolean }
       mi_rol: {
         Args: never
         Returns: Database["public"]["Enums"]["rol_usuario"]
@@ -3239,6 +3246,7 @@ export type Database = {
       tiene_acceso_clinico: { Args: never; Returns: boolean }
     }
     Enums: {
+      alcance_perfil: "grupo" | "centros"
       estado_campana:
         | "borrador"
         | "programada"
@@ -3436,6 +3444,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alcance_perfil: ["grupo", "centros"],
       estado_campana: [
         "borrador",
         "programada",
