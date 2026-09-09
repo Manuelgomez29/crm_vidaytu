@@ -36,9 +36,21 @@ export default function Error({
     <main className="flex min-h-[70vh] items-center justify-center px-4">
       <div className="panel w-[min(92vw,32rem)] p-6">
         <h1 className="mb-2 text-[17px] font-bold">Esta pantalla no ha podido cargarse</h1>
+        {/*
+          Antes esto decía «No se ha perdido nada de lo que ya estuviera
+          guardado». Era literalmente cierto y prácticamente una burla: si
+          acababas de escribir una nota larga y se cayó la red al guardarla, esta
+          pantalla la había hecho desaparecer y encima te decía que no te
+          preocuparas. Un mensaje que tranquiliza justo cuando hay motivo para lo
+          contrario enseña a no creerse los mensajes.
+
+          Ahora se dice lo que hay: lo guardado está, lo que estuvieras
+          escribiendo puede que no.
+        */}
         <p className="mb-4 text-sm text-ink2">
-          No se ha perdido nada de lo que ya estuviera guardado. Puedes intentarlo otra vez; si
-          vuelve a fallar, avisa con el código de abajo y se puede localizar exactamente qué pasó.
+          Lo que ya estaba guardado sigue estando. Si estabas escribiendo algo sin guardar,
+          <b> cópialo antes de recargar</b> por si acaso. Puedes intentarlo otra vez; si vuelve a
+          fallar, avisa con el código de abajo y se puede localizar exactamente qué pasó.
         </p>
 
         <div className="mb-4 flex flex-wrap gap-2">

@@ -29,6 +29,7 @@ import {
 import { crearCita, cambiarEstadoCita } from '@/app/agenda/actions';
 import { ESTADO_CITA, MODALIDAD_CITA, TIPO_CITA } from '@/lib/citas';
 import { CampoNota } from './campo-nota';
+import { FormularioSeguro } from '@/components/formulario-seguro';
 import { Presencia } from '@/components/presencia';
 import { resumenGuardado } from '@/lib/resumen-caso';
 
@@ -58,9 +59,7 @@ const botonSecundario =
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
     <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
-        {titulo}
-      </h3>
+      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">{titulo}</h3>
       {children}
     </section>
   );
@@ -71,7 +70,13 @@ export default async function FichaLead({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; aviso?: string; sugerir?: string; resumen?: string; sugerencia?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    aviso?: string;
+    sugerir?: string;
+    resumen?: string;
+    sugerencia?: string;
+  }>;
 }) {
   const { id } = await params;
   const { error: errorMsg, aviso, sugerir, resumen, sugerencia } = await searchParams;
@@ -157,20 +162,30 @@ export default async function FichaLead({
     // caso a otro recorrido, no solo a otra columna del suyo.
     supabase
       .from('pipelines')
-      .select('id, nombre, centro_id, es_predeterminado, etapas:pipeline_etapas (id, nombre, orden)')
+      .select(
+        'id, nombre, centro_id, es_predeterminado, etapas:pipeline_etapas (id, nombre, orden)',
+      )
       .eq('activo', true)
       .order('nombre'),
     supabase.from('motivos_perdida').select('id, nombre').eq('activo', true).order('nombre'),
-    supabase.from('centros').select('id, nombre, es_bandeja_grupo').eq('activo', true).order('nombre'),
+    supabase
+      .from('centros')
+      .select('id, nombre, es_bandeja_grupo')
+      .eq('activo', true)
+      .order('nombre'),
     supabase.from('modalidades').select('id, nombre').eq('activa', true).order('nombre'),
     supabase
       .from('derivaciones')
-      .select('id, motivo, created_at, origen:centros!derivaciones_centro_origen_id_fkey (nombre), destino:centros!derivaciones_centro_destino_id_fkey (nombre)')
+      .select(
+        'id, motivo, created_at, origen:centros!derivaciones_centro_origen_id_fkey (nombre), destino:centros!derivaciones_centro_destino_id_fkey (nombre)',
+      )
       .eq('lead_id', id)
       .order('created_at', { ascending: false }),
     supabase
       .from('citas')
-      .select('id, tipo, modalidad_cita, inicio, fin, estado, notas, profesional:perfiles (nombre), contacto:contactos (nombre)')
+      .select(
+        'id, tipo, modalidad_cita, inicio, fin, estado, notas, profesional:perfiles (nombre), contacto:contactos (nombre)',
+      )
       .eq('lead_id', id)
       .order('inicio', { ascending: false }),
     supabase.rpc('profesionales_agendables'),
@@ -219,388 +234,487 @@ export default async function FichaLead({
   const resumenCaducado = !filaResumen && guardado ? !guardado.vigente : false;
 
   return (
-    <AppShell
-      seccion="leads"
-      titulo="Ficha del caso"
-    >
-        <div className="flex items-center justify-between gap-3">
-          <Link href="/leads" className="text-sm text-primary hover:underline">
-            ← Volver al tablero
-          </Link>
-          <Presencia canal={"caso:" + lead.id} yo={{ id: user.id, nombre: perfil?.nombre ?? "Alguien" }} />
-        </div>
+    <AppShell seccion="leads" titulo="Ficha del caso">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/leads" className="text-sm text-primary hover:underline">
+          ← Volver al tablero
+        </Link>
+        <Presencia
+          canal={'caso:' + lead.id}
+          yo={{ id: user.id, nombre: perfil?.nombre ?? 'Alguien' }}
+        />
+      </div>
 
-        {errorMsg && (
-          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
-            {errorMsg}
-          </p>
-        )}
-        {aviso && (
-          <p className="mt-3 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
-            {aviso}
-          </p>
-        )}
+      {errorMsg && (
+        <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
+          {errorMsg}
+        </p>
+      )}
+      {aviso && (
+        <p className="mt-3 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
+          {aviso}
+        </p>
+      )}
 
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <h2 className="text-2xl font-semibold">{lead.nombre}</h2>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estado.clases}`}>
-            {estado.texto}
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <h2 className="text-2xl font-semibold">{lead.nombre}</h2>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estado.clases}`}>
+          {estado.texto}
+        </span>
+        <span className="text-sm text-ink2">
+          {lead.centro?.nombre}
+          {lead.centro?.es_bandeja_grupo && ' (bandeja de grupo)'}
+        </span>
+        {lead.propietario ? (
+          <span className="text-sm text-ink2">Propietario: {lead.propietario.nombre}</span>
+        ) : (
+          <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn ring-1 ring-warn/25">
+            Sin asignar
           </span>
-          <span className="text-sm text-ink2">
-            {lead.centro?.nombre}
-            {lead.centro?.es_bandeja_grupo && ' (bandeja de grupo)'}
-          </span>
-          {lead.propietario ? (
-            <span className="text-sm text-ink2">Propietario: {lead.propietario.nombre}</span>
-          ) : (
-            <span className="rounded-full bg-warn-soft px-2.5 py-0.5 text-xs font-medium text-warn ring-1 ring-warn/25">
-              Sin asignar
-            </span>
-          )}
-          {lead.estado === 'perdido' && lead.motivo_perdida && (
-            <span className="text-sm text-danger">Motivo: {lead.motivo_perdida.nombre}</span>
-          )}
-        </div>
-
-        {sugerir && etapas?.some((e) => e.id === sugerir) && (
-          <form
-            action={cambiarEtapa.bind(null, lead.id)}
-            className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coral/30 bg-coral-soft px-4 py-3"
-          >
-            <p className="text-sm font-semibold text-coral-ink">
-              Cita realizada. ¿Muevo el caso a «{etapas.find((e) => e.id === sugerir)?.nombre}»?
-            </p>
-            <input type="hidden" name="etapa" value={sugerir} />
-            <div className="flex items-center gap-2">
-              <button type="submit" className={botonClase}>
-                Sí, moverlo
-              </button>
-              <Link href={`/leads/${lead.id}`} className={botonSecundario}>
-                Ahora no
-              </Link>
-            </div>
-          </form>
         )}
+        {lead.estado === 'perdido' && lead.motivo_perdida && (
+          <span className="text-sm text-danger">Motivo: {lead.motivo_perdida.nombre}</span>
+        )}
+      </div>
 
-        {!cerrado && tareasPendientes.length === 0 && (
-          <p className="mt-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
-            ⚠ Este caso no tiene próxima acción con fecha. Crea una tarea.
+      {sugerir && etapas?.some((e) => e.id === sugerir) && (
+        <form
+          action={cambiarEtapa.bind(null, lead.id)}
+          className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-coral/30 bg-coral-soft px-4 py-3"
+        >
+          <p className="text-sm font-semibold text-coral-ink">
+            Cita realizada. ¿Muevo el caso a «{etapas.find((e) => e.id === sugerir)?.nombre}»?
           </p>
-        )}
+          <input type="hidden" name="etapa" value={sugerir} />
+          <div className="flex items-center gap-2">
+            <button type="submit" className={botonClase}>
+              Sí, moverlo
+            </button>
+            <Link href={`/leads/${lead.id}`} className={botonSecundario}>
+              Ahora no
+            </Link>
+          </div>
+        </form>
+      )}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          {/* Columna principal */}
-          <div className="flex flex-col gap-4 lg:col-span-2">
-            {/*
+      {!cerrado && tareasPendientes.length === 0 && (
+        <p className="mt-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
+          ⚠ Este caso no tiene próxima acción con fecha. Crea una tarea.
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        {/* Columna principal */}
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          {/*
               Resumen en tres líneas para quien retoma un caso que no es suyo:
               un traspaso de cartera, una baja, una guardia de fin de semana.
             */}
-            {lead.estado === 'perdido' && (
-              <Seccion titulo="Retomar el contacto">
-                {textoSugerencia ? (
-                  <>
-                    <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
-                      {textoSugerencia}
-                    </p>
-                    <p className="mt-1.5 text-xs text-muted">
-                      Repásalo antes de enviarlo. No menciona el motivo de consulta a propósito:
-                      quien lea ese móvil no puede deducir nada.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted">
-                    Un «ahora no» no es un no. Si toca retomarlo, la IA propone cómo hacerlo sin
-                    presionar y sin recordarle por qué llamó.
-                  </p>
-                )}
-                <form action={pedirSugerenciaReactivacion.bind(null, lead.id)} className="mt-2">
-                  <button type="submit" className={botonSecundario}>
-                    {textoSugerencia ? 'Proponer otro' : 'Sugerir cómo retomarlo'}
-                  </button>
-                </form>
-              </Seccion>
-            )}
-
-            <Seccion titulo="Resumen del caso">
-              {textoResumen ? (
+          {lead.estado === 'perdido' && (
+            <Seccion titulo="Retomar el contacto">
+              {textoSugerencia ? (
                 <>
                   <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
-                    {textoResumen}
+                    {textoSugerencia}
                   </p>
-                  {resumenCaducado && (
-                    <p className="mt-1.5 text-xs text-warn">
-                      Ha pasado algo en el caso desde que se escribió: vuelve a resumir para verlo
-                      al día.
-                    </p>
-                  )}
+                  <p className="mt-1.5 text-xs text-muted">
+                    Repásalo antes de enviarlo. No menciona el motivo de consulta a propósito: quien
+                    lea ese móvil no puede deducir nada.
+                  </p>
                 </>
               ) : (
                 <p className="text-sm text-muted">
-                  Tres líneas con quién es, qué ha pasado y qué está pendiente. Útil sobre todo
-                  cuando el caso no es tuyo.
+                  Un «ahora no» no es un no. Si toca retomarlo, la IA propone cómo hacerlo sin
+                  presionar y sin recordarle por qué llamó.
                 </p>
               )}
-              <form action={pedirResumen.bind(null, lead.id)} className="mt-2">
+              <form action={pedirSugerenciaReactivacion.bind(null, lead.id)} className="mt-2">
                 <button type="submit" className={botonSecundario}>
-                  {textoResumen ? 'Volver a resumir' : 'Resumir con IA'}
+                  {textoSugerencia ? 'Proponer otro' : 'Sugerir cómo retomarlo'}
                 </button>
               </form>
             </Seccion>
+          )}
 
-            <Seccion titulo="Registrar actividad">
-              <form action={registrarActividad.bind(null, lead.id)} className="flex flex-col gap-2">
-                <div className="flex flex-wrap gap-2">
-                  <select name="tipo" className={inputClase} defaultValue="llamada">
-                    <option value="llamada">Llamada</option>
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="email">Email</option>
-                    <option value="nota">Nota</option>
-                  </select>
-                  <CampoNota leadId={lead.id} className={`${inputClase} min-w-0 flex-1`} />
-                  <button type="submit" className={botonClase}>
-                    Guardar
-                  </button>
-                </div>
-              </form>
-
-              <ul className="mt-4 flex flex-col gap-2">
-                {(actividades ?? []).map((a) => (
-                  <li key={a.id} className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
-                    <p className="text-sm">
-                      <span className="font-medium">{TIPO_ACTIVIDAD[a.tipo] ?? a.tipo}</span>{' '}
-                      {a.contenido}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      {a.usuario?.nombre ?? 'Sistema'} · {fecha(a.created_at)}
-                    </p>
-                  </li>
-                ))}
-                {(actividades ?? []).length === 0 && (
-                  <li className="text-sm text-muted">Sin actividad todavía.</li>
-                )}
-              </ul>
-            </Seccion>
-
-            <Seccion titulo="Tareas (próxima acción)">
-              <form action={crearTarea.bind(null, lead.id)} className="flex flex-wrap gap-2">
-                <input
-                  name="titulo"
-                  placeholder="Próxima acción…"
-                  className={`${inputClase} min-w-0 flex-1`}
-                />
-                <input name="vence" type="datetime-local" className={inputClase} />
-                <button type="submit" className={botonClase}>
-                  Crear
-                </button>
-              </form>
-              <ul className="mt-3 flex flex-col gap-2">
-                {(tareas ?? []).map((t) => (
-                  <li
-                    key={t.id}
-                    className="flex items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
-                  >
-                    <div>
-                      <p
-                        className={`text-sm ${t.completada_at ? 'text-muted line-through' : ''}`}
-                      >
-                        {t.titulo}
-                      </p>
-                      {t.completada_at ? (
-                        <p className="text-xs text-muted">
-                          {`✓ Completada ${fecha(t.completada_at)}`}
-                          {t.cerrada_por?.nombre ? ` por ${t.cerrada_por.nombre}` : ''}
-                          {new Date(t.completada_at) > new Date(t.vence_at)
-                            ? ` · fuera de plazo (vencía ${fecha(t.vence_at)})`
-                            : ''}
-                        </p>
-                      ) : (
-                        <p
-                          className={`text-xs ${
-                            new Date(t.vence_at) < new Date() ? 'font-medium text-danger' : 'text-muted'
-                          }`}
-                        >
-                          Vence: {fecha(t.vence_at)}
-                        </p>
-                      )}
-                    </div>
-                    {!t.completada_at && (
-                      <form action={completarTarea.bind(null, lead.id, t.id)}>
-                        <button type="submit" className={botonSecundario}>
-                          Completar
-                        </button>
-                      </form>
-                    )}
-                  </li>
-                ))}
-                {(tareas ?? []).length === 0 && (
-                  <li className="text-sm text-muted">Sin tareas.</li>
-                )}
-              </ul>
-            </Seccion>
-
-            <Seccion titulo="Citas">
-              <form action={crearCita.bind(null, lead.id)} className="flex flex-col gap-2">
-                <div className="flex flex-wrap gap-2">
-                  <input name="inicio" type="datetime-local" required className={inputClase} />
-                  <select name="duracion" defaultValue="60" className={inputClase}>
-                    <option value="30">30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">1 hora</option>
-                    <option value="90">1 h 30</option>
-                  </select>
-                  <select name="profesional" defaultValue="" className={inputClase} required>
-                    <option value="">Profesional…</option>
-                    {(profesionales ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <select name="tipo" defaultValue="primera_cita" className={inputClase}>
-                    {Object.entries(TIPO_CITA).map(([valor, texto]) => (
-                      <option key={valor} value={valor}>
-                        {texto}
-                      </option>
-                    ))}
-                  </select>
-                  <select name="modalidad" defaultValue="presencial" className={inputClase}>
-                    {Object.entries(MODALIDAD_CITA).map(([valor, texto]) => (
-                      <option key={valor} value={valor}>
-                        {texto}
-                      </option>
-                    ))}
-                  </select>
-                  <select name="contacto" defaultValue="" className={inputClase}>
-                    <option value="">¿Con quién se agenda?</option>
-                    {(contactosCaso ?? []).map(
-                      (lc) =>
-                        lc.contacto && (
-                          <option key={lc.contacto.id} value={lc.contacto.id}>
-                            {lc.contacto.nombre}
-                          </option>
-                        ),
-                    )}
-                  </select>
-                  <input name="notas" placeholder="Notas" className={`${inputClase} min-w-0 flex-1`} />
-                  <button type="submit" className={botonClase}>
-                    Agendar
-                  </button>
-                </div>
-                <p className="text-xs text-muted">
-                  El recordatorio irá al contacto con quien se agende, y nunca menciona el motivo de
-                  consulta.
+          <Seccion titulo="Resumen del caso">
+            {textoResumen ? (
+              <>
+                <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[13.5px] leading-relaxed ring-1 ring-line">
+                  {textoResumen}
                 </p>
-              </form>
-
-              <ul className="mt-3 flex flex-col gap-2">
-                {(citas ?? []).map((c) => {
-                  const estadoCita = ESTADO_CITA[c.estado] ?? {
-                    texto: c.estado,
-                    clases: 'bg-surface2 text-ink2 ring-line',
-                  };
-                  return (
-                    <li
-                      key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
-                    >
-                      <div>
-                        <p className="text-sm font-medium">
-                          {fecha(c.inicio)} · {TIPO_CITA[c.tipo] ?? c.tipo}
-                        </p>
-                        <p className="text-xs text-ink2">
-                          {MODALIDAD_CITA[c.modalidad_cita] ?? c.modalidad_cita} ·{' '}
-                          {c.profesional?.nombre ?? '—'}
-                          {c.contacto?.nombre && ` · con ${c.contacto.nombre}`}
-                        </p>
-                        {c.notas && <p className="text-xs text-ink2">{c.notas}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estadoCita.clases}`}
-                        >
-                          {estadoCita.texto}
-                        </span>
-                        {c.estado === 'programada' && (
-                          <form action={cambiarEstadoCita.bind(null, c.id, 'realizada', { lead: lead.id })}>
-                            <button type="submit" className={botonSecundario}>
-                              Realizada
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-                {(citas ?? []).length === 0 && (
-                  <li className="text-sm text-muted">Sin citas todavía.</li>
+                {resumenCaducado && (
+                  <p className="mt-1.5 text-xs text-warn">
+                    Ha pasado algo en el caso desde que se escribió: vuelve a resumir para verlo al
+                    día.
+                  </p>
                 )}
-              </ul>
-            </Seccion>
-
-            <Seccion titulo="Adjuntos del caso">
-              <form action={subirAdjunto.bind(null, lead.id)} className="flex flex-wrap gap-2">
-                <input
-                  type="file"
-                  name="archivo"
-                  accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
-                  required
-                  className="min-w-0 flex-1 text-sm text-ink2 file:mr-3 file:rounded-lg file:border-0 file:bg-surface2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink"
-                />
-                <button type="submit" className={botonClase}>
-                  Subir
-                </button>
-              </form>
-              <p className="mt-1 text-xs text-muted">
-                Capturas de WhatsApp, justificantes de pago o informes. Imágenes y PDF, hasta 10 MB.
-                Se guardan cifrados y solo los ve quien pueda ver este caso.
+              </>
+            ) : (
+              <p className="text-sm text-muted">
+                Tres líneas con quién es, qué ha pasado y qué está pendiente. Útil sobre todo cuando
+                el caso no es tuyo.
               </p>
+            )}
+            <form action={pedirResumen.bind(null, lead.id)} className="mt-2">
+              <button type="submit" className={botonSecundario}>
+                {textoResumen ? 'Volver a resumir' : 'Resumir con IA'}
+              </button>
+            </form>
+          </Seccion>
 
-              <ul className="mt-3 flex flex-col gap-2">
-                {(adjuntos ?? []).map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface2 px-3 py-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <a
-                        href={`/api/adjuntos/${a.id}`}
-                        className="font-medium text-primary hover:underline"
-                      >
-                        {a.nombre_archivo}
-                      </a>
+          <Seccion titulo="Registrar actividad">
+            <FormularioSeguro
+              accion={registrarActividad.bind(null, lead.id)}
+              borrador={`actividad:${lead.id}`}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex flex-wrap gap-2">
+                <select name="tipo" className={inputClase} defaultValue="llamada">
+                  <option value="llamada">Llamada</option>
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="email">Email</option>
+                  <option value="nota">Nota</option>
+                </select>
+                <CampoNota leadId={lead.id} className={`${inputClase} min-w-0 flex-1`} />
+                <button type="submit" className={botonClase}>
+                  Guardar
+                </button>
+              </div>
+            </FormularioSeguro>
+
+            <ul className="mt-4 flex flex-col gap-2">
+              {(actividades ?? []).map((a) => (
+                <li key={a.id} className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
+                  <p className="text-sm">
+                    <span className="font-medium">{TIPO_ACTIVIDAD[a.tipo] ?? a.tipo}</span>{' '}
+                    {a.contenido}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {a.usuario?.nombre ?? 'Sistema'} · {fecha(a.created_at)}
+                  </p>
+                </li>
+              ))}
+              {(actividades ?? []).length === 0 && (
+                <li className="text-sm text-muted">Sin actividad todavía.</li>
+              )}
+            </ul>
+          </Seccion>
+
+          <Seccion titulo="Tareas (próxima acción)">
+            <FormularioSeguro
+              accion={crearTarea.bind(null, lead.id)}
+              borrador={`tarea:${lead.id}`}
+              className="flex flex-wrap gap-2"
+            >
+              <input
+                name="titulo"
+                placeholder="Próxima acción…"
+                className={`${inputClase} min-w-0 flex-1`}
+              />
+              <input name="vence" type="datetime-local" className={inputClase} />
+              <button type="submit" className={botonClase}>
+                Crear
+              </button>
+            </FormularioSeguro>
+            <ul className="mt-3 flex flex-col gap-2">
+              {(tareas ?? []).map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
+                >
+                  <div>
+                    <p className={`text-sm ${t.completada_at ? 'text-muted line-through' : ''}`}>
+                      {t.titulo}
+                    </p>
+                    {t.completada_at ? (
                       <p className="text-xs text-muted">
-                        {Math.round((a.tamano_bytes ?? 0) / 1024)} KB · {a.subido?.nombre ?? 'Sistema'}{' '}
-                        · {fecha(a.created_at, false)}
+                        {`✓ Completada ${fecha(t.completada_at)}`}
+                        {t.cerrada_por?.nombre ? ` por ${t.cerrada_por.nombre}` : ''}
+                        {new Date(t.completada_at) > new Date(t.vence_at)
+                          ? ` · fuera de plazo (vencía ${fecha(t.vence_at)})`
+                          : ''}
                       </p>
-                    </div>
-                    <form action={borrarAdjunto.bind(null, lead.id, a.id)}>
-                      <button
-                        type="submit"
-                        className="text-xs text-muted hover:text-danger hover:underline"
+                    ) : (
+                      <p
+                        className={`text-xs ${
+                          new Date(t.vence_at) < new Date()
+                            ? 'font-medium text-danger'
+                            : 'text-muted'
+                        }`}
                       >
-                        Borrar
+                        Vence: {fecha(t.vence_at)}
+                      </p>
+                    )}
+                  </div>
+                  {!t.completada_at && (
+                    <form action={completarTarea.bind(null, lead.id, t.id)}>
+                      <button type="submit" className={botonSecundario}>
+                        Completar
                       </button>
                     </form>
-                  </li>
-                ))}
-                {(adjuntos ?? []).length === 0 && (
-                  <li className="text-sm text-muted">Sin adjuntos.</li>
-                )}
-              </ul>
-            </Seccion>
+                  )}
+                </li>
+              ))}
+              {(tareas ?? []).length === 0 && <li className="text-sm text-muted">Sin tareas.</li>}
+            </ul>
+          </Seccion>
 
-            <Seccion titulo="Presupuestos (historial)">
-              <form action={crearPresupuesto.bind(null, lead.id)} className="flex flex-wrap gap-2">
+          <Seccion titulo="Citas">
+            <FormularioSeguro
+              accion={crearCita.bind(null, lead.id)}
+              borrador={`cita:${lead.id}`}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex flex-wrap gap-2">
+                <input name="inicio" type="datetime-local" required className={inputClase} />
+                <select name="duracion" defaultValue="60" className={inputClase}>
+                  <option value="30">30 min</option>
+                  <option value="45">45 min</option>
+                  <option value="60">1 hora</option>
+                  <option value="90">1 h 30</option>
+                </select>
+                <select name="profesional" defaultValue="" className={inputClase} required>
+                  <option value="">Profesional…</option>
+                  {(profesionales ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <select name="tipo" defaultValue="primera_cita" className={inputClase}>
+                  {Object.entries(TIPO_CITA).map(([valor, texto]) => (
+                    <option key={valor} value={valor}>
+                      {texto}
+                    </option>
+                  ))}
+                </select>
+                <select name="modalidad" defaultValue="presencial" className={inputClase}>
+                  {Object.entries(MODALIDAD_CITA).map(([valor, texto]) => (
+                    <option key={valor} value={valor}>
+                      {texto}
+                    </option>
+                  ))}
+                </select>
+                <select name="contacto" defaultValue="" className={inputClase}>
+                  <option value="">¿Con quién se agenda?</option>
+                  {(contactosCaso ?? []).map(
+                    (lc) =>
+                      lc.contacto && (
+                        <option key={lc.contacto.id} value={lc.contacto.id}>
+                          {lc.contacto.nombre}
+                        </option>
+                      ),
+                  )}
+                </select>
                 <input
-                  name="importe"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Importe €"
-                  className={`${inputClase} w-32`}
+                  name="notas"
+                  placeholder="Notas"
+                  className={`${inputClase} min-w-0 flex-1`}
                 />
+                <button type="submit" className={botonClase}>
+                  Agendar
+                </button>
+              </div>
+              <p className="text-xs text-muted">
+                El recordatorio irá al contacto con quien se agende, y nunca menciona el motivo de
+                consulta.
+              </p>
+            </FormularioSeguro>
+
+            <ul className="mt-3 flex flex-col gap-2">
+              {(citas ?? []).map((c) => {
+                const estadoCita = ESTADO_CITA[c.estado] ?? {
+                  texto: c.estado,
+                  clases: 'bg-surface2 text-ink2 ring-line',
+                };
+                return (
+                  <li
+                    key={c.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {fecha(c.inicio)} · {TIPO_CITA[c.tipo] ?? c.tipo}
+                      </p>
+                      <p className="text-xs text-ink2">
+                        {MODALIDAD_CITA[c.modalidad_cita] ?? c.modalidad_cita} ·{' '}
+                        {c.profesional?.nombre ?? '—'}
+                        {c.contacto?.nombre && ` · con ${c.contacto.nombre}`}
+                      </p>
+                      {c.notas && <p className="text-xs text-ink2">{c.notas}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${estadoCita.clases}`}
+                      >
+                        {estadoCita.texto}
+                      </span>
+                      {c.estado === 'programada' && (
+                        <form
+                          action={cambiarEstadoCita.bind(null, c.id, 'realizada', {
+                            lead: lead.id,
+                          })}
+                        >
+                          <button type="submit" className={botonSecundario}>
+                            Realizada
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+              {(citas ?? []).length === 0 && (
+                <li className="text-sm text-muted">Sin citas todavía.</li>
+              )}
+            </ul>
+          </Seccion>
+
+          <Seccion titulo="Adjuntos del caso">
+            <form action={subirAdjunto.bind(null, lead.id)} className="flex flex-wrap gap-2">
+              <input
+                type="file"
+                name="archivo"
+                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                required
+                className="min-w-0 flex-1 text-sm text-ink2 file:mr-3 file:rounded-lg file:border-0 file:bg-surface2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink"
+              />
+              <button type="submit" className={botonClase}>
+                Subir
+              </button>
+            </form>
+            <p className="mt-1 text-xs text-muted">
+              Capturas de WhatsApp, justificantes de pago o informes. Imágenes y PDF, hasta 10 MB.
+              Se guardan cifrados y solo los ve quien pueda ver este caso.
+            </p>
+
+            <ul className="mt-3 flex flex-col gap-2">
+              {(adjuntos ?? []).map((a) => (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface2 px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <a
+                      href={`/api/adjuntos/${a.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {a.nombre_archivo}
+                    </a>
+                    <p className="text-xs text-muted">
+                      {Math.round((a.tamano_bytes ?? 0) / 1024)} KB ·{' '}
+                      {a.subido?.nombre ?? 'Sistema'} · {fecha(a.created_at, false)}
+                    </p>
+                  </div>
+                  <form action={borrarAdjunto.bind(null, lead.id, a.id)}>
+                    <button
+                      type="submit"
+                      className="text-xs text-muted hover:text-danger hover:underline"
+                    >
+                      Borrar
+                    </button>
+                  </form>
+                </li>
+              ))}
+              {(adjuntos ?? []).length === 0 && (
+                <li className="text-sm text-muted">Sin adjuntos.</li>
+              )}
+            </ul>
+          </Seccion>
+
+          <Seccion titulo="Presupuestos (historial)">
+            <FormularioSeguro
+              accion={crearPresupuesto.bind(null, lead.id)}
+              borrador={`presupuesto:${lead.id}`}
+              className="flex flex-wrap gap-2"
+            >
+              <input
+                name="importe"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Importe €"
+                className={`${inputClase} w-32`}
+              />
+              <select name="modalidad" className={inputClase} defaultValue="">
+                <option value="">Modalidad…</option>
+                {(modalidades ?? []).map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="descripcion"
+                placeholder="Descripción"
+                className={`${inputClase} min-w-0 flex-1`}
+              />
+              <button type="submit" className={botonClase}>
+                Añadir
+              </button>
+            </FormularioSeguro>
+            <ul className="mt-3 flex flex-col gap-2">
+              {(presupuestos ?? []).map((p) => (
+                <li key={p.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
+                  <span className="font-medium">
+                    {Number(p.importe).toLocaleString('es-ES', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    })}
+                  </span>
+                  {p.modalidad && ` · ${p.modalidad.nombre}`}
+                  {p.descripcion && ` · ${p.descripcion}`}
+                  <span className="text-xs text-muted">
+                    {' '}
+                    · {p.estado} · {fecha(p.created_at, false)}
+                  </span>
+                </li>
+              ))}
+              {(presupuestos ?? []).length === 0 && (
+                <li className="text-sm text-muted">Sin presupuestos.</li>
+              )}
+            </ul>
+          </Seccion>
+
+          <Seccion titulo="Conversión">
+            {conversion ? (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                    conversion.estado === 'validada'
+                      ? 'bg-ok-soft text-ok ring-ok/25'
+                      : 'bg-warn-soft text-warn ring-warn/25'
+                  }`}
+                >
+                  {conversion.estado === 'validada' ? 'Validada' : 'Pendiente de validación'}
+                </span>
+                <span>Inicio: {fecha(conversion.fecha_inicio, false)}</span>
+                {conversion.modalidad && <span>{conversion.modalidad.nombre}</span>}
+                {conversion.importe_primer_pago !== null && (
+                  <span>
+                    Primer pago:{' '}
+                    {Number(conversion.importe_primer_pago).toLocaleString('es-ES', {
+                      style: 'currency',
+                      currency: 'EUR',
+                    })}
+                  </span>
+                )}
+                {esDireccion && conversion.estado !== 'validada' && (
+                  <form action={validarConversion.bind(null, lead.id, conversion.id)}>
+                    <button type="submit" className={botonClase}>
+                      Validar pago
+                    </button>
+                  </form>
+                )}
+              </div>
+            ) : (
+              <form
+                action={registrarConversion.bind(null, lead.id)}
+                className="flex flex-wrap gap-2"
+              >
+                <input name="fecha_inicio" type="date" className={inputClase} />
                 <select name="modalidad" className={inputClase} defaultValue="">
                   <option value="">Modalidad…</option>
                   {(modalidades ?? []).map((m) => (
@@ -610,294 +724,261 @@ export default async function FichaLead({
                   ))}
                 </select>
                 <input
-                  name="descripcion"
-                  placeholder="Descripción"
-                  className={`${inputClase} min-w-0 flex-1`}
+                  name="importe"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Primer pago €"
+                  className={`${inputClase} w-36`}
                 />
                 <button type="submit" className={botonClase}>
+                  Registrar conversión
+                </button>
+                <p className="w-full text-xs text-muted">
+                  Quedará pendiente hasta que dirección valide el pago; las métricas solo cuentan
+                  conversiones validadas.
+                </p>
+              </form>
+            )}
+          </Seccion>
+        </div>
+
+        {/* Columna lateral */}
+        <div className="flex flex-col gap-4">
+          <Seccion titulo="Datos del caso">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+              <dt className="text-ink2">Teléfono</dt>
+              <dd>{lead.telefono}</dd>
+              <dt className="text-ink2">Quién contacta</dt>
+              <dd>
+                {TIPO_CONTACTO[lead.quien_contacta ?? ''] ?? '—'}
+                {lead.relacion_con_afectado && ` (${lead.relacion_con_afectado})`}
+              </dd>
+              {lead.nombre_afectado && (
+                <>
+                  <dt className="text-ink2">Afectado</dt>
+                  <dd>{lead.nombre_afectado}</dd>
+                </>
+              )}
+              <dt className="text-ink2">Adicción</dt>
+              <dd>{lead.adiccion?.nombre ?? '—'}</dd>
+              <dt className="text-ink2">Modalidad</dt>
+              <dd>{lead.modalidad_interes?.nombre ?? '—'}</dd>
+              <dt className="text-ink2">Urgencia</dt>
+              <dd>{lead.urgencia ?? '—'}</dd>
+              <dt className="text-ink2">Zona</dt>
+              <dd>{lead.zona ?? '—'}</dd>
+              <dt className="text-ink2">Canal</dt>
+              <dd>
+                {lead.canal?.nombre}
+                {lead.subcanal && ` · ${lead.subcanal}`}
+              </dd>
+              {lead.prescriptor_nombre && (
+                <>
+                  <dt className="text-ink2">Prescriptor</dt>
+                  <dd>{lead.prescriptor_nombre}</dd>
+                </>
+              )}
+              <dt className="text-ink2">Creado</dt>
+              <dd>{fecha(lead.created_at)}</dd>
+              <dt className="text-ink2">1ª respuesta</dt>
+              <dd>{fecha(lead.primera_respuesta_at)}</dd>
+            </dl>
+          </Seccion>
+
+          <Seccion titulo="Contactos del caso">
+            <ul className="flex flex-col gap-2">
+              {(contactosCaso ?? []).map((lc) => (
+                <li key={lc.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
+                  <p className="font-medium">
+                    {lc.contacto ? (
+                      <Link
+                        href={`/contactos/${lc.contacto.id}`}
+                        className="hover:text-primary hover:underline"
+                      >
+                        {lc.contacto.nombre}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
+                    {lc.es_principal && (
+                      <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary ring-1 ring-primary/25">
+                        Principal
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-ink2">
+                    {lc.contacto?.telefono} · {TIPO_CONTACTO[lc.tipo]}
+                    {lc.relacion && ` (${lc.relacion})`}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <form
+              action={anadirContacto.bind(null, lead.id)}
+              className="mt-3 flex flex-col gap-2 border-t border-line pt-3"
+            >
+              <div className="flex gap-2">
+                <input
+                  name="nombre"
+                  placeholder="Nombre"
+                  className={`${inputClase} min-w-0 flex-1`}
+                />
+                <input name="telefono" placeholder="+34…" className={`${inputClase} w-36`} />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select name="tipo" className={inputClase} defaultValue="familiar">
+                  {Object.entries(TIPO_CONTACTO).map(([valor, texto]) => (
+                    <option key={valor} value={valor}>
+                      {texto}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  name="relacion"
+                  placeholder="Relación (madre…)"
+                  className={`${inputClase} min-w-0 flex-1`}
+                />
+                <label className="flex items-center gap-1.5 text-sm text-ink2">
+                  <input type="checkbox" name="principal" /> Principal
+                </label>
+                <button type="submit" className={botonSecundario}>
                   Añadir
                 </button>
-              </form>
-              <ul className="mt-3 flex flex-col gap-2">
-                {(presupuestos ?? []).map((p) => (
-                  <li key={p.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
-                    <span className="font-medium">
-                      {Number(p.importe).toLocaleString('es-ES', {
-                        style: 'currency',
-                        currency: 'EUR',
-                      })}
-                    </span>
-                    {p.modalidad && ` · ${p.modalidad.nombre}`}
-                    {p.descripcion && ` · ${p.descripcion}`}
-                    <span className="text-xs text-muted"> · {p.estado} · {fecha(p.created_at, false)}</span>
-                  </li>
-                ))}
-                {(presupuestos ?? []).length === 0 && (
-                  <li className="text-sm text-muted">Sin presupuestos.</li>
-                )}
-              </ul>
-            </Seccion>
+              </div>
+            </form>
+          </Seccion>
 
-            <Seccion titulo="Conversión">
-              {conversion ? (
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
-                      conversion.estado === 'validada'
-                        ? 'bg-ok-soft text-ok ring-ok/25'
-                        : 'bg-warn-soft text-warn ring-warn/25'
-                    }`}
-                  >
-                    {conversion.estado === 'validada' ? 'Validada' : 'Pendiente de validación'}
-                  </span>
-                  <span>Inicio: {fecha(conversion.fecha_inicio, false)}</span>
-                  {conversion.modalidad && <span>{conversion.modalidad.nombre}</span>}
-                  {conversion.importe_primer_pago !== null && (
-                    <span>
-                      Primer pago:{' '}
-                      {Number(conversion.importe_primer_pago).toLocaleString('es-ES', {
-                        style: 'currency',
-                        currency: 'EUR',
-                      })}
-                    </span>
-                  )}
-                  {esDireccion && conversion.estado !== 'validada' && (
-                    <form action={validarConversion.bind(null, lead.id, conversion.id)}>
-                      <button type="submit" className={botonClase}>
-                        Validar pago
-                      </button>
-                    </form>
-                  )}
-                </div>
-              ) : (
-                <form
-                  action={registrarConversion.bind(null, lead.id)}
-                  className="flex flex-wrap gap-2"
+          <Seccion titulo="Acciones">
+            <div className="flex flex-col gap-3">
+              <form action={cambiarEtapa.bind(null, lead.id)} className="flex gap-2">
+                <select
+                  name="etapa"
+                  defaultValue={lead.etapa_id}
+                  className={`${inputClase} min-w-0 flex-1`}
                 >
-                  <input name="fecha_inicio" type="date" className={inputClase} />
-                  <select name="modalidad" className={inputClase} defaultValue="">
-                    <option value="">Modalidad…</option>
-                    {(modalidades ?? []).map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    name="importe"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="Primer pago €"
-                    className={`${inputClase} w-36`}
-                  />
-                  <button type="submit" className={botonClase}>
-                    Registrar conversión
-                  </button>
-                  <p className="w-full text-xs text-muted">
-                    Quedará pendiente hasta que dirección valide el pago; las métricas solo cuentan
-                    conversiones validadas.
-                  </p>
-                </form>
-              )}
-            </Seccion>
-          </div>
-
-          {/* Columna lateral */}
-          <div className="flex flex-col gap-4">
-            <Seccion titulo="Datos del caso">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-                <dt className="text-ink2">Teléfono</dt>
-                <dd>{lead.telefono}</dd>
-                <dt className="text-ink2">Quién contacta</dt>
-                <dd>
-                  {TIPO_CONTACTO[lead.quien_contacta ?? ''] ?? '—'}
-                  {lead.relacion_con_afectado && ` (${lead.relacion_con_afectado})`}
-                </dd>
-                {lead.nombre_afectado && (
-                  <>
-                    <dt className="text-ink2">Afectado</dt>
-                    <dd>{lead.nombre_afectado}</dd>
-                  </>
-                )}
-                <dt className="text-ink2">Adicción</dt>
-                <dd>{lead.adiccion?.nombre ?? '—'}</dd>
-                <dt className="text-ink2">Modalidad</dt>
-                <dd>{lead.modalidad_interes?.nombre ?? '—'}</dd>
-                <dt className="text-ink2">Urgencia</dt>
-                <dd>{lead.urgencia ?? '—'}</dd>
-                <dt className="text-ink2">Zona</dt>
-                <dd>{lead.zona ?? '—'}</dd>
-                <dt className="text-ink2">Canal</dt>
-                <dd>
-                  {lead.canal?.nombre}
-                  {lead.subcanal && ` · ${lead.subcanal}`}
-                </dd>
-                {lead.prescriptor_nombre && (
-                  <>
-                    <dt className="text-ink2">Prescriptor</dt>
-                    <dd>{lead.prescriptor_nombre}</dd>
-                  </>
-                )}
-                <dt className="text-ink2">Creado</dt>
-                <dd>{fecha(lead.created_at)}</dd>
-                <dt className="text-ink2">1ª respuesta</dt>
-                <dd>{fecha(lead.primera_respuesta_at)}</dd>
-              </dl>
-            </Seccion>
-
-            <Seccion titulo="Contactos del caso">
-              <ul className="flex flex-col gap-2">
-                {(contactosCaso ?? []).map((lc) => (
-                  <li key={lc.id} className="rounded-lg bg-ground px-3 py-2 text-sm ring-1 ring-line">
-                    <p className="font-medium">
-                      {lc.contacto ? (
-                        <Link
-                          href={`/contactos/${lc.contacto.id}`}
-                          className="hover:text-primary hover:underline"
-                        >
-                          {lc.contacto.nombre}
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                      {lc.es_principal && (
-                        <span className="ml-2 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-medium text-primary ring-1 ring-primary/25">
-                          Principal
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-ink2">
-                      {lc.contacto?.telefono} · {TIPO_CONTACTO[lc.tipo]}
-                      {lc.relacion && ` (${lc.relacion})`}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <form
-                action={anadirContacto.bind(null, lead.id)}
-                className="mt-3 flex flex-col gap-2 border-t border-line pt-3"
-              >
-                <div className="flex gap-2">
-                  <input name="nombre" placeholder="Nombre" className={`${inputClase} min-w-0 flex-1`} />
-                  <input name="telefono" placeholder="+34…" className={`${inputClase} w-36`} />
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select name="tipo" className={inputClase} defaultValue="familiar">
-                    {Object.entries(TIPO_CONTACTO).map(([valor, texto]) => (
-                      <option key={valor} value={valor}>
-                        {texto}
-                      </option>
-                    ))}
-                  </select>
-                  <input name="relacion" placeholder="Relación (madre…)" className={`${inputClase} min-w-0 flex-1`} />
-                  <label className="flex items-center gap-1.5 text-sm text-ink2">
-                    <input type="checkbox" name="principal" /> Principal
-                  </label>
-                  <button type="submit" className={botonSecundario}>
-                    Añadir
-                  </button>
-                </div>
+                  {(etapas ?? []).map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.orden}. {e.nombre}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" className={botonSecundario}>
+                  Mover
+                </button>
               </form>
-            </Seccion>
 
-            <Seccion titulo="Acciones">
-              <div className="flex flex-col gap-3">
-                <form action={cambiarEtapa.bind(null, lead.id)} className="flex gap-2">
-                  <select name="etapa" defaultValue={lead.etapa_id} className={`${inputClase} min-w-0 flex-1`}>
-                    {(etapas ?? []).map((e) => (
-                      <option key={e.id} value={e.id}>
-                        {e.orden}. {e.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className={botonSecundario}>
-                    Mover
-                  </button>
-                </form>
-
-                {/*
+              {/*
                   Cambiar de PROCESO, no solo de etapa. Hay que decir en qué
                   etapa entra porque las de un proceso no se corresponden con
                   las de otro; el estado de sistema lo copia el disparador, así
                   que las métricas siguen cuadrando.
                 */}
-                {(procesos ?? []).length > 1 && (
-                  <details className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
-                    <summary className="cursor-pointer text-[13px] font-medium text-ink2">
-                      Cambiar de proceso de venta
-                    </summary>
-                    <form
-                      action={cambiarProceso.bind(null, lead.id)}
-                      className="mt-2 flex flex-col gap-2"
-                    >
-                      <select name="pipeline" defaultValue={lead.pipeline_id} className={inputClase}>
-                        {(procesos ?? []).map((pr) => (
-                          <option key={pr.id} value={pr.id}>
-                            {pr.nombre}
-                            {pr.id === lead.pipeline_id ? ' (el actual)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <select name="etapa" defaultValue="" className={inputClase} required>
-                        <option value="">¿En qué etapa entra?</option>
-                        {(procesos ?? []).map((pr) => (
-                          <optgroup key={pr.id} label={pr.nombre}>
-                            {[...(pr.etapas ?? [])]
-                              .sort((a, b) => a.orden - b.orden)
-                              .map((e) => (
-                                <option key={e.id} value={e.id}>
-                                  {e.orden}. {e.nombre}
-                                </option>
-                              ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                      <button type="submit" className={botonSecundario}>
-                        Mover a ese proceso
-                      </button>
-                      <span className="text-xs text-muted">
-                        El historial, las tareas y las citas se quedan como están: cambia el
-                        recorrido, no el caso.
-                      </span>
-                    </form>
-                  </details>
-                )}
-
-                {!lead.propietario_id && perfil?.rol === 'admisiones' && (
-                  <form action={asignarmeDesdeFicha.bind(null, lead.id)}>
-                    <button type="submit" className={`${botonClase} w-full`}>
-                      Asignarme este lead
+              {(procesos ?? []).length > 1 && (
+                <details className="rounded-lg bg-ground px-3 py-2 ring-1 ring-line">
+                  <summary className="cursor-pointer text-[13px] font-medium text-ink2">
+                    Cambiar de proceso de venta
+                  </summary>
+                  <form
+                    action={cambiarProceso.bind(null, lead.id)}
+                    className="mt-2 flex flex-col gap-2"
+                  >
+                    <select name="pipeline" defaultValue={lead.pipeline_id} className={inputClase}>
+                      {(procesos ?? []).map((pr) => (
+                        <option key={pr.id} value={pr.id}>
+                          {pr.nombre}
+                          {pr.id === lead.pipeline_id ? ' (el actual)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <select name="etapa" defaultValue="" className={inputClase} required>
+                      <option value="">¿En qué etapa entra?</option>
+                      {(procesos ?? []).map((pr) => (
+                        <optgroup key={pr.id} label={pr.nombre}>
+                          {[...(pr.etapas ?? [])]
+                            .sort((a, b) => a.orden - b.orden)
+                            .map((e) => (
+                              <option key={e.id} value={e.id}>
+                                {e.orden}. {e.nombre}
+                              </option>
+                            ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <button type="submit" className={botonSecundario}>
+                      Mover a ese proceso
                     </button>
+                    <span className="text-xs text-muted">
+                      El historial, las tareas y las citas se quedan como están: cambia el
+                      recorrido, no el caso.
+                    </span>
                   </form>
-                )}
+                </details>
+              )}
 
-                {esDireccion && (
-                  <form action={asignarPropietario.bind(null, lead.id)} className="flex gap-2">
-                    <select
-                      name="propietario"
-                      defaultValue={lead.propietario_id ?? ''}
-                      className={`${inputClase} min-w-0 flex-1`}
-                    >
-                      <option value="">Sin propietario</option>
-                      {(comerciales ?? []).map((c) => (
+              {!lead.propietario_id && perfil?.rol === 'admisiones' && (
+                <form action={asignarmeDesdeFicha.bind(null, lead.id)}>
+                  <button type="submit" className={`${botonClase} w-full`}>
+                    Asignarme este lead
+                  </button>
+                </form>
+              )}
+
+              {esDireccion && (
+                <form action={asignarPropietario.bind(null, lead.id)} className="flex gap-2">
+                  <select
+                    name="propietario"
+                    defaultValue={lead.propietario_id ?? ''}
+                    className={`${inputClase} min-w-0 flex-1`}
+                  >
+                    <option value="">Sin propietario</option>
+                    {(comerciales ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className={botonSecundario}>
+                    Asignar
+                  </button>
+                </form>
+              )}
+
+              {lead.centro?.es_bandeja_grupo && (
+                <form action={asignarCentro.bind(null, lead.id)} className="flex gap-2">
+                  <select name="centro" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
+                    <option value="">Asignar a centro…</option>
+                    {(centros ?? [])
+                      .filter((c) => !c.es_bandeja_grupo)
+                      .map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.nombre}
                         </option>
                       ))}
-                    </select>
-                    <button type="submit" className={botonSecundario}>
-                      Asignar
-                    </button>
-                  </form>
-                )}
+                  </select>
+                  <button type="submit" className={botonSecundario}>
+                    Asignar
+                  </button>
+                </form>
+              )}
 
-                {lead.centro?.es_bandeja_grupo && (
-                  <form action={asignarCentro.bind(null, lead.id)} className="flex gap-2">
-                    <select name="centro" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
-                      <option value="">Asignar a centro…</option>
+              {!lead.centro?.es_bandeja_grupo && (
+                <form
+                  action={derivarLead.bind(null, lead.id)}
+                  className="flex flex-col gap-2 border-t border-line pt-3"
+                >
+                  <p className="text-xs text-ink2">
+                    Derivar (mismo caso, atribución al centro de origen):
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      name="centro_destino"
+                      defaultValue=""
+                      className={`${inputClase} min-w-0 flex-1`}
+                    >
+                      <option value="">Centro de destino…</option>
                       {(centros ?? [])
-                        .filter((c) => !c.es_bandeja_grupo)
+                        .filter((c) => !c.es_bandeja_grupo && c.id !== lead.centro_id)
                         .map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.nombre}
@@ -905,81 +986,66 @@ export default async function FichaLead({
                         ))}
                     </select>
                     <button type="submit" className={botonSecundario}>
-                      Asignar
+                      Derivar
                     </button>
-                  </form>
-                )}
-
-                {!lead.centro?.es_bandeja_grupo && (
-                  <form action={derivarLead.bind(null, lead.id)} className="flex flex-col gap-2 border-t border-line pt-3">
-                    <p className="text-xs text-ink2">
-                      Derivar (mismo caso, atribución al centro de origen):
-                    </p>
-                    <div className="flex gap-2">
-                      <select name="centro_destino" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
-                        <option value="">Centro de destino…</option>
-                        {(centros ?? [])
-                          .filter((c) => !c.es_bandeja_grupo && c.id !== lead.centro_id)
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.nombre}
-                            </option>
-                          ))}
-                      </select>
-                      <button type="submit" className={botonSecundario}>
-                        Derivar
-                      </button>
-                    </div>
-                    <input name="motivo" placeholder="Motivo (opcional)" className={inputClase} />
-                  </form>
-                )}
-
-                {(derivaciones ?? []).length > 0 && (
-                  <ul className="text-xs text-ink2">
-                    {(derivaciones ?? []).map((d) => (
-                      <li key={d.id}>
-                        {d.origen?.nombre} → {d.destino?.nombre} · {fecha(d.created_at, false)}
-                        {d.motivo && ` · ${d.motivo}`}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {cerrado ? (
-                  <form action={reabrirLead.bind(null, lead.id)} className="border-t border-line pt-3">
-                    <button type="submit" className={`${botonSecundario} w-full`}>
-                      ♻️ Reabrir caso
-                    </button>
-                  </form>
-                ) : (
-                  <div className="flex flex-col gap-2 border-t border-line pt-3">
-                    <form action={marcarPerdido.bind(null, lead.id)} className="flex gap-2">
-                      <select name="motivo" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
-                        <option value="">Motivo de pérdida…</option>
-                        {(motivos ?? []).map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger-soft"
-                      >
-                        Perdido
-                      </button>
-                    </form>
-                    <form action={marcarNoValido.bind(null, lead.id)}>
-                      <button type="submit" className={`${botonSecundario} w-full`}>
-                        Marcar como no válido
-                      </button>
-                    </form>
                   </div>
-                )}
-              </div>
-            </Seccion>
-          </div>
+                  <input name="motivo" placeholder="Motivo (opcional)" className={inputClase} />
+                </form>
+              )}
+
+              {(derivaciones ?? []).length > 0 && (
+                <ul className="text-xs text-ink2">
+                  {(derivaciones ?? []).map((d) => (
+                    <li key={d.id}>
+                      {d.origen?.nombre} → {d.destino?.nombre} · {fecha(d.created_at, false)}
+                      {d.motivo && ` · ${d.motivo}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {cerrado ? (
+                <form
+                  action={reabrirLead.bind(null, lead.id)}
+                  className="border-t border-line pt-3"
+                >
+                  <button type="submit" className={`${botonSecundario} w-full`}>
+                    ♻️ Reabrir caso
+                  </button>
+                </form>
+              ) : (
+                <div className="flex flex-col gap-2 border-t border-line pt-3">
+                  <form action={marcarPerdido.bind(null, lead.id)} className="flex gap-2">
+                    <select
+                      name="motivo"
+                      defaultValue=""
+                      className={`${inputClase} min-w-0 flex-1`}
+                    >
+                      <option value="">Motivo de pérdida…</option>
+                      {(motivos ?? []).map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger-soft"
+                    >
+                      Perdido
+                    </button>
+                  </form>
+                  <form action={marcarNoValido.bind(null, lead.id)}>
+                    <button type="submit" className={`${botonSecundario} w-full`}>
+                      Marcar como no válido
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </Seccion>
         </div>
-      </AppShell>
+      </div>
+    </AppShell>
   );
 }
