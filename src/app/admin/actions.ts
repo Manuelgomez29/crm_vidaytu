@@ -19,13 +19,43 @@ async function exigirDireccion() {
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, alcance')
     .eq('id', user.id)
     .maybeSingle();
   if (perfil?.rol !== 'direccion') redirect('/leads');
 
-  return { supabase, user };
+  return { supabase, user, esDeGrupo: perfil.alcance === 'grupo' };
 }
+
+/**
+ * Quien puede repartir poder.
+ *
+ * El rol y el alcance de un perfil solo los toca la direccion de GRUPO. La de
+ * un centro gestiona a su gente —altas, ausencias, objetivos— pero no puede
+ * fabricar a otra direccion, ni ascender a nadie, ni ascenderse.
+ *
+ * En la base hay un cerrojo para lo mismo, pero solo cubre a quien lo intente
+ * con su propia sesion saltandose la aplicacion: el panel escribe con la clave
+ * de servicio, que se salta RLS. O sea que este es el sitio donde la regla
+ * manda de verdad, y por eso esta aqui y no solo alli.
+ */
+async function exigirDireccionDeGrupo() {
+  const contexto = await exigirDireccion();
+  if (!contexto.esDeGrupo) {
+    volver('equipo', {
+      error: 'Solo la dirección de grupo puede cambiar el rol, el alcance o los centros.',
+    });
+  }
+  return contexto;
+}
+
+/*
+ * Nota para quien venga detras: en la BASE, una direccion de centro SI puede
+ * gestionar a la gente de su centro —lo permite `manda_sobre_perfil()`—, pero
+ * el panel solo se lo ofrece a la de grupo. No es un descuido: el alta de
+ * usuarios se centraliza a proposito. Si algun dia se quiere delegar, la mitad
+ * de abajo ya esta hecha y solo hay que abrir la de arriba.
+ */
 
 function volver(seccion: string, aviso?: { error?: string; aviso?: string }): never {
   const q = aviso?.error
@@ -43,17 +73,35 @@ function volver(seccion: string, aviso?: { error?: string; aviso?: string }): ne
 // ---------------------------------------------------------------------------
 
 export async function crearUsuario(formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo();
 
   const nombre = String(formData.get('nombre') ?? '').trim();
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase();
   const rol = String(formData.get('rol') ?? '');
   const password = String(formData.get('password') ?? '');
   const centros = formData.getAll('centros').map(String).filter(Boolean);
 
+  /*
+   * El alcance solo significa algo para direccion: quien es admisiones o
+   * terapeuta ya esta limitado a sus centros o a sus pacientes por su rol.
+   * Guardarles 'centros' seria decir dos veces lo mismo y confundir al que lo
+   * lea manana.
+   */
+  const alcance =
+    rol === 'direccion' && formData.get('alcance') === 'centros' ? 'centros' : 'grupo';
+
+  if (rol === 'direccion' && alcance === 'centros' && centros.length === 0) {
+    volver('equipo', {
+      error: 'Una dirección de centro necesita al menos un centro: sin centros no vería nada.',
+    });
+  }
+
   const porInvitacion = formData.get('invitar') === 'on';
 
-  if (!nombre || !email || !rol) volver('equipo', { error: 'Nombre, email y rol son obligatorios.' });
+  if (!nombre || !email || !rol)
+    volver('equipo', { error: 'Nombre, email y rol son obligatorios.' });
   if (!porInvitacion && password.length < 10) {
     volver('equipo', { error: 'La contraseña inicial debe tener al menos 10 caracteres.' });
   }
@@ -79,17 +127,17 @@ export async function crearUsuario(formData: FormData) {
     });
   }
 
-  const { error: errorPerfil } = await admin
-    .from('perfiles')
-    .upsert({
-      id: creado.user.id,
-      nombre,
-      email,
-      rol: rol as Rol,
-      activo: true,
-      acceso_clinico: rol === 'terapeuta',
-    });
-  if (errorPerfil) volver('equipo', { error: `No se pudo crear el perfil: ${errorPerfil.message}` });
+  const { error: errorPerfil } = await admin.from('perfiles').upsert({
+    id: creado.user.id,
+    nombre,
+    email,
+    rol: rol as Rol,
+    alcance,
+    activo: true,
+    acceso_clinico: rol === 'terapeuta',
+  });
+  if (errorPerfil)
+    volver('equipo', { error: `No se pudo crear el perfil: ${errorPerfil.message}` });
 
   if (centros.length > 0) {
     await admin
@@ -105,14 +153,46 @@ export async function crearUsuario(formData: FormData) {
 }
 
 export async function editarUsuario(perfilId: string, formData: FormData) {
-  const { supabase, user } = await exigirDireccion();
+  const { supabase, user } = await exigirDireccionDeGrupo();
 
   const nombre = String(formData.get('nombre') ?? '').trim();
   const rol = String(formData.get('rol') ?? '');
   const activo = formData.get('activo') === 'on';
   const centros = formData.getAll('centros').map(String).filter(Boolean);
+  const alcance =
+    rol === 'direccion' && formData.get('alcance') === 'centros' ? 'centros' : 'grupo';
 
   if (!nombre || !rol) volver('equipo', { error: 'Nombre y rol son obligatorios.' });
+
+  if (rol === 'direccion' && alcance === 'centros' && centros.length === 0) {
+    volver('equipo', {
+      error: 'Una dirección de centro necesita al menos un centro: sin centros no vería nada.',
+    });
+  }
+
+  /*
+   * No dejar el grupo sin nadie que mande en el.
+   *
+   * Es el mismo cuidado que con «no te quites el rol de direccion», pero para el
+   * eje nuevo: si la unica direccion de grupo se pone alcance de centro, ya
+   * nadie puede tocar catalogos, parametros ni el scoring, y tampoco deshacerlo
+   * —porque cambiar el alcance tambien es cosa de la direccion de grupo—. Se
+   * quedaria cerrado por dentro.
+   */
+  if (perfilId === user.id && (alcance !== 'grupo' || rol !== 'direccion' || !activo)) {
+    const { count } = await supabase
+      .from('perfiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('rol', 'direccion')
+      .eq('alcance', 'grupo')
+      .eq('activo', true);
+    if ((count ?? 0) <= 1) {
+      volver('equipo', {
+        error:
+          'Eres la única dirección de grupo activa. Nombra a otra antes de quitarte el alcance de grupo, o nadie podría volver a cambiarlo.',
+      });
+    }
+  }
 
   // Salvaguarda: no dejar la plataforma sin ninguna dirección activa.
   if (perfilId === user.id && (rol !== 'direccion' || !activo)) {
@@ -134,6 +214,7 @@ export async function editarUsuario(perfilId: string, formData: FormData) {
     .update({
       nombre,
       rol: rol as Rol,
+      alcance,
       activo,
       // Un terapeuta tiene acceso clinico por su rol; el resto, solo si se le
       // marca. Direccion lo tiene siempre por es_direccion().
@@ -196,7 +277,8 @@ export async function reasignarEnBloque(formData: FormData) {
   const soloAbiertos = formData.get('solo_abiertos') === 'on';
 
   if (!destino) volver('equipo', { error: 'Elige a quién le pasas los casos.' });
-  if (origen === destino) volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+  if (origen === destino)
+    volver('equipo', { error: 'El origen y el destino son la misma persona.' });
 
   const admin = createAdminClient();
 
@@ -210,7 +292,8 @@ export async function reasignarEnBloque(formData: FormData) {
   if (soloAbiertos) consulta = consulta.not('estado', 'in', '(perdido,no_valido,convertido)');
 
   const { data: leads, error: errorLectura } = await consulta;
-  if (errorLectura) volver('equipo', { error: `No se pudieron leer los casos: ${errorLectura.message}` });
+  if (errorLectura)
+    volver('equipo', { error: `No se pudieron leer los casos: ${errorLectura.message}` });
   if (!leads || leads.length === 0) {
     volver('equipo', { aviso: 'No hay casos que encajen con esos criterios.' });
   }
@@ -241,7 +324,9 @@ export async function reasignarEnBloque(formData: FormData) {
     mensaje: `Se te han traspasado ${ids.length} caso(s)`,
   });
 
-  volver('equipo', { aviso: `${ids.length} caso(s) reasignados a ${perfilDestino?.nombre ?? '—'}.` });
+  volver('equipo', {
+    aviso: `${ids.length} caso(s) reasignados a ${perfilDestino?.nombre ?? '—'}.`,
+  });
 }
 
 /**
@@ -268,8 +353,10 @@ export async function traspasarTodo(formData: FormData) {
   const origen = String(formData.get('origen') ?? '');
   const destino = String(formData.get('destino') ?? '');
 
-  if (!origen || !destino) volver('equipo', { error: 'Elige de quién sale el trabajo y quién lo recibe.' });
-  if (origen === destino) volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+  if (!origen || !destino)
+    volver('equipo', { error: 'Elige de quién sale el trabajo y quién lo recibe.' });
+  if (origen === destino)
+    volver('equipo', { error: 'El origen y el destino son la misma persona.' });
 
   const admin = createAdminClient();
 
@@ -285,12 +372,17 @@ export async function traspasarTodo(formData: FormData) {
     volver('equipo', { error: `${recibe.nombre} está dada de baja: no puede recibir trabajo.` });
   }
 
-  const [{ data: leads }, { data: tareas }, { data: citas }, { data: pacientes }] = await Promise.all([
-    admin.from('leads').select('id').eq('propietario_id', origen),
-    admin.from('tareas').select('id').eq('responsable_id', origen).is('completada_at', null),
-    admin.from('citas').select('id').eq('profesional_id', origen).gt('inicio', new Date().toISOString()),
-    admin.from('pacientes').select('id').eq('terapeuta_id', origen),
-  ]);
+  const [{ data: leads }, { data: tareas }, { data: citas }, { data: pacientes }] =
+    await Promise.all([
+      admin.from('leads').select('id').eq('propietario_id', origen),
+      admin.from('tareas').select('id').eq('responsable_id', origen).is('completada_at', null),
+      admin
+        .from('citas')
+        .select('id')
+        .eq('profesional_id', origen)
+        .gt('inicio', new Date().toISOString()),
+      admin.from('pacientes').select('id').eq('terapeuta_id', origen),
+    ]);
 
   const nLeads = leads?.length ?? 0;
   const nTareas = tareas?.length ?? 0;
@@ -298,7 +390,9 @@ export async function traspasarTodo(formData: FormData) {
   const nPacientes = pacientes?.length ?? 0;
 
   if (nLeads + nTareas + nCitas + nPacientes === 0) {
-    volver('equipo', { aviso: `${sale.nombre} no tiene nada asignado: ya se le puede dar de baja.` });
+    volver('equipo', {
+      aviso: `${sale.nombre} no tiene nada asignado: ya se le puede dar de baja.`,
+    });
   }
 
   /**
@@ -337,7 +431,10 @@ export async function traspasarTodo(formData: FormData) {
     const { error } = await admin
       .from('tareas')
       .update({ responsable_id: destino })
-      .in('id', tareas!.map((t) => t.id));
+      .in(
+        'id',
+        tareas!.map((t) => t.id),
+      );
     if (error) volver('equipo', { error: `No se pudieron mover las tareas: ${error.message}` });
     hecho.push(`${nTareas} tarea(s) pendiente(s)`);
   }
@@ -346,7 +443,10 @@ export async function traspasarTodo(formData: FormData) {
     const { error } = await admin
       .from('citas')
       .update({ profesional_id: destino })
-      .in('id', citas!.map((c) => c.id));
+      .in(
+        'id',
+        citas!.map((c) => c.id),
+      );
     if (error) volver('equipo', { error: `No se pudieron mover las citas: ${error.message}` });
     hecho.push(`${nCitas} cita(s) futura(s)`);
   }
@@ -355,7 +455,10 @@ export async function traspasarTodo(formData: FormData) {
     const { error } = await admin
       .from('pacientes')
       .update({ terapeuta_id: destino })
-      .in('id', pacientes!.map((p) => p.id));
+      .in(
+        'id',
+        pacientes!.map((p) => p.id),
+      );
     if (error) volver('equipo', { error: `No se pudieron mover los pacientes: ${error.message}` });
     hecho.push(`${nPacientes} paciente(s)`);
   }
@@ -402,8 +505,12 @@ export async function guardarDisponibilidad(perfilId: string, formData: FormData
   await exigirDireccion();
   const admin = createAdminClient();
 
-  const franjas: { perfil_id: string; dia_semana: number; hora_inicio: string; hora_fin: string }[] =
-    [];
+  const franjas: {
+    perfil_id: string;
+    dia_semana: number;
+    hora_inicio: string;
+    hora_fin: string;
+  }[] = [];
   for (let dia = 0; dia <= 6; dia++) {
     const inicio = String(formData.get(`inicio_${dia}`) ?? '');
     const fin = String(formData.get(`fin_${dia}`) ?? '');
@@ -429,7 +536,8 @@ export async function crearAusencia(perfilId: string, formData: FormData) {
   const hasta = String(formData.get('hasta') ?? '');
   const motivo = String(formData.get('motivo') ?? '').trim() || null;
   if (!desde || !hasta) volver('equipo', { error: 'La ausencia necesita fecha de inicio y fin.' });
-  if (hasta < desde) volver('equipo', { error: 'La fecha de fin no puede ser anterior al inicio.' });
+  if (hasta < desde)
+    volver('equipo', { error: 'La fecha de fin no puede ser anterior al inicio.' });
 
   const admin = createAdminClient();
   const { error } = await admin
@@ -595,10 +703,16 @@ export async function crearPipeline(formData: FormData) {
   const { error: errorEtapas } = await admin.from('pipeline_etapas').insert([
     { pipeline_id: pipeline.id, nombre: 'Nuevo', orden: 1, estado_sistema: 'nuevo' },
     { pipeline_id: pipeline.id, nombre: 'Contactado', orden: 2, estado_sistema: 'contactado' },
-    { pipeline_id: pipeline.id, nombre: 'Cita agendada', orden: 3, estado_sistema: 'cita_agendada' },
+    {
+      pipeline_id: pipeline.id,
+      nombre: 'Cita agendada',
+      orden: 3,
+      estado_sistema: 'cita_agendada',
+    },
     { pipeline_id: pipeline.id, nombre: 'Convertido', orden: 4, estado_sistema: 'convertido' },
   ]);
-  if (errorEtapas) volver('pipelines', { error: `Pipeline creado sin etapas: ${errorEtapas.message}` });
+  if (errorEtapas)
+    volver('pipelines', { error: `Pipeline creado sin etapas: ${errorEtapas.message}` });
   volver('pipelines');
 }
 
@@ -699,11 +813,23 @@ export async function guardarParametros(formData: FormData) {
     .map((n) => Number(n.trim()))
     .filter((n) => Number.isFinite(n) && n >= 0);
   if (cadencia.length === 0) {
-    volver('parametros', { error: 'La cadencia debe ser una lista de días, p. ej. 0, 1, 3, 7, 14.' });
+    volver('parametros', {
+      error: 'La cadencia debe ser una lista de días, p. ej. 0, 1, 3, 7, 14.',
+    });
   }
 
   // Discreción (regla 12): la plantilla no puede delatar el motivo de consulta.
-  const prohibidas = ['adicc', 'droga', 'alcohol', 'cocaín', 'cocain', 'ludopat', 'desintox', 'terapia', 'tratamiento'];
+  const prohibidas = [
+    'adicc',
+    'droga',
+    'alcohol',
+    'cocaín',
+    'cocain',
+    'ludopat',
+    'desintox',
+    'terapia',
+    'tratamiento',
+  ];
   const enMinusculas = plantilla.toLowerCase();
   const encontrada = prohibidas.find((p) => enMinusculas.includes(p));
   if (encontrada) {
@@ -711,7 +837,8 @@ export async function guardarParametros(formData: FormData) {
       error: `El recordatorio no puede mencionar el motivo de consulta (contiene «${encontrada}»). Debe ser discreto.`,
     });
   }
-  if (!plantilla) volver('parametros', { error: 'La plantilla del recordatorio no puede quedar vacía.' });
+  if (!plantilla)
+    volver('parametros', { error: 'La plantilla del recordatorio no puede quedar vacía.' });
 
   const filas: { clave: string; valor: Json }[] = [
     { clave: 'sla_primera_respuesta_minutos', valor: sla },
@@ -810,8 +937,11 @@ export async function guardarParametros(formData: FormData) {
       .from('configuracion')
       .update({ valor: fila.valor })
       .eq('clave', fila.clave);
-    if (error) volver('parametros', { error: `No se pudo guardar ${fila.clave}: ${error.message}` });
+    if (error)
+      volver('parametros', { error: `No se pudo guardar ${fila.clave}: ${error.message}` });
   }
 
-  volver('parametros', { aviso: 'Parámetros guardados. Se aplican de inmediato en toda la plataforma.' });
+  volver('parametros', {
+    aviso: 'Parámetros guardados. Se aplican de inmediato en toda la plataforma.',
+  });
 }

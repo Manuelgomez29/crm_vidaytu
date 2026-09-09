@@ -313,6 +313,42 @@ async function main() {
     .eq('slug', 'meta_ads');
   comprobar('y sigue pudiendo tocar los catálogos', grupoEditaCatalogo === null);
 
+  // ---------------------------------------------------------------------------
+  console.log('\nEl camino del panel de administración:');
+
+  /*
+   * Esto es lo que se me escapó la primera vez y estuvo roto en producción: el
+   * panel edita usuarios con la CLAVE DE SERVICIO, y el cerrojo que impide
+   * ascenderse miraba `auth.uid()`, que ahí no existe. Resultado: nadie podía
+   * cambiarle el rol a nadie, ni el CEO.
+   *
+   * La prueba atacaba por la sesión del usuario —por donde vendría alguien
+   * intentando colarse— y por ahí funcionaba perfecto. El camino legítimo no lo
+   * miraba nadie. Ahora sí.
+   */
+  const { data: victima } = await admin
+    .from('perfiles')
+    .select('id, rol, alcance')
+    .eq('email', 'terapeuta@test.com')
+    .single();
+
+  const { error: alCambiarRol } = await admin
+    .from('perfiles')
+    .update({ rol: 'admisiones' })
+    .eq('id', victima!.id);
+  comprobar(
+    'el servidor puede cambiar el rol de alguien',
+    alCambiarRol === null,
+    alCambiarRol?.message ?? '',
+  );
+  await admin.from('perfiles').update({ rol: victima!.rol }).eq('id', victima!.id);
+
+  const { error: alCambiarAlcance } = await admin
+    .from('perfiles')
+    .update({ alcance: 'centros' })
+    .eq('id', idUsuario);
+  comprobar('y el alcance', alCambiarAlcance === null, alCambiarAlcance?.message ?? '');
+
   // Se deja el caso de prueba como estaba.
   await admin.from('leads').update({ zona: 'Jerez de la Frontera' }).eq('id', unCaso.id);
 
