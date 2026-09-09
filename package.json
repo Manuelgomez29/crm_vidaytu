@@ -52,7 +52,9 @@
     "verificar:busqueda": "tsx --env-file=.env.local scripts/verificar-busqueda.ts",
     "staging:verificar:busqueda": "tsx --env-file=.env.staging scripts/verificar-busqueda.ts",
     "verificar:alcance": "tsx --env-file=.env.local scripts/verificar-alcance.ts",
-    "staging:verificar:alcance": "tsx --env-file=.env.staging scripts/verificar-alcance.ts"
+    "staging:verificar:alcance": "tsx --env-file=.env.staging scripts/verificar-alcance.ts",
+    "verificar:marketing-centro": "tsx --env-file=.env.local scripts/verificar-marketing-centro.ts",
+    "staging:verificar:marketing-centro": "tsx --env-file=.env.staging scripts/verificar-marketing-centro.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

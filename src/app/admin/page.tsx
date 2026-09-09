@@ -49,7 +49,10 @@ export default async function AdminPortada() {
     supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
     supabase.from('pipelines').select('id', { count: 'exact', head: true }).eq('activo', true),
     supabase.from('etiquetas').select('id', { count: 'exact', head: true }).eq('activa', true),
-    supabase.from('reglas_etiquetado').select('id', { count: 'exact', head: true }).eq('activa', true),
+    supabase
+      .from('reglas_etiquetado')
+      .select('id', { count: 'exact', head: true })
+      .eq('activa', true),
     supabase.from('centros').select('id', { count: 'exact', head: true }).eq('activo', true),
     supabase
       .from('configuracion')
@@ -127,13 +130,7 @@ export default async function AdminPortada() {
           href="/admin/motor"
           icono="🔁"
           titulo="Motor de automatizaciones"
-          dato={
-            motor.nuncaHaCorrido
-              ? 'Sin arrancar'
-              : motor.parado
-                ? 'Parado'
-                : 'Funcionando'
-          }
+          dato={motor.nuncaHaCorrido ? 'Sin arrancar' : motor.parado ? 'Parado' : 'Funcionando'}
           descripcion="Reparto, alertas, cadencia y recordatorios: si corre y para qué sirve"
         />
         <Seccion
@@ -151,7 +148,10 @@ export default async function AdminPortada() {
         </h3>
         <ul className="flex flex-col gap-1.5 text-[13px]">
           {(auditoria ?? []).map((a, i) => (
-            <li key={i} className="flex justify-between gap-3 border-b border-dashed border-line pb-1.5 last:border-0">
+            <li
+              key={i}
+              className="flex justify-between gap-3 border-b border-dashed border-line pb-1.5 last:border-0"
+            >
               <span className="text-ink2">
                 {a.accion} en <b className="text-ink">{a.tabla}</b>
               </span>

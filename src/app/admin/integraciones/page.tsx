@@ -63,11 +63,7 @@ export default async function AdminIntegraciones({
           const requisitos = REQUISITOS[i.clave];
           const ajustes = (i.ajustes ?? {}) as Record<string, string>;
           return (
-            <form
-              key={i.id}
-              action={guardarIntegracion.bind(null, i.clave)}
-              className="panel p-4"
-            >
+            <form key={i.id} action={guardarIntegracion.bind(null, i.clave)} className="panel p-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">{i.nombre}</h2>
                 <label className="flex items-center gap-1.5 text-xs text-ink2">
@@ -99,7 +95,12 @@ export default async function AdminIntegraciones({
 
               {requisitos && (
                 <p className="mb-3 text-xs text-muted">
-                  Necesita en el servidor: {requisitos.variables.map((v) => <code key={v} className="mr-1.5">{v}</code>)}
+                  Necesita en el servidor:{' '}
+                  {requisitos.variables.map((v) => (
+                    <code key={v} className="mr-1.5">
+                      {v}
+                    </code>
+                  ))}
                 </p>
               )}
 
@@ -136,8 +137,18 @@ export default async function AdminIntegraciones({
         </p>
 
         <form action={importarCsv} className="flex flex-wrap items-end gap-2">
-          <input type="file" name="archivo" accept=".csv,text/csv" className={`${inputAdmin} min-w-48 flex-1`} required />
-          <input name="origen" placeholder="Origen (p. ej. Clientify)" className={`${inputAdmin} min-w-36`} />
+          <input
+            type="file"
+            name="archivo"
+            accept=".csv,text/csv"
+            className={`${inputAdmin} min-w-48 flex-1`}
+            required
+          />
+          <input
+            name="origen"
+            placeholder="Origen (p. ej. Clientify)"
+            className={`${inputAdmin} min-w-36`}
+          />
           <select name="etiqueta" defaultValue="" className={inputAdmin}>
             <option value="">Sin etiquetar</option>
             {(etiquetas ?? []).map((e) => (

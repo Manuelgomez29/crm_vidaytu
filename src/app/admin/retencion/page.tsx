@@ -91,7 +91,13 @@ export default async function AdminRetencion({
         <form className="mb-4 flex flex-wrap items-end gap-2">
           <label className="flex flex-col gap-1 text-xs text-ink2">
             Simular con
-            <input name="meses" type="number" min="1" defaultValue={plazo} className={`${inputAdmin} w-28`} />
+            <input
+              name="meses"
+              type="number"
+              min="1"
+              defaultValue={plazo}
+              className={`${inputAdmin} w-28`}
+            />
           </label>
           <button type="submit" className="btn btn-ghost">
             Ver
@@ -104,7 +110,9 @@ export default async function AdminRetencion({
             <p className="text-[19px] font-bold tabular-nums">{candidatos.casos.length}</p>
           </div>
           <div className="rounded-lg bg-ground p-3 ring-1 ring-line">
-            <p className="text-[11px] uppercase tracking-wide text-muted">Personas del directorio</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted">
+              Personas del directorio
+            </p>
             <p className="text-[19px] font-bold tabular-nums">{candidatos.contactos}</p>
             <p className="text-[11px] text-ink2">Solo las que no participan en ningún caso vivo</p>
           </div>

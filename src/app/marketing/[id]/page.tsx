@@ -63,9 +63,7 @@ export default async function EditorCampana({
     .eq('clave', 'marketing_pie')
     .maybeSingle();
   const pie =
-    typeof pieConfig?.valor === 'string'
-      ? pieConfig.valor
-      : 'Puedes darte de baja aquí: {baja}';
+    typeof pieConfig?.valor === 'string' ? pieConfig.valor : 'Puedes darte de baja aquí: {baja}';
 
   const { data: fallidos } = await supabase
     .from('campana_destinatarios')
@@ -87,7 +85,9 @@ export default async function EditorCampana({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">

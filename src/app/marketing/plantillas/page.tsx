@@ -37,7 +37,9 @@ export default async function Plantillas({
       descripcion="Textos reutilizables para no reescribir lo mismo en cada campaña"
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -50,7 +52,12 @@ export default async function Plantillas({
         <form action={crearPlantilla} className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2">
             <input name="nombre" placeholder="Nombre" className="campo min-w-48 flex-1" required />
-            <input name="asunto" placeholder="Asunto" className="campo min-w-48 flex-[2]" required />
+            <input
+              name="asunto"
+              placeholder="Asunto"
+              className="campo min-w-48 flex-[2]"
+              required
+            />
           </div>
           <textarea
             name="cuerpo_texto"
@@ -88,7 +95,10 @@ export default async function Plantillas({
                   {p.cuerpo_html && <span className="chip chip-primary">Con HTML</span>}
                   <span className="text-xs text-muted">{fecha(p.created_at, false)}</span>
                   <form action={borrarPlantilla.bind(null, p.id)}>
-                    <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
+                    <button
+                      type="submit"
+                      className="text-xs text-muted hover:text-danger hover:underline"
+                    >
                       Borrar
                     </button>
                   </form>

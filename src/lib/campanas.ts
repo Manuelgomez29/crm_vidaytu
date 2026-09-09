@@ -66,7 +66,9 @@ export function terminosProhibidosEn(
     const t = normalizar(termino);
     // Límite de palabra, para que "consumo" no salte dentro de "consumidor"
     // y, sobre todo, para no bloquear palabras que lo contienen por azar.
-    return new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`).test(texto);
+    return new RegExp(`(^|[^a-z0-9])${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`).test(
+      texto,
+    );
   });
 }
 
@@ -97,7 +99,7 @@ export async function prepararDestinatarios(
 ): Promise<{ total: number; error?: string }> {
   const { data: campana } = await admin
     .from('campanas_email')
-    .select('id, lista_id, lista:listas (id, tipo, filtro)')
+    .select('id, centro_id, lista_id, lista:listas (id, tipo, filtro)')
     .eq('id', campanaId)
     .maybeSingle();
 
@@ -119,6 +121,42 @@ export async function prepararDestinatarios(
 
   if (candidatos.length === 0) return { total: 0, error: 'La lista no tiene a nadie.' };
 
+  /*
+   * Si la campaña es de un centro, solo entra quien esté ligado a un caso de
+   * ESE centro.
+   *
+   * Se hace aquí y no confiando en la lista porque una lista puede ser global,
+   * o de un segmento dinámico que no sabe nada de centros, o simplemente estar
+   * mal montada. Escribir a alguien de otro centro es peor que no escribir: la
+   * persona no espera saber de nosotros por ahí, y quien lo recibe no entiende
+   * de qué le hablan.
+   *
+   * Quien no tiene ningún caso —un contacto importado, por ejemplo— no
+   * pertenece a ningún centro, así que solo entra en campañas de grupo. Es lo
+   * correcto: no sabemos de quién es.
+   */
+  if (campana.centro_id) {
+    const { data: delCentro } = await admin
+      .from('lead_contactos')
+      .select('contacto_id, lead:leads!inner (centro_id)')
+      .in('contacto_id', candidatos)
+      .eq('leads.centro_id', campana.centro_id);
+
+    const permitidos = new Set((delCentro ?? []).map((v) => v.contacto_id));
+    const fuera = candidatos.length - permitidos.size;
+    candidatos = candidatos.filter((id) => permitidos.has(id));
+
+    if (candidatos.length === 0) {
+      return {
+        total: 0,
+        error:
+          fuera > 0
+            ? `Ninguna de las ${fuera} personas de esa lista tiene un caso en el centro de la campaña.`
+            : 'La lista no tiene a nadie de ese centro.',
+      };
+    }
+  }
+
   // El filtro que importa. Aunque el segmento no lo pidiera, aquí se exige.
   const { data: elegibles } = await admin
     .from('contactos')
@@ -138,7 +176,8 @@ export async function prepararDestinatarios(
   const { error } = await admin
     .from('campana_destinatarios')
     .upsert(filas, { onConflict: 'campana_id,contacto_id', ignoreDuplicates: true });
-  if (error) return { total: 0, error: `No se pudieron preparar los destinatarios: ${error.message}` };
+  if (error)
+    return { total: 0, error: `No se pudieron preparar los destinatarios: ${error.message}` };
 
   const { count } = await admin
     .from('campana_destinatarios')
@@ -252,9 +291,7 @@ export async function enviarLote(
       para: destinatario.email,
       asunto: campana.asunto,
       cuerpo: componer(campana.cuerpo_texto, pie, persona, false),
-      html: campana.cuerpo_html
-        ? componer(campana.cuerpo_html, pie, persona, true)
-        : undefined,
+      html: campana.cuerpo_html ? componer(campana.cuerpo_html, pie, persona, true) : undefined,
       remitente,
     });
 
@@ -328,7 +365,10 @@ export async function procesarCampanas(admin: Cliente): Promise<ResultadoCampana
     await admin.from('campanas_email').update({ estado: 'enviando' }).eq('id', campana.id);
   }
 
-  const { data: enCurso } = await admin.from('campanas_email').select('id').eq('estado', 'enviando');
+  const { data: enCurso } = await admin
+    .from('campanas_email')
+    .select('id')
+    .eq('estado', 'enviando');
 
   let enviados = 0;
   let fallidos = 0;

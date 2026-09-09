@@ -185,7 +185,10 @@ export async function borrarPregunta(preguntaId: string) {
 
 export async function cambiarEstadoCuestionario(cuestionarioId: string, activo: boolean) {
   const { supabase } = await exigirDireccion();
-  const { error } = await supabase.from('cuestionarios').update({ activo }).eq('id', cuestionarioId);
+  const { error } = await supabase
+    .from('cuestionarios')
+    .update({ activo })
+    .eq('id', cuestionarioId);
   if (error) volver({ error: `No se pudo actualizar: ${error.message}` });
   volver();
 }
