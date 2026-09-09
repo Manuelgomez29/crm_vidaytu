@@ -24,10 +24,7 @@ export default async function AdminClinica({
   const [{ data: fases }, { data: habitaciones }, { data: centros }, { data: cuestionarios }] =
     await Promise.all([
       supabase.from('fases_metodo').select('*').order('orden'),
-      supabase
-        .from('habitaciones')
-        .select('*, centro:centros (nombre)')
-        .order('nombre'),
+      supabase.from('habitaciones').select('*, centro:centros (nombre)').order('nombre'),
       supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
       supabase
         .from('cuestionarios')
@@ -84,8 +81,17 @@ export default async function AdminClinica({
         </div>
 
         <form action={crearFase} className="flex flex-wrap items-center gap-2">
-          <input name="nombre" placeholder="Nueva fase" className={`${inputAdmin} min-w-40`} required />
-          <input name="descripcion" placeholder="Descripción" className={`${inputAdmin} min-w-48 flex-1`} />
+          <input
+            name="nombre"
+            placeholder="Nueva fase"
+            className={`${inputAdmin} min-w-40`}
+            required
+          />
+          <input
+            name="descripcion"
+            placeholder="Descripción"
+            className={`${inputAdmin} min-w-48 flex-1`}
+          />
           <button type="submit" className={botonAdmin}>
             Añadir fase
           </button>
@@ -140,8 +146,19 @@ export default async function AdminClinica({
               </option>
             ))}
           </select>
-          <input name="nombre" placeholder="Nombre o número" className={`${inputAdmin} min-w-32`} required />
-          <input name="plazas" type="number" min="1" defaultValue="1" className={`${inputAdmin} w-20`} />
+          <input
+            name="nombre"
+            placeholder="Nombre o número"
+            className={`${inputAdmin} min-w-32`}
+            required
+          />
+          <input
+            name="plazas"
+            type="number"
+            min="1"
+            defaultValue="1"
+            className={`${inputAdmin} w-20`}
+          />
           <button type="submit" className={botonAdmin}>
             Crear
           </button>
@@ -158,12 +175,13 @@ export default async function AdminClinica({
 
         <div className="mb-4 flex flex-col gap-3">
           {(cuestionarios ?? []).map((c) => (
-            <details key={c.id} className={`rounded-lg bg-ground p-3 ring-1 ring-line ${c.activo ? '' : 'opacity-60'}`}>
+            <details
+              key={c.id}
+              className={`rounded-lg bg-ground p-3 ring-1 ring-line ${c.activo ? '' : 'opacity-60'}`}
+            >
               <summary className="flex cursor-pointer items-center justify-between gap-2">
                 <b className="text-[13.5px]">{c.nombre}</b>
-                <span className="text-xs text-muted">
-                  {(c.preguntas ?? []).length} pregunta(s)
-                </span>
+                <span className="text-xs text-muted">{(c.preguntas ?? []).length} pregunta(s)</span>
               </summary>
 
               <ul className="mt-3 flex flex-col gap-1.5">
@@ -190,10 +208,23 @@ export default async function AdminClinica({
                   ))}
               </ul>
 
-              <form action={anadirPregunta.bind(null, c.id)} className="mt-3 flex flex-wrap items-center gap-2">
-                <input name="texto" placeholder="Nueva pregunta" className={`${inputAdmin} min-w-48 flex-1`} required />
+              <form
+                action={anadirPregunta.bind(null, c.id)}
+                className="mt-3 flex flex-wrap items-center gap-2"
+              >
+                <input
+                  name="texto"
+                  placeholder="Nueva pregunta"
+                  className={`${inputAdmin} min-w-48 flex-1`}
+                  required
+                />
                 <input name="min" type="number" defaultValue="0" className={`${inputAdmin} w-16`} />
-                <input name="max" type="number" defaultValue="10" className={`${inputAdmin} w-16`} />
+                <input
+                  name="max"
+                  type="number"
+                  defaultValue="10"
+                  className={`${inputAdmin} w-16`}
+                />
                 <button type="submit" className={botonAdminSecundario}>
                   Añadir
                 </button>
@@ -211,8 +242,17 @@ export default async function AdminClinica({
         </div>
 
         <form action={crearCuestionario} className="flex flex-wrap items-center gap-2">
-          <input name="nombre" placeholder="Nombre del cuestionario" className={`${inputAdmin} min-w-40`} required />
-          <input name="descripcion" placeholder="Para qué sirve" className={`${inputAdmin} min-w-48 flex-1`} />
+          <input
+            name="nombre"
+            placeholder="Nombre del cuestionario"
+            className={`${inputAdmin} min-w-40`}
+            required
+          />
+          <input
+            name="descripcion"
+            placeholder="Para qué sirve"
+            className={`${inputAdmin} min-w-48 flex-1`}
+          />
           <button type="submit" className={botonAdmin}>
             Crear
           </button>

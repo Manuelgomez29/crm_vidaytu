@@ -6,11 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { desdeDatetimeLocal } from '@/lib/fechas';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
-import {
-  prepararDestinatarios,
-  terminosConfigurados,
-  terminosProhibidosEn,
-} from '@/lib/campanas';
+import { prepararDestinatarios, terminosConfigurados, terminosProhibidosEn } from '@/lib/campanas';
 
 /**
  * Acciones de email marketing. Todas vuelven a comprobar el rol en el
@@ -27,12 +23,43 @@ async function soloDireccion() {
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, alcance')
     .eq('id', user.id)
     .maybeSingle();
   if (perfil?.rol !== 'direccion') redirect('/leads');
 
-  return { supabase, userId: user.id };
+  return { supabase, userId: user.id, esDeGrupo: perfil.alcance === 'grupo' };
+}
+
+/**
+ * A que centro puede dirigir una campaña quien la crea.
+ *
+ * La direccion de grupo elige: uno de los centros, o ninguno y va al grupo
+ * entero. La de un centro no elige nada — su campaña es de su centro, y punto—.
+ * Se decide aqui y no en el formulario porque lo que llegue en el formulario lo
+ * escribe quien quiera.
+ */
+async function centroDeLaCampana(formData: FormData): Promise<string | null> {
+  const { supabase, userId, esDeGrupo } = await soloDireccion();
+
+  if (esDeGrupo) {
+    const pedido = String(formData.get('centro') ?? '');
+    return pedido || null;
+  }
+
+  const { data } = await supabase
+    .from('perfil_centros')
+    .select('centro_id')
+    .eq('perfil_id', userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) {
+    volver('/marketing', {
+      error: 'No tienes ningún centro asignado, así que no hay a quién dirigir la campaña.',
+    });
+  }
+  return data.centro_id;
 }
 
 function volver(ruta: string, aviso?: { error?: string; aviso?: string }): never {
@@ -58,7 +85,9 @@ export async function crearPlantilla(formData: FormData) {
   const cuerpoHtml = String(formData.get('cuerpo_html') ?? '').trim() || null;
 
   if (!nombre || !asunto || !cuerpoTexto) {
-    volver('/marketing/plantillas', { error: 'Nombre, asunto y cuerpo en texto son obligatorios.' });
+    volver('/marketing/plantillas', {
+      error: 'Nombre, asunto y cuerpo en texto son obligatorios.',
+    });
   }
 
   const { error } = await supabase.from('plantillas_email').insert({
@@ -115,6 +144,7 @@ export async function crearCampana(formData: FormData) {
       asunto,
       cuerpo_texto: cuerpoTexto,
       cuerpo_html: cuerpoHtml,
+      centro_id: await centroDeLaCampana(formData),
       created_by: userId,
     })
     .select('id')
@@ -207,7 +237,9 @@ export async function enviarPrueba(id: string, formData: FormData) {
 
   if (!destino.includes('@')) volver(ruta, { error: 'Escribe una dirección de correo válida.' });
   if (!emailConfigurado()) {
-    volver(ruta, { error: 'No hay proveedor de correo configurado (RESEND_API_KEY y EMAIL_REMITENTE).' });
+    volver(ruta, {
+      error: 'No hay proveedor de correo configurado (RESEND_API_KEY y EMAIL_REMITENTE).',
+    });
   }
 
   const admin = createAdminClient();

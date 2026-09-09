@@ -32,72 +32,84 @@ export default async function AdminCentros({
       titulo="Centros"
       descripcion="Centros del grupo y bandeja compartida"
     >
-        <Avisos error={errorMsg} aviso={aviso} />
-        <p className="mb-4 text-sm text-ink2">
-          Los centros no se borran (sus leads e historial dependen de ellos): se desactivan, y así
-          dejan de ofrecerse en los formularios sin perder nada.
-        </p>
+      <Avisos error={errorMsg} aviso={aviso} />
+      <p className="mb-4 text-sm text-ink2">
+        Los centros no se borran (sus leads e historial dependen de ellos): se desactivan, y así
+        dejan de ofrecerse en los formularios sin perder nada.
+      </p>
 
-        <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
-            Nuevo centro
-          </h3>
-          <form action={crearCentro} className="flex flex-wrap gap-2">
-            <input name="nombre" placeholder="Nombre" required className={`${inputAdmin} min-w-48 flex-1`} />
-            <input name="ciudad" placeholder="Ciudad" className={inputAdmin} />
-            <button type="submit" className={botonAdmin}>
-              Crear
-            </button>
-          </form>
-        </section>
+      <section className="mb-6 rounded-xl bg-surface p-4 ring-1 ring-line">
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
+          Nuevo centro
+        </h3>
+        <form action={crearCentro} className="flex flex-wrap gap-2">
+          <input
+            name="nombre"
+            placeholder="Nombre"
+            required
+            className={`${inputAdmin} min-w-48 flex-1`}
+          />
+          <input name="ciudad" placeholder="Ciudad" className={inputAdmin} />
+          <button type="submit" className={botonAdmin}>
+            Crear
+          </button>
+        </form>
+      </section>
 
-        <div className="flex flex-col gap-3">
-          {(centros ?? []).map((c) => (
-            <article
-              key={c.id}
-              className={`rounded-xl bg-surface p-4 ring-1 ring-line ${c.activo ? '' : 'opacity-70'}`}
-            >
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <h3 className="font-medium">{c.nombre}</h3>
-                {c.es_bandeja_grupo && (
-                  <span className="rounded-full bg-ec-bg px-2 py-0.5 text-[11px] font-medium text-ec ring-1 ring-ec/25">
-                    Bandeja de grupo
-                  </span>
-                )}
-                <span className="text-xs text-muted">
-                  {leadsPorCentro.get(c.id) ?? 0} lead(s) · slug: {c.slug}
+      <div className="flex flex-col gap-3">
+        {(centros ?? []).map((c) => (
+          <article
+            key={c.id}
+            className={`rounded-xl bg-surface p-4 ring-1 ring-line ${c.activo ? '' : 'opacity-70'}`}
+          >
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <h3 className="font-medium">{c.nombre}</h3>
+              {c.es_bandeja_grupo && (
+                <span className="rounded-full bg-ec-bg px-2 py-0.5 text-[11px] font-medium text-ec ring-1 ring-ec/25">
+                  Bandeja de grupo
                 </span>
-              </div>
-              <form action={editarCentro.bind(null, c.id)} className="flex flex-wrap items-center gap-2">
-                <input name="nombre" defaultValue={c.nombre} className={`${inputAdmin} min-w-48 flex-1`} />
-                <input
-                  name="url_resena"
-                  defaultValue={c.url_resena_google ?? ''}
-                  placeholder="Enlace de reseña de Google"
-                  title="Sin enlace no se propone pedir reseña para los casos de este centro"
-                  className={`${inputAdmin} min-w-56 flex-1`}
-                />
-                <input
-                  name="ciudad"
-                  defaultValue={c.ciudad ?? ''}
-                  placeholder="Ciudad"
-                  className={inputAdmin}
-                />
-                <label className="flex items-center gap-1.5 text-sm text-ink2">
-                  <input type="checkbox" name="activo" defaultChecked={c.activo} /> Activo
-                </label>
-                <button type="submit" className={botonAdminSecundario}>
-                  Guardar
-                </button>
-              </form>
-            </article>
-          ))}
-        </div>
+              )}
+              <span className="text-xs text-muted">
+                {leadsPorCentro.get(c.id) ?? 0} lead(s) · slug: {c.slug}
+              </span>
+            </div>
+            <form
+              action={editarCentro.bind(null, c.id)}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <input
+                name="nombre"
+                defaultValue={c.nombre}
+                className={`${inputAdmin} min-w-48 flex-1`}
+              />
+              <input
+                name="url_resena"
+                defaultValue={c.url_resena_google ?? ''}
+                placeholder="Enlace de reseña de Google"
+                title="Sin enlace no se propone pedir reseña para los casos de este centro"
+                className={`${inputAdmin} min-w-56 flex-1`}
+              />
+              <input
+                name="ciudad"
+                defaultValue={c.ciudad ?? ''}
+                placeholder="Ciudad"
+                className={inputAdmin}
+              />
+              <label className="flex items-center gap-1.5 text-sm text-ink2">
+                <input type="checkbox" name="activo" defaultChecked={c.activo} /> Activo
+              </label>
+              <button type="submit" className={botonAdminSecundario}>
+                Guardar
+              </button>
+            </form>
+          </article>
+        ))}
+      </div>
 
-        <p className="mt-4 text-xs text-muted">
-          La bandeja de grupo es un pseudo-centro donde nacen los leads sin centro claro. Asignar uno
-          de esos leads a un centro real no es una derivación: es un cambio de centro auditado.
-        </p>
-      </AppShell>
+      <p className="mt-4 text-xs text-muted">
+        La bandeja de grupo es un pseudo-centro donde nacen los leads sin centro claro. Asignar uno
+        de esos leads a un centro real no es una derivación: es un cambio de centro auditado.
+      </p>
+    </AppShell>
   );
 }

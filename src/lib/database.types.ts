@@ -304,6 +304,7 @@ export type Database = {
       campanas_email: {
         Row: {
           asunto: string
+          centro_id: string | null
           created_at: string
           created_by: string | null
           cuerpo_html: string | null
@@ -324,6 +325,7 @@ export type Database = {
         }
         Insert: {
           asunto: string
+          centro_id?: string | null
           created_at?: string
           created_by?: string | null
           cuerpo_html?: string | null
@@ -344,6 +346,7 @@ export type Database = {
         }
         Update: {
           asunto?: string
+          centro_id?: string | null
           created_at?: string
           created_by?: string | null
           cuerpo_html?: string | null
@@ -363,6 +366,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "campanas_email_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campanas_email_created_by_fkey"
             columns: ["created_by"]
@@ -2016,6 +2026,7 @@ export type Database = {
       }
       listas: {
         Row: {
+          centro_id: string | null
           created_at: string
           created_by: string | null
           descripcion: string | null
@@ -2025,6 +2036,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_lista"]
         }
         Insert: {
+          centro_id?: string | null
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
@@ -2034,6 +2046,7 @@ export type Database = {
           tipo: Database["public"]["Enums"]["tipo_lista"]
         }
         Update: {
+          centro_id?: string | null
           created_at?: string
           created_by?: string | null
           descripcion?: string | null
@@ -2043,6 +2056,13 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_lista"]
         }
         Relationships: [
+          {
+            foreignKeyName: "listas_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "listas_created_by_fkey"
             columns: ["created_by"]
@@ -3219,6 +3239,7 @@ export type Database = {
       manda_en: { Args: { p_centro: string }; Returns: boolean }
       manda_en_grupo: { Args: never; Returns: boolean }
       manda_en_lead: { Args: { p_lead: string }; Returns: boolean }
+      manda_en_marketing: { Args: { p_centro: string }; Returns: boolean }
       manda_sobre_perfil: { Args: { p_perfil: string }; Returns: boolean }
       mi_rol: {
         Args: never

@@ -34,16 +34,22 @@ export default async function Marketing({
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, alcance')
     .eq('id', user.id)
     .maybeSingle();
   if (perfil?.rol !== 'direccion') redirect('/leads');
+  const esDeGrupo = perfil.alcance === 'grupo';
 
-  const [{ data: campanas }, { data: plantillas }, { count: conConsentimiento }] = await Promise.all([
+  const [
+    { data: campanas },
+    { data: plantillas },
+    { count: conConsentimiento },
+    { data: centros },
+  ] = await Promise.all([
     supabase
       .from('campanas_email')
       .select(
-        'id, nombre, asunto, estado, programada_para, enviada_at, total_destinatarios, total_enviados, total_aperturas, total_clics, total_bajas, created_at, lista:listas (nombre)',
+        'id, nombre, asunto, estado, programada_para, enviada_at, total_destinatarios, total_enviados, total_aperturas, total_clics, total_bajas, created_at, lista:listas (nombre), centro:centros (nombre)',
       )
       .order('created_at', { ascending: false })
       .limit(50),
@@ -53,6 +59,7 @@ export default async function Marketing({
       .select('id', { count: 'exact', head: true })
       .eq('consentimiento_marketing', true)
       .not('email', 'is', null),
+    supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
   ]);
 
   const hayCorreo = emailConfigurado();
@@ -65,7 +72,9 @@ export default async function Marketing({
       descripcion={`${conConsentimiento ?? 0} contacto(s) con consentimiento y email — la base a la que se puede escribir`}
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -94,6 +103,22 @@ export default async function Marketing({
             className="campo min-w-64 flex-1"
             required
           />
+          {/*
+            El centro de la campaña solo lo elige la dirección de grupo: la de un
+            centro no tiene nada que elegir, su campaña es de lo suyo. Y se
+            decide en el servidor de todas formas — lo que llegue aquí lo escribe
+            quien quiera.
+          */}
+          {esDeGrupo && (
+            <select name="centro" defaultValue="" className="campo" title="A quién va dirigida">
+              <option value="">Todo el grupo</option>
+              {(centros ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  Solo {c.nombre}
+                </option>
+              ))}
+            </select>
+          )}
           <select name="plantilla" defaultValue="" className="campo">
             <option value="">Empezar en blanco</option>
             {(plantillas ?? []).map((p) => (
@@ -109,9 +134,7 @@ export default async function Marketing({
       </section>
 
       {(campanas ?? []).length === 0 ? (
-        <p className="panel px-4 py-8 text-center text-sm text-ink2">
-          Todavía no hay campañas.
-        </p>
+        <p className="panel px-4 py-8 text-center text-sm text-ink2">Todavía no hay campañas.</p>
       ) : (
         <div className="panel overflow-x-auto">
           <table className="tabla">
@@ -133,10 +156,21 @@ export default async function Marketing({
                 return (
                   <tr key={c.id}>
                     <td>
-                      <Link href={`/marketing/${c.id}`} className="font-semibold text-primary hover:underline">
+                      <Link
+                        href={`/marketing/${c.id}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
                         {c.nombre}
                       </Link>
                       <span className="block text-xs text-muted">{c.asunto}</span>
+                      {/*
+                        A quién va: es lo primero que hay que saber de una
+                        campaña, antes que el asunto. Sin esto, dos campañas con
+                        el mismo nombre en centros distintos son indistinguibles.
+                      */}
+                      <span className={`chip mt-1 ${c.centro ? 'chip-warn' : 'chip-primary'}`}>
+                        {c.centro ? `Solo ${c.centro.nombre}` : 'Todo el grupo'}
+                      </span>
                     </td>
                     <td className="text-ink2">{c.lista?.nombre ?? '—'}</td>
                     <td>
