@@ -9,6 +9,7 @@ import { DrawerCaso } from './drawer-caso';
 import { NavegacionCaso } from './navegacion-caso';
 import { BarraVistas } from './barra-vistas';
 import { TablaCasos } from './tabla-casos';
+import { FiltrosPlegables } from './filtros-plegables';
 import { umbralesDesde } from '@/lib/scoring';
 import { Presencia } from '@/components/presencia';
 import { misVistas } from './vistas';
@@ -102,18 +103,23 @@ export default async function LeadsPage({
 
   // Consultas independientes en paralelo; solo etapas y leads esperan al pipeline.
   const hoy = hoyMadrid();
-  const [{ data: perfil }, { data: pipelines }, { data: centros }, { data: ausencias }, { data: canales }] =
-    await Promise.all([
-      supabase.from('perfiles').select('rol, nombre').eq('id', user.id).single(),
-      supabase
-        .from('pipelines')
-        .select('id, nombre, centro_id, es_predeterminado')
-        .eq('activo', true)
-        .order('nombre'),
-      supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
-      supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
-      supabase.from('canales').select('id, nombre').eq('activo', true).order('nombre'),
-    ]);
+  const [
+    { data: perfil },
+    { data: pipelines },
+    { data: centros },
+    { data: ausencias },
+    { data: canales },
+  ] = await Promise.all([
+    supabase.from('perfiles').select('rol, nombre').eq('id', user.id).single(),
+    supabase
+      .from('pipelines')
+      .select('id, nombre, centro_id, es_predeterminado')
+      .eq('activo', true)
+      .order('nombre'),
+    supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
+    supabase.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
+    supabase.from('canales').select('id, nombre').eq('activo', true).order('nombre'),
+  ]);
 
   // El terapeuta solo tiene agenda (regla 14).
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
@@ -199,7 +205,10 @@ export default async function LeadsPage({
     const { data: ultimas } = await supabase
       .from('actividades')
       .select('lead_id, created_at')
-      .in('lead_id', filas.map((f) => f.id))
+      .in(
+        'lead_id',
+        filas.map((f) => f.id),
+      )
       .order('created_at', { ascending: false });
 
     const ultimaDe = new Map<string, string>();
@@ -207,9 +216,7 @@ export default async function LeadsPage({
       if (!ultimaDe.has(a.lead_id)) ultimaDe.set(a.lead_id, a.created_at);
     }
     const limite = Date.now() - diasInactivo * 86_400_000;
-    filas = filas.filter(
-      (f) => new Date(ultimaDe.get(f.id) ?? f.created_at).getTime() < limite,
-    );
+    filas = filas.filter((f) => new Date(ultimaDe.get(f.id) ?? f.created_at).getTime() < limite);
   }
 
   const ausentes = new Set((ausencias ?? []).map((a) => a.perfil_id));
@@ -228,9 +235,7 @@ export default async function LeadsPage({
     subcanal: fila.subcanal,
     propietarioNombre: fila.propietario?.nombre ?? null,
     propietarioAusente: fila.propietario_id !== null && ausentes.has(fila.propietario_id),
-    sinProximaAccion:
-      !ESTADOS_SIN_AVISO_ACCION.includes(fila.estado) &&
-      fila.tareas.length === 0,
+    sinProximaAccion: !ESTADOS_SIN_AVISO_ACCION.includes(fila.estado) && fila.tareas.length === 0,
     importe:
       fila.conversiones?.importe_primer_pago ??
       (fila.presupuestos.length > 0
@@ -254,51 +259,72 @@ export default async function LeadsPage({
       titulo="Kanban comercial"
       descripcion={`Proceso: ${procesosVisibles.find((p) => p.id === pipelineId)?.nombre ?? '—'} · ${tarjetas.length} casos abiertos`}
     >
-        <div className="mb-2">
-          <Presencia canal="tablero-leads" yo={{ id: user.id, nombre: perfil?.nombre ?? 'Alguien' }} />
-        </div>
-
-        {(() => {
-          const p = new URLSearchParams(parametrosTablero);
-          if (filtros.vista) p.set('vista', filtros.vista);
-          const aTablero = new URLSearchParams(p);
-          aTablero.delete('modo');
-          const aTabla = new URLSearchParams(p);
-          aTabla.set('modo', 'tabla');
-          const base =
-            'rounded-lg px-3 py-1 text-[12.5px] font-semibold transition';
-          return (
-            <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
-              <Link
-                href={'/leads?' + aTablero.toString()}
-                className={base + (esTabla ? ' text-ink2 hover:text-primary' : ' bg-surface text-primary shadow-sm')}
-              >
-                Tablero
-              </Link>
-              <Link
-                href={'/leads?' + aTabla.toString()}
-                className={base + (esTabla ? ' bg-surface text-primary shadow-sm' : ' text-ink2 hover:text-primary')}
-              >
-                Tabla
-              </Link>
-            </div>
-          );
-        })()}
-
-        {filas.length >= TOPE_TABLERO && (
-          <p className="mb-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-ink ring-1 ring-warn/25">
-            Se muestran los primeros {TOPE_TABLERO} casos. Afina con los filtros de arriba o
-            guarda una vista para no tener que ponerlos cada vez.
-          </p>
-        )}
-
-        <BarraVistas
-          pantalla="kanban"
-          vistas={vistas}
-          filtrosActuales={filtrosPuestos}
-          vistaActiva={filtros.vista}
+      <div className="mb-2">
+        <Presencia
+          canal="tablero-leads"
+          yo={{ id: user.id, nombre: perfil?.nombre ?? 'Alguien' }}
         />
+      </div>
 
+      {(() => {
+        const p = new URLSearchParams(parametrosTablero);
+        if (filtros.vista) p.set('vista', filtros.vista);
+        const aTablero = new URLSearchParams(p);
+        aTablero.delete('modo');
+        const aTabla = new URLSearchParams(p);
+        aTabla.set('modo', 'tabla');
+        const base = 'rounded-lg px-3 py-1 text-[12.5px] font-semibold transition';
+        return (
+          <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
+            <Link
+              href={'/leads?' + aTablero.toString()}
+              className={
+                base +
+                (esTabla ? ' text-ink2 hover:text-primary' : ' bg-surface text-primary shadow-sm')
+              }
+            >
+              Tablero
+            </Link>
+            <Link
+              href={'/leads?' + aTabla.toString()}
+              className={
+                base +
+                (esTabla ? ' bg-surface text-primary shadow-sm' : ' text-ink2 hover:text-primary')
+              }
+            >
+              Tabla
+            </Link>
+          </div>
+        );
+      })()}
+
+      {filas.length >= TOPE_TABLERO && (
+        <p className="mb-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-ink ring-1 ring-warn/25">
+          Se muestran los primeros {TOPE_TABLERO} casos. Afina con los filtros de arriba o guarda
+          una vista para no tener que ponerlos cada vez.
+        </p>
+      )}
+
+      <BarraVistas
+        pantalla="kanban"
+        vistas={vistas}
+        filtrosActuales={filtrosPuestos}
+        vistaActiva={filtros.vista}
+      />
+
+      <FiltrosPlegables
+        puestos={
+          [
+            filtros.centro,
+            filtros.canal,
+            filtros.urgencia,
+            filtros.inactivos,
+            filtros.mias,
+            filtros.calientes,
+            filtros.orden,
+          ].filter(Boolean).length
+        }
+      >
         <form method="get" className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           {procesosVisibles.length > 1 && (
             <select
@@ -348,7 +374,12 @@ export default async function LeadsPage({
             <option value="calor">Los más calientes primero</option>
           </select>
           <label className="flex items-center gap-2 rounded-lg border border-line2 bg-surface px-3 py-2 font-medium text-ink2">
-            <input type="checkbox" name="calientes" value="1" defaultChecked={filtros.calientes === '1'} />
+            <input
+              type="checkbox"
+              name="calientes"
+              value="1"
+              defaultChecked={filtros.calientes === '1'}
+            />
             Solo calientes
           </label>
           <label className="flex items-center gap-2 rounded-lg border border-line2 bg-surface px-3 py-2 font-medium text-ink2">
@@ -358,39 +389,45 @@ export default async function LeadsPage({
           <button type="submit" className="btn btn-primary">
             Filtrar
           </button>
-          {(filtros.centro || filtros.canal || filtros.urgencia || filtros.inactivos || filtros.mias || filtros.calientes || filtros.orden) && (
+          {(filtros.centro ||
+            filtros.canal ||
+            filtros.urgencia ||
+            filtros.inactivos ||
+            filtros.mias ||
+            filtros.calientes ||
+            filtros.orden) && (
             <Link href="/leads" className="px-2 font-medium text-primary hover:underline">
               Limpiar
             </Link>
           )}
         </form>
+      </FiltrosPlegables>
 
-        {error ? (
-          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
-            No se pudieron cargar los leads: {error.message}
-          </p>
-        ) : (
-          esTabla ? (
-            <TablaCasos
-              umbrales={umbrales}
-              tarjetas={[...tarjetas, ...cerradas]}
-              etapas={etapas ?? []}
-              comerciales={comerciales ?? []}
-              etiquetas={etiquetasDisponibles ?? []}
-            />
-          ) : (
-            <Kanban
-              umbrales={umbrales}
-              etapas={etapas ?? []}
-              tarjetas={tarjetas}
-              cerradas={cerradas}
-              puedeAutoasignarse={perfil?.rol === 'admisiones'}
-              comerciales={comerciales ?? []}
-            />
-          )
-        )}
+      {error ? (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
+          No se pudieron cargar los leads: {error.message}
+        </p>
+      ) : esTabla ? (
+        <TablaCasos
+          umbrales={umbrales}
+          tarjetas={[...tarjetas, ...cerradas]}
+          etapas={etapas ?? []}
+          comerciales={comerciales ?? []}
+          etiquetas={etiquetasDisponibles ?? []}
+        />
+      ) : (
+        <Kanban
+          umbrales={umbrales}
+          etapas={etapas ?? []}
+          tarjetas={tarjetas}
+          cerradas={cerradas}
+          puedeAutoasignarse={perfil?.rol === 'admisiones'}
+          comerciales={comerciales ?? []}
+        />
+      )}
 
-        {filtros.caso && (() => {
+      {filtros.caso &&
+        (() => {
           /**
            * Orden de lectura del tablero: columna a columna y, dentro de cada
            * una, como se ven. Encadenar casos tiene que seguir el mismo orden
@@ -414,13 +451,13 @@ export default async function LeadsPage({
                   <NavegacionCaso
                     anterior={i > 0 ? enlaceA(orden[i - 1]) : null}
                     siguiente={i < orden.length - 1 ? enlaceA(orden[i + 1]) : null}
-                    posicion={(i + 1) + ' de ' + orden.length}
+                    posicion={i + 1 + ' de ' + orden.length}
                   />
                 ) : undefined
               }
             />
           );
         })()}
-      </AppShell>
+    </AppShell>
   );
 }
