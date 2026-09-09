@@ -72,10 +72,15 @@ function Tarjeta({
   atenuada,
   onMoverConTeclado,
   posicion,
+  etapaAnterior,
+  etapaSiguiente,
   comerciales,
 }: {
   lead: TarjetaLead;
   umbrales: Umbrales;
+  /** Nombres de las etapas contiguas, para los botones de mover en táctil. */
+  etapaAnterior?: string;
+  etapaSiguiente?: string;
   puedeAutoasignarse: boolean;
   onAsignarme: (id: string) => void;
   onEmpezarArrastre?: (e: React.PointerEvent, lead: TarjetaLead) => void;
@@ -230,6 +235,47 @@ function Tarjeta({
           )
         )}
       </div>
+
+      {/*
+        Mover la tarjeta con el dedo.
+        
+        En tactil el arrastre se descarta a proposito —el gesto tiene que seguir
+        haciendo scroll— y las flechas necesitan un teclado. O sea que en un
+        movil el tablero era de SOLO LECTURA: se veian los casos y no se podia
+        cambiar ninguno de etapa sin abrir la ficha. Con la mitad del uso en
+        movil, eso es medio producto.
+        
+        Solo por debajo de `sm`: en un ordenador estorbarian, que ahi se arrastra.
+      */}
+      {onMoverConTeclado && (etapaAnterior || etapaSiguiente) && (
+        <div className="mt-2 flex gap-2 border-t border-line pt-2 sm:hidden">
+          {/* En los extremos no se pinta el boton que no lleva a ningun sitio:
+              un boton apagado con una raya dentro ocupa lo mismo y no dice nada.
+              El que queda se lleva el ancho entero, que en el pulgar se agradece. */}
+          {etapaAnterior && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => onMoverConTeclado(lead, -1)}
+              aria-label={`Mover ${lead.nombre} a ${etapaAnterior}`}
+              className="btn-mini flex-1"
+            >
+              ← {etapaAnterior}
+            </button>
+          )}
+          {etapaSiguiente && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => onMoverConTeclado(lead, 1)}
+              aria-label={`Mover ${lead.nombre} a ${etapaSiguiente}`}
+              className="btn-mini flex-1"
+            >
+              {etapaSiguiente} →
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -250,6 +296,25 @@ export default function Kanban({
   const arrastreRef = useRef<Arrastre | null>(null);
   const [columnaDestino, setColumnaDestino] = useState<string | null>(null);
   const columnasRef = useRef(new Map<string, HTMLElement>());
+
+  /*
+   * Que etapa se ve en el movil.
+   *
+   * En el ordenador se ven las seis columnas de un vistazo, que es la gracia de
+   * un tablero. En un telefono de 375 px no caben ni dos: quedaban de lado, con
+   * scroll horizontal, y para llegar a «Cita realizada» habia que arrastrar la
+   * pantalla cuatro veces sin ver nunca el conjunto. Peor aun, el desplazamiento
+   * lateral se come el vertical: intentabas bajar por una columna y saltabas a
+   * la de al lado.
+   *
+   * Asi que en movil se ve UNA etapa entera, a lo ancho, y se cambia con las
+   * pastillas de arriba. El tablero completo sigue estando en el ordenador y en
+   * la vista de tabla.
+   */
+  const [etapaMovil, setEtapaMovil] = useState<string | null>(null);
+  const etapaVisible = etapas.some((e) => e.id === etapaMovil)
+    ? etapaMovil!
+    : (etapas.find((e) => tarjetas.some((t) => t.etapaId === e.id))?.id ?? etapas[0]?.id ?? '');
 
   function fijarArrastre(valor: Arrastre | null) {
     arrastreRef.current = valor;
@@ -306,6 +371,13 @@ export default function Kanban({
         mostrar({ texto: r.error, tono: 'error' });
         return;
       }
+      /*
+       * En movil se sigue a la tarjeta hasta su nueva etapa. Si no, se moveria y
+       * desapareceria de la pantalla —porque la columna visible es otra— y lo
+       * que se ve es un caso que se esfuma.
+       */
+      setEtapaMovil(etapaId);
+
       mostrar({
         texto: esVuelta
           ? 'Movimiento deshecho.'
@@ -447,6 +519,38 @@ export default function Kanban({
         </section>
       )}
 
+      {/* Selector de etapa, solo en movil. Con el recuento: saber que «Cita
+          agendada» tiene 3 sin tener que ir a mirarla es media decision. */}
+      <nav
+        aria-label="Etapa del tablero"
+        className="mb-3 flex gap-1.5 overflow-x-auto pb-1 sm:hidden"
+      >
+        {etapas.map((etapa) => {
+          const cuantas = tarjetas.filter((t) => t.etapaId === etapa.id).length;
+          const activa = etapa.id === etapaVisible;
+          return (
+            <button
+              key={etapa.id}
+              type="button"
+              onClick={() => setEtapaMovil(etapa.id)}
+              aria-current={activa ? 'true' : undefined}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[12.5px] font-medium transition ${
+                activa ? 'bg-primary text-white' : 'bg-surface2 text-ink2'
+              }`}
+            >
+              {etapa.nombre}
+              <span
+                className={`num rounded-full px-1.5 text-[11px] ${
+                  activa ? 'bg-white/20' : 'bg-surface text-ink'
+                }`}
+              >
+                {cuantas}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
       <div className="flex items-start gap-3 overflow-x-auto pb-4">
         {etapas.map((etapa) => {
           const deEtapa = tarjetas.filter((t) => t.etapaId === etapa.id);
@@ -458,11 +562,16 @@ export default function Kanban({
                 if (el) columnasRef.current.set(etapa.id, el);
                 else columnasRef.current.delete(etapa.id);
               }}
-              className={`flex w-72 shrink-0 flex-col rounded-xl ring-1 transition ${
+              className={`${
+                // En movil solo la elegida, a lo ancho; en pantalla grande, todas.
+                etapa.id === etapaVisible ? 'flex' : 'hidden sm:flex'
+              } w-full shrink-0 flex-col rounded-xl ring-1 transition sm:w-72 ${
                 resaltada ? 'bg-primary-soft ring-primary/40' : 'bg-surface2 ring-line'
               }`}
             >
-              <header className="mb-2.5 flex items-center justify-between text-[11.5px] font-semibold uppercase tracking-[0.08em] text-ink2">
+              {/* En movil el nombre y el recuento ya estan en la pastilla de
+                  arriba; repetirlos gasta la pantalla que hay. */}
+              <header className="mb-2.5 hidden items-center justify-between text-[11.5px] font-semibold uppercase tracking-[0.08em] text-ink2 sm:flex">
                 <h3>{etapa.nombre}</h3>
                 <span className="num rounded-full bg-surface px-2 text-ink">{deEtapa.length}</span>
               </header>
@@ -473,7 +582,8 @@ export default function Kanban({
                   <p className="px-3 py-6 text-center text-[12px] leading-relaxed text-muted">
                     Nada en «{etapa.nombre}».
                     <br />
-                    Arrastra una tarjeta hasta aqui, o cambia la etapa desde la ficha del caso.
+                    Trae una con los botones de la tarjeta, arrastrandola, o desde la ficha del
+                    caso.
                   </p>
                 )}
                 {deEtapa.map((lead) => (
@@ -490,6 +600,8 @@ export default function Kanban({
                     }
                     onMoverConTeclado={moverConTeclado}
                     comerciales={comerciales}
+                    etapaAnterior={etapas[etapas.findIndex((x) => x.id === etapa.id) - 1]?.nombre}
+                    etapaSiguiente={etapas[etapas.findIndex((x) => x.id === etapa.id) + 1]?.nombre}
                     posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
                   />
                 ))}
@@ -522,9 +634,19 @@ export default function Kanban({
         )}
       </div>
 
-      <p className="text-xs text-muted">
-        Arrastra las tarjetas entre etapas (en el móvil, cambia la etapa desde la ficha del caso).
-        El movimiento es libre: la plataforma avisa, nunca bloquea.
+      {/*
+        Cada cual lee la suya. Este texto decía «en el móvil, cambia la etapa
+        desde la ficha del caso» y era verdad hasta hace un rato: en táctil no
+        había forma de mover una tarjeta desde el tablero. Ahora la hay, y dejar
+        la frase vieja sería enseñar el camino largo.
+      */}
+      <p className="text-xs text-muted sm:hidden">
+        Cambia la etapa con los botones de cada tarjeta, o toca arriba para ver otra etapa. El
+        movimiento es libre: la plataforma avisa, nunca bloquea.
+      </p>
+      <p className="hidden text-xs text-muted sm:block">
+        Arrastra las tarjetas entre etapas, o enfoca una y usa las flechas ← →. El movimiento es
+        libre: la plataforma avisa, nunca bloquea.
       </p>
     </div>
   );
