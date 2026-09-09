@@ -13,8 +13,14 @@
  *
  * Deja el sistema como estaba.
  */
+import { readFileSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
-import { rutaInternaSegura, firmarDestino, destinoValido, secretoCoincide } from '../src/lib/enlaces';
+import {
+  rutaInternaSegura,
+  firmarDestino,
+  destinoValido,
+  secretoCoincide,
+} from '../src/lib/enlaces';
 
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -49,8 +55,18 @@ async function main() {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  for (const tabla of ['leads', 'contactos', 'pacientes', 'facturas', 'auditoria', 'configuracion']) {
-    const { data, error } = await anon.from(tabla as 'leads').select('*').limit(1);
+  for (const tabla of [
+    'leads',
+    'contactos',
+    'pacientes',
+    'facturas',
+    'auditoria',
+    'configuracion',
+  ]) {
+    const { data, error } = await anon
+      .from(tabla as 'leads')
+      .select('*')
+      .limit(1);
     comprobar(`no puede leer ${tabla}`, Boolean(error) || (data ?? []).length === 0);
   }
 
@@ -150,7 +166,10 @@ async function main() {
     'facturas',
     'presupuestos',
   ]) {
-    const { data } = await terapeuta.from(tabla as 'leads').select('*').limit(3);
+    const { data } = await terapeuta
+      .from(tabla as 'leads')
+      .select('*')
+      .limit(3);
     comprobar(`no ve ${tabla}`, (data ?? []).length === 0, `${(data ?? []).length} fila(s)`);
   }
 
@@ -160,7 +179,11 @@ async function main() {
   // -------------------------------------------------------------------------
   console.log('\n3. Entre centros: un comercial de Horizonte y los datos de Bellamar');
   const horizonte = await sesion('horizonte@test.com');
-  const { data: bellamar } = await admin.from('centros').select('id').eq('slug', 'bellamar').single();
+  const { data: bellamar } = await admin
+    .from('centros')
+    .select('id')
+    .eq('slug', 'bellamar')
+    .single();
   const { data: leadBm } = await admin
     .from('leads')
     .select('id')
@@ -175,7 +198,10 @@ async function main() {
     lead_id: leadBm!.id,
   });
 
-  const { data: leadsVe } = await horizonte.from('leads').select('id').eq('centro_id', bellamar!.id);
+  const { data: leadsVe } = await horizonte
+    .from('leads')
+    .select('id')
+    .eq('centro_id', bellamar!.id);
   comprobar('no ve los leads de Bellamar', (leadsVe ?? []).length === 0);
 
   /**
@@ -328,7 +354,10 @@ async function main() {
   const firma = firmarDestino(destino);
   comprobar('el redirector acepta un destino firmado', destinoValido(destino, firma));
   comprobar('rechaza uno sin firma', !destinoValido('https://evil.example.com', null));
-  comprobar('y rechaza la firma de otro destino', !destinoValido('https://evil.example.com', firma));
+  comprobar(
+    'y rechaza la firma de otro destino',
+    !destinoValido('https://evil.example.com', firma),
+  );
 
   comprobar('los secretos se comparan en tiempo constante', secretoCoincide('abc123', 'abc123'));
   comprobar('y un prefijo correcto no cuela', !secretoCoincide('abc', 'abc123'));
@@ -365,12 +394,74 @@ async function main() {
     ),
   );
   const pasaron = enParalelo.filter((r) => r.data === true).length;
-  comprobar('20 peticiones a la vez con límite 5 dejan pasar exactamente 5', pasaron === 5, `pasaron ${pasaron}`);
+  comprobar(
+    '20 peticiones a la vez con límite 5 dejan pasar exactamente 5',
+    pasaron === 5,
+    `pasaron ${pasaron}`,
+  );
 
   await admin.from('limite_peticiones').delete().like('clave', 'verificacion:%');
   await admin.from('limite_peticiones').delete().like('clave', 'concurrencia:%');
 
   // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  console.log('\n10. El segundo factor tambien vale para la API');
+
+  /*
+   * El middleware obliga a pasar por el 2FA, pero su `matcher` excluye `/api/`
+   * —tiene que hacerlo: los webhooks entran por ahi sin sesion—. Eso dejo las
+   * rutas de API fuera de la comprobacion, y se pudo demostrar: con una sesion
+   * de direccion a la que solo se le habia dado la CONTRASEÑA,
+   * `/api/exportar?que=leads` devolvia 200 y el CSV entero.
+   *
+   * El segundo factor protegia las pantallas y no los datos, que es al reves de
+   * como sirve: quien roba una contraseña no necesita la interfaz.
+   *
+   * Se comprueba sobre el codigo porque montar aqui un servidor y una sesion a
+   * medias seria mas fragil que util. Lo que se vigila es que ninguna ruta de
+   * API con sesion vuelva a autenticarse con `getUser()` a secas.
+   */
+  const rutasConSesion = [
+    'src/app/api/exportar/route.ts',
+    'src/app/api/adjuntos/[id]/route.ts',
+    'src/app/api/documentos-clinicos/[id]/route.ts',
+    'src/app/api/presencia/route.ts',
+  ];
+  const sinVerificar = rutasConSesion.filter((r) => {
+    const codigo = readFileSync(r, 'utf8');
+    return !codigo.includes('sesionVerificada');
+  });
+  comprobar(
+    'las rutas de API con sesion exigen el segundo factor',
+    sinVerificar.length === 0,
+    sinVerificar.length ? sinVerificar.join(', ') : `${rutasConSesion.length} rutas`,
+  );
+
+  // -------------------------------------------------------------------------
+  console.log('\n11. En `configuracion` no vive ningun secreto');
+
+  /*
+   * `configuracion` la lee CUALQUIER usuario con sesion, incluido un terapeuta
+   * —que es el rol de menor confianza—. Y esta bien que sea asi: la agenda y el
+   * asistente clinico necesitan leer parametros, y cerrarles la tabla les
+   * rompe el trabajo.
+   *
+   * El riesgo no es lo que hay hoy, que es inofensivo: es que `configuracion`
+   * es EL sitio donde alguien acabara metiendo un token de WhatsApp o una clave
+   * de API, porque es la tabla «de ajustes». Esto salta ese dia, no despues.
+   */
+  const { data: claves } = await admin.from('configuracion').select('clave, valor');
+  const sospechosas = (claves ?? []).filter((c) =>
+    /secret|token|api[_-]?key|password|contrasen|clave_|credencial/i.test(c.clave),
+  );
+  comprobar(
+    'ninguna clave con pinta de secreto',
+    sospechosas.length === 0,
+    sospechosas.length
+      ? sospechosas.map((c) => c.clave).join(', ')
+      : `${(claves ?? []).length} claves revisadas`,
+  );
+
   console.log(
     fallos === 0
       ? '\nNingún agujero reabierto: todas las comprobaciones pasan.\n'

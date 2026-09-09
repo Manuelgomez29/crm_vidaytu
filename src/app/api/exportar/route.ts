@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { sesionVerificada } from '@/lib/sesion-verificada';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
@@ -27,12 +27,13 @@ function aCsv(filas: Record<string, unknown>[]): string {
 }
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  /*
+   * Con el segundo factor dado. El middleware no llega hasta aqui —excluye
+   * `/api/` a proposito, porque por ahi entran los webhooks sin sesion— asi que
+   * la comprobacion vive en la ruta.
+   */
+  const { supabase, user, motivo } = await sesionVerificada();
+  if (!user) return NextResponse.json({ error: `No autorizado: ${motivo}` }, { status: 401 });
 
   const { data: perfil } = await supabase
     .from('perfiles')
