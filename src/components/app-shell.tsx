@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { fechaCorta } from '@/lib/fechas';
-import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
+import { IconoCampana, IconoMenu, IconoSalir } from './iconos';
+import { CajaBuscar, LupaMovil } from './caja-buscar';
 import { BotonAtras } from './boton-atras';
 import { Paleta } from './paleta';
 import { Latido } from './latido';
@@ -401,19 +402,10 @@ export async function AppShell({
           </details>
 
           {esComercial && (
-          <form action="/buscar" className="hidden max-w-[420px] flex-1 sm:flex">
-            <label className="flex w-full items-center gap-2 rounded-lg border border-line bg-ground px-3 py-1.5 text-muted focus-within:border-primary">
-              <IconoLupa />
-              <input
-                name="q"
-                placeholder="Buscar por nombre o teléfono…"
-                className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
-              />
-              <kbd className="chip chip-mut hidden shrink-0 md:inline-flex" title="Paleta de comandos">
-                Ctrl K
-              </kbd>
-            </label>
-          </form>
+            <>
+              <CajaBuscar />
+              <LupaMovil />
+            </>
           )}
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
