@@ -48,7 +48,9 @@
     "verificar:historico-motor": "tsx --env-file=.env.local scripts/verificar-historico-motor.ts",
     "staging:verificar:historico-motor": "tsx --env-file=.env.staging scripts/verificar-historico-motor.ts",
     "verificar:accesos": "tsx --env-file=.env.local scripts/verificar-accesos.ts",
-    "staging:verificar:accesos": "tsx --env-file=.env.staging scripts/verificar-accesos.ts"
+    "staging:verificar:accesos": "tsx --env-file=.env.staging scripts/verificar-accesos.ts",
+    "verificar:busqueda": "tsx --env-file=.env.local scripts/verificar-busqueda.ts",
+    "staging:verificar:busqueda": "tsx --env-file=.env.staging scripts/verificar-busqueda.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

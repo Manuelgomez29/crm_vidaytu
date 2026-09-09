@@ -6,6 +6,7 @@ import { IconoCampana, IconoLupa, IconoMenu, IconoSalir } from './iconos';
 import { BotonAtras } from './boton-atras';
 import { Paleta } from './paleta';
 import { Latido } from './latido';
+import { ProgresoNavegacion } from './progreso-navegacion';
 import { ProveedorAvisos } from './avisos';
 import { SelectorTema } from './selector-tema';
 
@@ -481,6 +482,9 @@ export async function AppShell({
 
       {/* Late mientras la pestana este a la vista, para que «quien esta dentro» sea verdad. */}
       <Latido />
+
+      {/* Al tocar un enlace tiene que pasar algo, aunque el servidor tarde. */}
+      <ProgresoNavegacion />
     </div>
   );
 }

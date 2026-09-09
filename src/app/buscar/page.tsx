@@ -4,17 +4,14 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { etiquetaEstado } from '@/lib/estados';
 import { normalizarTelefono } from '@/lib/telefonos';
+import { patronesDeBusqueda, valorSeguro } from '@/lib/busqueda';
 import { hace } from '@/lib/fechas';
 
 /**
  * Búsqueda global por nombre o teléfono. Devuelve casos y personas por
  * separado, cada cosa limitada por lo que RLS deja ver a quien busca.
  */
-export default async function Buscar({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
+export default async function Buscar({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const supabase = await createClient();
 
@@ -32,13 +29,18 @@ export default async function Buscar({
 
   const busqueda = (q ?? '').trim();
 
-  // Se busca por texto y, si lo tecleado parece un teléfono, también en E.164.
+  /*
+   * Se busca por texto y, si lo tecleado parece un teléfono, también en E.164.
+   *
+   * El valor va escapado: la coma es el separador de condiciones en `or()`, y
+   * buscar «Gómez, Ana» —lo que sale al copiar un nombre de una lista— tumbaba
+   * esta página entera con un error de sintaxis.
+   */
   const comoTelefono = normalizarTelefono(busqueda);
   const patrones = busqueda
     ? [
-        `nombre.ilike.%${busqueda}%`,
-        `telefono.ilike.%${busqueda}%`,
-        ...(comoTelefono ? [`telefono.eq.${comoTelefono}`] : []),
+        patronesDeBusqueda(busqueda, ['nombre', 'telefono']),
+        ...(comoTelefono ? [`telefono.eq.${valorSeguro(comoTelefono)}`] : []),
       ].join(',')
     : '';
 
@@ -53,7 +55,7 @@ export default async function Buscar({
         supabase
           .from('contactos')
           .select('id, nombre, telefono, email, lead_contactos (lead_id)')
-          .or(`${patrones},email.ilike.%${busqueda}%`)
+          .or(`${patrones},${patronesDeBusqueda(busqueda, ['email'])}`)
           .order('nombre')
           .limit(25),
       ])
