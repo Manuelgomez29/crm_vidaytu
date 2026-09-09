@@ -37,10 +37,7 @@ function escribiendo(destino: EventTarget | null): boolean {
   if (!el) return false;
   const etiqueta = el.tagName;
   return (
-    etiqueta === 'INPUT' ||
-    etiqueta === 'TEXTAREA' ||
-    etiqueta === 'SELECT' ||
-    el.isContentEditable
+    etiqueta === 'INPUT' || etiqueta === 'TEXTAREA' || etiqueta === 'SELECT' || el.isContentEditable
   );
 }
 
@@ -129,8 +126,26 @@ export function Paleta({ rol }: { rol: string | undefined }) {
           break;
       }
     }
+    /*
+     * Quien quiera puede abrirla, y con texto puesto.
+     *
+     * La caja de la barra superior y la lupa del movil la abren por aqui en vez
+     * de tener su propia busqueda: dos buscadores parecidos que se comportan
+     * distinto es peor que uno solo, y ademas el de arriba solo buscaba al
+     * pulsar Enter mientras este sugiere mientras escribes.
+     */
+    function abrirDesdeFuera(e: Event) {
+      const texto = (e as CustomEvent<string | undefined>).detail ?? '';
+      setTermino(texto);
+      setAbierta(true);
+    }
+
     document.addEventListener('keydown', alPulsar);
-    return () => document.removeEventListener('keydown', alPulsar);
+    window.addEventListener('abrir-paleta', abrirDesdeFuera);
+    return () => {
+      document.removeEventListener('keydown', alPulsar);
+      window.removeEventListener('abrir-paleta', abrirDesdeFuera);
+    };
   }, [router]);
 
   /**
@@ -171,88 +186,107 @@ export function Paleta({ rol }: { rol: string | undefined }) {
   return (
     <>
       {chuleta && <Chuleta alCerrar={() => setChuleta(false)} />}
-    <Command.Dialog
-      open={abierta}
-      onOpenChange={setAbierta}
-      label="Buscar o ejecutar una acción"
-      shouldFilter={false}
-      className="fixed inset-0 z-50"
-    >
-      <div
-        className="absolute inset-0 bg-ink/35 motion-safe:transition-opacity"
-        onClick={() => setAbierta(false)}
-        aria-hidden
-      />
-      <div className="panel absolute left-1/2 top-[12vh] w-[min(92vw,34rem)] -translate-x-1/2 overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-          <span aria-hidden className="text-muted">
-            ⌕
-          </span>
-          <Command.Input
-            value={termino}
-            onValueChange={setTermino}
-            placeholder="Busca un caso o una persona, o escribe una acción…"
-            className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
-          />
-          <kbd className="chip chip-mut hidden sm:inline-flex">Esc</kbd>
-        </div>
+      <Command.Dialog
+        open={abierta}
+        onOpenChange={setAbierta}
+        label="Buscar o ejecutar una acción"
+        shouldFilter={false}
+        className="fixed inset-0 z-50"
+      >
+        <div
+          className="absolute inset-0 bg-ink/35 motion-safe:transition-opacity"
+          onClick={() => setAbierta(false)}
+          aria-hidden
+        />
+        <div className="panel absolute left-1/2 top-[12vh] w-[min(92vw,34rem)] -translate-x-1/2 overflow-hidden p-0">
+          <div className="flex items-center gap-2 border-b border-line px-4 py-3">
+            <span aria-hidden className="text-muted">
+              ⌕
+            </span>
+            <Command.Input
+              value={termino}
+              onValueChange={setTermino}
+              placeholder="Busca un caso o una persona, o escribe una acción…"
+              className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+            />
+            <kbd className="chip chip-mut hidden sm:inline-flex">Esc</kbd>
+          </div>
 
-        <Command.List className="max-h-[min(60vh,26rem)] overflow-y-auto p-2">
-          <Command.Empty className="px-3 py-6 text-center text-sm text-muted">
-            {termino.trim().length < 2
-              ? 'Escribe al menos dos letras.'
-              : buscando
-                ? 'Buscando…'
-                : 'Nada por aquí. Prueba con el teléfono, con o sin prefijo.'}
-          </Command.Empty>
+          <Command.List className="max-h-[min(60vh,26rem)] overflow-y-auto p-2">
+            <Command.Empty className="px-3 py-6 text-center text-sm text-muted">
+              {termino.trim().length < 2
+                ? 'Escribe al menos dos letras.'
+                : buscando
+                  ? 'Buscando…'
+                  : 'Nada por aquí. Prueba con el teléfono, con o sin prefijo.'}
+            </Command.Empty>
 
-          {accionesVisibles.length > 0 && (
-            <Command.Group
-              heading="Acciones"
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-muted"
-            >
-              {accionesVisibles.map((a) => (
-                <Command.Item
-                  key={a.id}
-                  value={`accion-${a.id}`}
-                  onSelect={() => ir(a.href)}
-                  className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink data-[selected=true]:bg-primary-soft data-[selected=true]:text-primary"
-                >
-                  <span className="flex-1">{a.texto}</span>
-                  {a.pista && <kbd className="chip chip-mut">{a.pista}</kbd>}
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
+            {accionesVisibles.length > 0 && (
+              <Command.Group
+                heading="Acciones"
+                className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-muted"
+              >
+                {accionesVisibles.map((a) => (
+                  <Command.Item
+                    key={a.id}
+                    value={`accion-${a.id}`}
+                    onSelect={() => ir(a.href)}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink data-[selected=true]:bg-primary-soft data-[selected=true]:text-primary"
+                  >
+                    <span className="flex-1">{a.texto}</span>
+                    {a.pista && <kbd className="chip chip-mut">{a.pista}</kbd>}
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
 
-          {resultados.length > 0 && (
-            <Command.Group
-              heading="Casos y personas"
-              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-muted"
-            >
-              {resultados.map((r) => (
-                <Command.Item
-                  key={`${r.tipo}-${r.id}`}
-                  value={`${r.tipo}-${r.id}`}
-                  onSelect={() => ir(r.href)}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink data-[selected=true]:bg-primary-soft"
-                >
-                  <span className={`chip ${r.tipo === 'caso' ? 'chip-primary' : 'chip-mut'}`}>
-                    {r.tipo === 'caso' ? 'Caso' : 'Persona'}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{r.nombre}</span>
-                  {r.detalle && (
-                    <span className="hidden shrink-0 truncate text-xs text-muted sm:block">
-                      {r.detalle}
+            {resultados.length > 0 && (
+              <Command.Group
+                heading="Casos y personas"
+                className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.1em] [&_[cmdk-group-heading]]:text-muted"
+              >
+                {resultados.map((r) => (
+                  <Command.Item
+                    key={`${r.tipo}-${r.id}`}
+                    value={`${r.tipo}-${r.id}`}
+                    onSelect={() => ir(r.href)}
+                    className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink data-[selected=true]:bg-primary-soft"
+                  >
+                    <span className={`chip ${r.tipo === 'caso' ? 'chip-primary' : 'chip-mut'}`}>
+                      {r.tipo === 'caso' ? 'Caso' : 'Persona'}
                     </span>
-                  )}
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-        </Command.List>
-      </div>
-    </Command.Dialog>
+                    <span className="min-w-0 flex-1 truncate">{r.nombre}</span>
+                    {r.detalle && (
+                      <span className="hidden shrink-0 truncate text-xs text-muted sm:block">
+                        {r.detalle}
+                      </span>
+                    )}
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {/*
+             * La salida a la busqueda completa.
+             *
+             * La paleta trae 8 casos y 6 personas: suficiente para ir a lo que
+             * buscas, corto si lo que quieres es repasar. Ahora que la caja de
+             * arriba abre la paleta en vez de ir a /buscar, sin esto la pagina de
+             * busqueda entera se quedaba sin puerta.
+             */}
+            {termino.trim().length >= 2 && (
+              <Command.Item
+                value="ver-todos-los-resultados"
+                onSelect={() => ir(`/buscar?q=${encodeURIComponent(termino.trim())}`)}
+                className="mt-1 flex cursor-pointer items-center gap-2 rounded-lg border-t border-line px-3 py-2 text-sm text-ink2 data-[selected=true]:bg-primary-soft data-[selected=true]:text-primary"
+              >
+                <span className="flex-1">Ver todos los resultados de «{termino.trim()}»</span>
+                <kbd className="chip chip-mut hidden sm:inline-flex">↵</kbd>
+              </Command.Item>
+            )}
+          </Command.List>
+        </div>
+      </Command.Dialog>
     </>
   );
 }

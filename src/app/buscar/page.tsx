@@ -11,6 +11,26 @@ import { hace } from '@/lib/fechas';
  * Búsqueda global por nombre o teléfono. Devuelve casos y personas por
  * separado, cada cosa limitada por lo que RLS deja ver a quien busca.
  */
+type VinculoContacto = {
+  es_principal: boolean;
+  contacto: { id: string; nombre: string; telefono: string | null } | null;
+};
+type VinculoCaso = { lead: { id: string; nombre: string } | null };
+
+/**
+ * Quién es quien llama, respecto a la persona afectada.
+ *
+ * Se dice la relación, no el nombre del afectado: esto es un listado que puede
+ * mirarse con alguien delante, y ahí sobra todo lo que no haga falta (regla 11).
+ */
+function quienEs(quienContacta: string | null, relacion: string | null) {
+  if (relacion) return ` (${relacion})`;
+  if (quienContacta === 'afectado') return ' (la propia persona)';
+  if (quienContacta === 'familiar') return ' (un familiar)';
+  if (quienContacta === 'prescriptor') return ' (prescriptor)';
+  return '';
+}
+
 export default async function Buscar({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const supabase = await createClient();
@@ -48,13 +68,26 @@ export default async function Buscar({ searchParams }: { searchParams: Promise<{
     ? await Promise.all([
         supabase
           .from('leads')
-          .select('id, nombre, telefono, estado, created_at, centro:centros (nombre)')
+          /*
+           * Con su gente. Un caso NO es una persona —por la misma situación
+           * pueden llamar la madre, la pareja y el propio afectado—, así que el
+           * resultado tiene que decir a quién se llama, no solo cómo se llama el
+           * caso. Sin esto, encontrabas el caso y seguías sin saber a quién
+           * marcar.
+           */
+          .select(
+            `id, nombre, telefono, estado, created_at, quien_contacta, relacion_con_afectado,
+             centro:centros (nombre),
+             lead_contactos (es_principal, contacto:contactos (id, nombre, telefono))`,
+          )
           .or(patrones)
           .order('created_at', { ascending: false })
           .limit(25),
         supabase
           .from('contactos')
-          .select('id, nombre, telefono, email, lead_contactos (lead_id)')
+          // Con los casos por su NOMBRE, no un recuento: «2 casos» no dice nada
+          // que se pueda usar; «Prueba Cuatro, Prueba Ocho» sí.
+          .select('id, nombre, telefono, email, lead_contactos (lead:leads (id, nombre))')
           .or(`${patrones},${patronesDeBusqueda(busqueda, ['email'])}`)
           .order('nombre')
           .limit(25),
@@ -93,14 +126,46 @@ export default async function Buscar({ searchParams }: { searchParams: Promise<{
             <div className="flex flex-col gap-2">
               {(leads ?? []).map((l) => {
                 const estado = etiquetaEstado(l.estado);
+                const gente = (l.lead_contactos ?? []) as VinculoContacto[];
+                const principal = gente.find((v) => v.es_principal) ?? gente[0];
                 return (
                   <Link key={l.id} href={`/leads/${l.id}`} className="panel block p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <b className="text-[13.5px]">{l.nombre}</b>
+                      <span className="flex items-center gap-2">
+                        {/* Que se vea que es un CASO y no una persona: son dos
+                            cosas distintas y el nombre del caso suele ser el de
+                            quien llamó, que es justo lo que despista. */}
+                        <span className="chip chip-primary">Caso</span>
+                        <b className="text-[13.5px]">{l.nombre}</b>
+                      </span>
                       <span className={`chip ${estado.clases}`}>{estado.texto}</span>
                     </div>
-                    <p className="num mt-0.5 text-xs text-ink2">
-                      {l.telefono} · {l.centro?.nombre} · {hace(l.created_at)}
+
+                    <p className="mt-1 text-xs text-ink2">
+                      {principal?.contacto ? (
+                        <>
+                          Llama a <b className="text-ink">{principal.contacto.nombre}</b>
+                          {quienEs(l.quien_contacta, l.relacion_con_afectado)}
+                          {' · '}
+                          <span className="num">{principal.contacto.telefono ?? l.telefono}</span>
+                          {gente.length > 1 && (
+                            <span className="text-muted">
+                              {' '}
+                              (+{gente.length - 1} persona{gente.length > 2 ? 's' : ''} más)
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        /* Un caso sin persona vinculada es un caso al que no se
+                           puede llamar. Se dice, en vez de dejar el hueco. */
+                        <span className="text-warn-ink">
+                          Sin persona asociada · <span className="num">{l.telefono}</span>
+                        </span>
+                      )}
+                    </p>
+
+                    <p className="mt-0.5 text-xs text-muted">
+                      {l.centro?.nombre} · entró {hace(l.created_at)}
                     </p>
                   </Link>
                 );
@@ -118,11 +183,23 @@ export default async function Buscar({ searchParams }: { searchParams: Promise<{
             <div className="flex flex-col gap-2">
               {(contactos ?? []).map((c) => (
                 <Link key={c.id} href={`/contactos/${c.id}`} className="panel block p-3">
-                  <b className="text-[13.5px]">{c.nombre}</b>
-                  <p className="num mt-0.5 text-xs text-ink2">
+                  <span className="flex items-center gap-2">
+                    <span className="chip chip-mut">Persona</span>
+                    <b className="text-[13.5px]">{c.nombre}</b>
+                  </span>
+                  <p className="num mt-1 text-xs text-ink2">
                     {c.telefono}
-                    {c.email && ` · ${c.email}`} · {c.lead_contactos.length} caso
-                    {c.lead_contactos.length === 1 ? '' : 's'}
+                    {c.email && ` · ${c.email}`}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {/* Los casos por su nombre y no un recuento: «2 casos» no es
+                        una respuesta, «Prueba Cuatro y Prueba Ocho» sí. */}
+                    {(c.lead_contactos ?? []).length === 0
+                      ? 'Sin ningún caso'
+                      : `En: ${(c.lead_contactos as VinculoCaso[])
+                          .map((v) => v.lead?.nombre)
+                          .filter(Boolean)
+                          .join(' · ')}`}
                   </p>
                 </Link>
               ))}
