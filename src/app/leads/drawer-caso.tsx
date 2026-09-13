@@ -96,36 +96,41 @@ export async function DrawerCaso({
     .in('rol', ['direccion', 'admisiones'])
     .order('nombre');
 
-  const [{ data: contactos }, { data: actividades }, { data: tareas }, { data: presupuestos }, { data: citas }] =
-    await Promise.all([
-      supabase
-        .from('lead_contactos')
-        .select('id, tipo, relacion, es_principal, contacto:contactos (id, nombre, telefono)')
-        .eq('lead_id', leadId)
-        .order('es_principal', { ascending: false }),
-      supabase
-        .from('actividades')
-        .select('id, tipo, contenido, created_at, usuario:perfiles (nombre)')
-        .eq('lead_id', leadId)
-        .order('created_at', { ascending: false })
-        .limit(8),
-      supabase
-        .from('tareas')
-        .select('id, titulo, vence_at, completada_at')
-        .eq('lead_id', leadId)
-        .order('vence_at'),
-      supabase
-        .from('presupuestos')
-        .select('id, importe, estado, created_at')
-        .eq('lead_id', leadId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('citas')
-        .select('id, tipo, inicio, estado')
-        .eq('lead_id', leadId)
-        .order('inicio', { ascending: false })
-        .limit(3),
-    ]);
+  const [
+    { data: contactos },
+    { data: actividades },
+    { data: tareas },
+    { data: presupuestos },
+    { data: citas },
+  ] = await Promise.all([
+    supabase
+      .from('lead_contactos')
+      .select('id, tipo, relacion, es_principal, contacto:contactos (id, nombre, telefono)')
+      .eq('lead_id', leadId)
+      .order('es_principal', { ascending: false }),
+    supabase
+      .from('actividades')
+      .select('id, tipo, contenido, created_at, usuario:perfiles (nombre)')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false })
+      .limit(8),
+    supabase
+      .from('tareas')
+      .select('id, titulo, vence_at, completada_at')
+      .eq('lead_id', leadId)
+      .order('vence_at'),
+    supabase
+      .from('presupuestos')
+      .select('id, importe, estado, created_at')
+      .eq('lead_id', leadId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('citas')
+      .select('id, tipo, inicio, estado')
+      .eq('lead_id', leadId)
+      .order('inicio', { ascending: false })
+      .limit(3),
+  ]);
 
   const estado = etiquetaEstado(lead.estado);
   const principal = (contactos ?? []).find((c) => c.es_principal)?.contacto;

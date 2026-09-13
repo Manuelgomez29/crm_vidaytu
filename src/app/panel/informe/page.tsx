@@ -76,7 +76,11 @@ export default async function InformeMensual({
 
       <section className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          ['Leads nuevos', String(informe.leads), variacion !== null ? `${variacion > 0 ? '+' : ''}${variacion}% vs mes anterior` : ''],
+          [
+            'Leads nuevos',
+            String(informe.leads),
+            variacion !== null ? `${variacion > 0 ? '+' : ''}${variacion}% vs mes anterior` : '',
+          ],
           ['Conversiones', String(informe.conversiones), ''],
           ['Ingresos validados', euros(informe.ingresos), ''],
           ['Ticket medio', euros(informe.ticketMedio), ''],
@@ -129,7 +133,7 @@ export default async function InformeMensual({
         </table>
       </section>
 
-      <div className="grid gap-8 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink2">
             De dónde llegaron

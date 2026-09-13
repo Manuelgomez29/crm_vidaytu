@@ -138,7 +138,10 @@ export async function generarInformeMensual(
 
     return { ok: true, ruta, mes, informe, enviado };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Error desconocido generando el PDF.' };
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Error desconocido generando el PDF.',
+    };
   }
 }
 

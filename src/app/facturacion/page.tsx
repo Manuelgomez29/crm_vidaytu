@@ -59,7 +59,9 @@ export default async function Facturacion({
       descripcion={`${lista.length} factura(s) · ${euros(emitido)} emitidos · ${euros(pendiente)} pendientes de cobro`}
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -91,7 +93,11 @@ export default async function Facturacion({
               </option>
             ))}
           </select>
-          <input name="cliente" placeholder="Cliente (si va en blanco)" className="campo min-w-40" />
+          <input
+            name="cliente"
+            placeholder="Cliente (si va en blanco)"
+            className="campo min-w-40"
+          />
           <button type="submit" className="btn btn-coral">
             Crear
           </button>

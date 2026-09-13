@@ -69,7 +69,8 @@ export function fechaCorta(iso: string): string {
 export function hace(iso: string): string {
   const diaDe = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: ZONA });
   const dias = Math.round(
-    (Date.parse(`${diaDe(new Date())}T00:00:00Z`) - Date.parse(`${diaDe(new Date(iso))}T00:00:00Z`)) /
+    (Date.parse(`${diaDe(new Date())}T00:00:00Z`) -
+      Date.parse(`${diaDe(new Date(iso))}T00:00:00Z`)) /
       86_400_000,
   );
   if (dias <= 0) return 'hoy';

@@ -75,7 +75,7 @@ export default async function Asistente({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="flex flex-col gap-4">
           <nav className="flex w-fit items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
             {[
@@ -86,7 +86,9 @@ export default async function Asistente({
                 key={clave}
                 href={`/clinica/asistente?ambito=${clave}`}
                 className={`rounded-md px-3 py-1.5 font-medium transition ${
-                  modo === clave ? 'bg-surface text-primary shadow-sm' : 'text-ink2 hover:bg-surface/60'
+                  modo === clave
+                    ? 'bg-surface text-primary shadow-sm'
+                    : 'text-ink2 hover:bg-surface/60'
                 }`}
               >
                 {texto}

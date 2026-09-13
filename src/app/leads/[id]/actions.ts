@@ -129,7 +129,11 @@ export async function anadirContacto(leadId: string, formData: FormData) {
      * por el cliente admin, que reutiliza la que ya haya en lugar de chocar
      * contra la clave unica del telefono y delatar su existencia en el error.
      */
-    const resultado = await asegurarContacto(createAdminClient(), { nombre, telefono }, user?.id ?? null);
+    const resultado = await asegurarContacto(
+      createAdminClient(),
+      { nombre, telefono },
+      user?.id ?? null,
+    );
     if ('error' in resultado) {
       volver(leadId, { error: `No se pudo crear el contacto: ${resultado.error}` });
     }
@@ -256,7 +260,8 @@ export async function asignarPropietario(leadId: string, formData: FormData) {
 
 export async function marcarPerdido(leadId: string, formData: FormData) {
   const motivoId = String(formData.get('motivo') ?? '');
-  if (!motivoId) volver(leadId, { error: 'Marcar un lead como perdido exige motivo del catálogo.' });
+  if (!motivoId)
+    volver(leadId, { error: 'Marcar un lead como perdido exige motivo del catálogo.' });
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -381,13 +386,7 @@ export async function asignarCentro(leadId: string, formData: FormData) {
 // ---------------------------------------------------------------------------
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const TIPOS_PERMITIDOS = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'application/pdf',
-];
+const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
 
 export async function subirAdjunto(leadId: string, formData: FormData) {
   const archivo = formData.get('archivo');
@@ -536,7 +535,8 @@ export async function validarConversion(leadId: string, conversionId: string) {
   const alta = await crearPacienteDesdeCaso(createAdminClient(), leadId, user?.id ?? null);
   if (alta.creado) {
     volver(leadId, {
-      aviso: 'Conversión validada. Se ha creado la ficha de paciente: falta asignarle terapeuta referente.',
+      aviso:
+        'Conversión validada. Se ha creado la ficha de paciente: falta asignarle terapeuta referente.',
     });
   }
 

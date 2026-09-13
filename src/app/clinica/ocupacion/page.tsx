@@ -72,7 +72,9 @@ export default async function Ocupacion({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -90,8 +92,10 @@ export default async function Ocupacion({
       ) : (
         Array.from(porCentro.entries()).map(([clave, centro]) => (
           <section key={clave} className="mb-6">
-            <h2 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">{centro.nombre}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <h2 className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">
+              {centro.nombre}
+            </h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {centro.habitaciones.map((h) => {
                 const dentro = ocupadasPorHabitacion.get(h.id) ?? [];
                 const libres = h.plazas - dentro.length;
@@ -141,7 +145,12 @@ export default async function Ocupacion({
 
                     {libres > 0 && (
                       <form action={asignarPlaza.bind(null, h.id)} className="mt-2 flex gap-1.5">
-                        <select name="paciente" defaultValue="" className="campo min-w-0 flex-1 text-xs" required>
+                        <select
+                          name="paciente"
+                          defaultValue=""
+                          className="campo min-w-0 flex-1 text-xs"
+                          required
+                        >
                           <option value="">Ingresar a…</option>
                           {(pacientes ?? []).map((p) => (
                             <option key={p.id} value={p.id}>

@@ -17,10 +17,7 @@ export async function GET(req: NextRequest) {
    * posible para tener una, porque quien llega aqui viene de un correo
    * legitimo y ya se ha fiado.
    */
-  const siguiente = rutaInternaSegura(
-    req.nextUrl.searchParams.get('next'),
-    '/establecer-clave',
-  );
+  const siguiente = rutaInternaSegura(req.nextUrl.searchParams.get('next'), '/establecer-clave');
 
   if (!tokenHash || !tipo) {
     return NextResponse.redirect(new URL('/login?error=enlace', req.url));

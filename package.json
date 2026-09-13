@@ -56,7 +56,11 @@
     "verificar:marketing-centro": "tsx --env-file=.env.local scripts/verificar-marketing-centro.ts",
     "staging:verificar:marketing-centro": "tsx --env-file=.env.staging scripts/verificar-marketing-centro.ts",
     "verificar:fuentes": "tsx --env-file=.env.local scripts/verificar-fuentes.ts",
-    "staging:verificar:fuentes": "tsx --env-file=.env.staging scripts/verificar-fuentes.ts"
+    "staging:verificar:fuentes": "tsx --env-file=.env.staging scripts/verificar-fuentes.ts",
+    "puesta-en-marcha": "tsx --env-file=.env.local scripts/puesta-en-marcha.ts",
+    "staging:puesta-en-marcha": "tsx --env-file=.env.staging scripts/puesta-en-marcha.ts",
+    "verificar:admin-alcance": "tsx --env-file=.env.local scripts/verificar-admin-alcance.ts",
+    "staging:verificar:admin-alcance": "tsx --env-file=.env.staging scripts/verificar-admin-alcance.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

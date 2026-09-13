@@ -264,11 +264,7 @@ export async function registrarCobro(formData: FormData) {
     fecha: String(formData.get('fecha') ?? '') || undefined,
     importe,
     metodo: String(formData.get('metodo') ?? 'transferencia') as
-      | 'transferencia'
-      | 'tarjeta'
-      | 'efectivo'
-      | 'domiciliacion'
-      | 'otro',
+      'transferencia' | 'tarjeta' | 'efectivo' | 'domiciliacion' | 'otro',
     es_primer_pago: formData.get('primer_pago') === 'on',
     notas: String(formData.get('notas') ?? '').trim() || null,
     registrado_por: perfil.id,

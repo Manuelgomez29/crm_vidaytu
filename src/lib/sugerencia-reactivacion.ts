@@ -50,8 +50,7 @@ const PROHIBIDAS = [
 export type ResultadoSugerencia =
   /** `consultaId` y no el texto: el mensaje va por la URL si no, y acaba en el
    *  historial del navegador y en los registros del servidor. */
-  | { ok: true; consultaId: string }
-  | { ok: false; error: string };
+  { ok: true; consultaId: string } | { ok: false; error: string };
 
 export async function sugerirReactivacion(
   supabase: Cliente,
@@ -111,13 +110,17 @@ export async function sugerirReactivacion(
   const modelo = typeof modeloConfig?.valor === 'string' ? modeloConfig.valor : MODELO_POR_DEFECTO;
 
   const registrar = async (resultado: { texto?: string; error?: string }) => {
-    const { data } = await supabase.from('ia_consultas').insert({
-      usuario_id: usuarioId,
-      ambito: 'clinica',
-      pregunta: `Sugerencia de reactivación del caso ${leadId}`,
-      respuesta: resultado.texto ?? null,
-      error: resultado.error ?? null,
-    }).select('id').single();
+    const { data } = await supabase
+      .from('ia_consultas')
+      .insert({
+        usuario_id: usuarioId,
+        ambito: 'clinica',
+        pregunta: `Sugerencia de reactivación del caso ${leadId}`,
+        respuesta: resultado.texto ?? null,
+        error: resultado.error ?? null,
+      })
+      .select('id')
+      .single();
     return data?.id as string | undefined;
   };
 
@@ -187,7 +190,9 @@ export async function sugerirReactivacion(
     }
 
     const id = await registrar({ texto });
-    return id ? { ok: true, consultaId: id } : { ok: false, error: 'No se pudo guardar la sugerencia.' };
+    return id
+      ? { ok: true, consultaId: id }
+      : { ok: false, error: 'No se pudo guardar la sugerencia.' };
   } catch (e) {
     const error = e instanceof Error ? e.message : 'Error desconocido.';
     await registrar({ error });

@@ -45,7 +45,9 @@ function hoyMadrid(): string {
 function sumarMeses(fechaIso: string, meses: number): string {
   const [a, m, d] = fechaIso.split('-').map(Number);
   const base = new Date(Date.UTC(a, m - 1 + meses, 1));
-  const ultimoDia = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0)).getUTCDate();
+  const ultimoDia = new Date(
+    Date.UTC(base.getUTCFullYear(), base.getUTCMonth() + 1, 0),
+  ).getUTCDate();
   base.setUTCDate(Math.min(d, ultimoDia));
   return base.toISOString().slice(0, 10);
 }
@@ -147,7 +149,9 @@ export async function senalesDeCasosAbiertos(admin: Cliente): Promise<CasoConSen
         canalSlug: caso.canal?.slug ?? null,
         respondido: caso.primera_respuesta_at !== null,
         minutosHastaRespuesta: caso.primera_respuesta_at
-          ? Math.round((Date.parse(caso.primera_respuesta_at) - Date.parse(caso.created_at)) / 60_000)
+          ? Math.round(
+              (Date.parse(caso.primera_respuesta_at) - Date.parse(caso.created_at)) / 60_000,
+            )
           : null,
         tienePresupuesto: conPresupuesto.has(caso.id),
         fueReabierto: reabiertos.has(caso.id),
@@ -166,9 +170,7 @@ export async function recalcularPuntuaciones(admin: Cliente): Promise<number> {
   const { data: filas } = await admin
     .from('scoring_reglas')
     .select('nombre, condicion, puntos, activa');
-  const reglas: Regla[] = (filas ?? [])
-    .map(reglaDesdeFila)
-    .filter((r): r is Regla => r !== null);
+  const reglas: Regla[] = (filas ?? []).map(reglaDesdeFila).filter((r): r is Regla => r !== null);
 
   if (reglas.length === 0) return 0;
 
@@ -344,7 +346,9 @@ export async function reactivarPerdidos(admin: Cliente, dias: number): Promise<n
   }
 
   if (omitidasPorBaja > 0) {
-    console.info(`[reactivacion] ${omitidasPorBaja} caso(s) omitido(s): el contacto pidió la baja.`);
+    console.info(
+      `[reactivacion] ${omitidasPorBaja} caso(s) omitido(s): el contacto pidió la baja.`,
+    );
   }
 
   return creadas;
@@ -381,9 +385,10 @@ async function proponerResenas(admin: Cliente, activa: boolean): Promise<number>
      * sin sitio donde dejarla solo hace perder el tiempo a quien la abre, y
      * la reseña de Bellamar en la ficha de Horizonte no le sirve a nadie.
      */
-    const centro = conversion.lead?.centro as
-      | { nombre: string; url_resena_google: string | null }
-      | null;
+    const centro = conversion.lead?.centro as {
+      nombre: string;
+      url_resena_google: string | null;
+    } | null;
     if (!centro?.url_resena_google) continue;
 
     /*
@@ -394,12 +399,21 @@ async function proponerResenas(admin: Cliente, activa: boolean): Promise<number>
      */
     const { data: vinculos } = await admin
       .from('lead_contactos')
-      .select('contacto_id, es_principal, contacto:contactos (id, resena_pedida_at, consentimiento_marketing)')
+      .select(
+        'contacto_id, es_principal, contacto:contactos (id, resena_pedida_at, consentimiento_marketing)',
+      )
       .eq('lead_id', conversion.lead_id)
       .order('es_principal', { ascending: false });
 
     const destinatario = (vinculos ?? [])
-      .map((v) => v.contacto as { id: string; resena_pedida_at: string | null; consentimiento_marketing: boolean | null } | null)
+      .map(
+        (v) =>
+          v.contacto as {
+            id: string;
+            resena_pedida_at: string | null;
+            consentimiento_marketing: boolean | null;
+          } | null,
+      )
       .find((c) => c && !c.resena_pedida_at && c.consentimiento_marketing !== false);
 
     if (!destinatario) {
@@ -664,7 +678,10 @@ async function duplicadosEntreCentros(admin: Cliente): Promise<number> {
         mensaje: `${casos[0].nombre} tiene ${casos.length} casos abiertos en centros distintos: únelos o deriva`,
         // La clave lleva los ids ordenados: mientras sigan los mismos casos
         // abiertos no vuelve a avisar, y si aparece un tercero sí.
-        clave: `duplicado:${casos.map((c) => c.id).sort().join('-')}:${persona.id}`,
+        clave: `duplicado:${casos
+          .map((c) => c.id)
+          .sort()
+          .join('-')}:${persona.id}`,
       });
     }
   }

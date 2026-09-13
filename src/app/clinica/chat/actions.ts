@@ -48,7 +48,9 @@ export async function crearConversacion(formData: FormData) {
     .insert(todos.map((id) => ({ conversacion_id: conversacion.id, perfil_id: id })));
 
   if (errorParticipantes) {
-    volver('/clinica/chat', { error: `No se pudieron añadir participantes: ${errorParticipantes.message}` });
+    volver('/clinica/chat', {
+      error: `No se pudieron añadir participantes: ${errorParticipantes.message}`,
+    });
   }
 
   redirect(`/clinica/chat/${conversacion.id}`);

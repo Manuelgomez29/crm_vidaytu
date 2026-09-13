@@ -32,7 +32,9 @@ function Bloque({
     <section className="panel p-4">
       <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <span className={urgente && cuenta > 0 ? 'text-danger' : ''}>{titulo}</span>
-        <span className={`chip ${urgente && cuenta > 0 ? 'chip-danger' : 'chip-mut'}`}>{cuenta}</span>
+        <span className={`chip ${urgente && cuenta > 0 ? 'chip-danger' : 'chip-mut'}`}>
+          {cuenta}
+        </span>
       </h2>
       {cuenta === 0 ? <p className="text-[13px] text-muted">{vacio}</p> : children}
     </section>
@@ -124,7 +126,7 @@ export default async function MiDia() {
     { data: tareas },
     { data: citas },
     { data: presupuestos },
-    { count: enBandeja },
+    { count: sinAsignar },
     { data: pendientesValidar },
   ] = await Promise.all([
     // 1. SLA en riesgo: abiertos, sin primera respuesta y fuera de plazo.
@@ -168,11 +170,21 @@ export default async function MiDia() {
       .lt('created_at', limitePresupuesto)
       .order('created_at')
       .limit(20),
-    // 5. Contador de la bandeja de grupo.
-    supabase
-      .from('leads')
-      .select('id, centro:centros!inner (slug)', { count: 'exact', head: true })
-      .is('propietario_id', null),
+    /*
+     * 5. Casos SIN PROPIETARIO — que no es lo mismo que la bandeja de grupo.
+     *
+     * El boton decia «Bandeja de grupo» y contaba esto, que son dos cosas
+     * distintas de la regla 2 y la 8: la bandeja de grupo es un centro concreto
+     * —donde nacen los casos sin centro claro, sobre todo el Instagram de Lolo
+     * Drago— y «sin asignar» es no tener duenio, en cualquier centro. A la
+     * direccion de Horizonte le salia «Bandeja de grupo: 1» y ese caso era de
+     * Horizonte; en la bandeja no habia ninguno.
+     *
+     * Lo que se cuenta es lo correcto para esta pantalla: los casos que uno
+     * puede coger, porque autoasignarse solo vale sobre los que no tienen
+     * duenio. Lo que estaba mal era el nombre.
+     */
+    supabase.from('leads').select('id', { count: 'exact', head: true }).is('propietario_id', null),
     // 6. Solo dirección: conversiones esperando validación (regla 7).
     esDireccion
       ? supabase
@@ -219,13 +231,17 @@ export default async function MiDia() {
         <Link href="/tareas" className="btn btn-ghost">
           Nueva tarea
         </Link>
-        <Link href="/leads?propietario=sin" className="btn btn-ghost">
-          Bandeja de grupo
-          <span className={`chip ${enBandeja ? 'chip-gr' : 'chip-mut'}`}>{enBandeja ?? 0}</span>
+        <Link
+          href="/leads?propietario=sin"
+          className="btn btn-ghost"
+          title="Casos sin propietario que puedes coger tú"
+        >
+          Sin asignar
+          <span className={`chip ${sinAsignar ? 'chip-gr' : 'chip-mut'}`}>{sinAsignar ?? 0}</span>
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Bloque
           titulo="Sin responder"
           cuenta={casosSla.length}
@@ -353,9 +369,9 @@ export default async function MiDia() {
       </div>
 
       <p className="mt-5 text-xs text-muted">
-        Esta pantalla se actualiza sola cuando alguien mueve algo. Los plazos —
-        {slaMinutos} minutos de primera respuesta, {diasPresupuesto} días para un presupuesto— los
-        cambia dirección en Administración, no se tocan aquí.
+        Esta pantalla se actualiza sola cuando alguien mueve algo. Los plazos —{slaMinutos} minutos
+        de primera respuesta, {diasPresupuesto} días para un presupuesto— los cambia dirección en
+        Administración, no se tocan aquí.
       </p>
     </AppShell>
   );

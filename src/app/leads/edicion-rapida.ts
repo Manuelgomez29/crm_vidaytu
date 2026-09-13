@@ -21,8 +21,7 @@ const CAMPOS = {
 export type CampoRapido = keyof typeof CAMPOS;
 
 export type ResultadoCambio =
-  | { ok: true; anterior: string | null; descripcion: string }
-  | { ok: false; error: string };
+  { ok: true; anterior: string | null; descripcion: string } | { ok: false; error: string };
 
 /**
  * Cambia un campo de un caso y devuelve lo que había antes, para poder

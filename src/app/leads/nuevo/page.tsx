@@ -5,7 +5,7 @@ import { FormularioSeguro } from '@/components/formulario-seguro';
 import { crearLead } from './actions';
 
 const inputClase =
-  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 function Campo({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
@@ -76,7 +76,7 @@ export default async function NuevoLead({
         borrador="nuevo-lead"
         className="mt-4 flex flex-col gap-4 rounded-xl bg-surface p-5 ring-1 ring-line"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Campo etiqueta="Nombre de quien contacta *">
             <input name="nombre" required className={inputClase} />
           </Campo>

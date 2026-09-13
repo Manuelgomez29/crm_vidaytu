@@ -49,8 +49,10 @@ const TIPO_CONTACTO: Record<string, string> = {
   otro: 'Otro',
 };
 
+// `max-w-full min-w-0`: sin ellos un <select> se planta en el ancho de su
+// opcion mas larga y desborda la pantalla del movil. Ver la nota en `.campo`.
 const inputClase =
-  'rounded-lg border border-line2 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 const botonClase =
   'rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-hover';
 const botonSecundario =
@@ -303,7 +305,7 @@ export default async function FichaLead({
         </p>
       )}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Columna principal */}
         <div className="flex flex-col gap-4 lg:col-span-2">
           {/*

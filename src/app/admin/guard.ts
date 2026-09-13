@@ -14,7 +14,7 @@ export async function exigirDireccion() {
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol, nombre')
+    .select('rol, nombre, alcance')
     .eq('id', user.id)
     .maybeSingle();
 

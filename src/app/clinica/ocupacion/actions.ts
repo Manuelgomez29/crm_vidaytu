@@ -29,7 +29,8 @@ export async function asignarPlaza(habitacionId: string, formData: FormData) {
     .eq('paciente_id', pacienteId)
     .is('hasta', null)
     .maybeSingle();
-  if (yaDentro) volver({ error: 'Ese paciente ya tiene una plaza asignada. Dale el alta primero.' });
+  if (yaDentro)
+    volver({ error: 'Ese paciente ya tiene una plaza asignada. Dale el alta primero.' });
 
   const { data: habitacion } = await supabase
     .from('habitaciones')

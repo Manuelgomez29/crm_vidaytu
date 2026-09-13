@@ -188,10 +188,7 @@ export async function crearRegla(formData: FormData) {
 
 export async function cambiarEstadoRegla(reglaId: string, activa: boolean) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from('reglas_etiquetado')
-    .update({ activa })
-    .eq('id', reglaId);
+  const { error } = await supabase.from('reglas_etiquetado').update({ activa }).eq('id', reglaId);
   if (error) volverAEtiquetas(`No se pudo actualizar: ${error.message}`);
   volverAEtiquetas();
 }
@@ -279,7 +276,8 @@ export async function crearLista(formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim();
   const descripcion = String(formData.get('descripcion') ?? '').trim() || null;
   const tipo = String(formData.get('tipo') ?? 'estatica') as 'estatica' | 'dinamica';
-  if (!nombre) redirect('/contactos/listas?error=' + encodeURIComponent('La lista necesita nombre.'));
+  if (!nombre)
+    redirect('/contactos/listas?error=' + encodeURIComponent('La lista necesita nombre.'));
 
   const filtro: FiltroSegmento = {};
   if (tipo === 'dinamica') {
@@ -339,7 +337,9 @@ export async function editarLista(listaId: string, formData: FormData) {
     .eq('id', listaId)
     .select('id');
   if (error) {
-    redirect('/contactos/listas?error=' + encodeURIComponent(`No se pudo guardar: ${error.message}`));
+    redirect(
+      '/contactos/listas?error=' + encodeURIComponent(`No se pudo guardar: ${error.message}`),
+    );
   }
   if (!actualizadas || actualizadas.length === 0) {
     redirect(
@@ -356,7 +356,9 @@ export async function borrarLista(listaId: string) {
   const supabase = await createClient();
   const { error } = await supabase.from('listas').delete().eq('id', listaId);
   if (error) {
-    redirect('/contactos/listas?error=' + encodeURIComponent(`No se pudo borrar: ${error.message}`));
+    redirect(
+      '/contactos/listas?error=' + encodeURIComponent(`No se pudo borrar: ${error.message}`),
+    );
   }
   revalidatePath('/contactos/listas');
   redirect('/contactos/listas');

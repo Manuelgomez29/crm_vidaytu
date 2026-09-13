@@ -68,7 +68,10 @@ export function Columnas({ series, sufijo = '' }: { series: Serie[]; sufijo?: st
   return (
     <div className="flex items-end gap-1.5" style={{ height: 130 }}>
       {series.map((s, i) => (
-        <div key={s.etiqueta} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
+        <div
+          key={s.etiqueta}
+          className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1"
+        >
           <span className="num text-[11px] font-semibold text-ink">
             {formatea(s.valor)}
             {sufijo}
@@ -132,12 +135,7 @@ export function Anillo({ series }: { series: Serie[] }) {
         >
           {formatea(total)}
         </text>
-        <text
-          x="75"
-          y="88"
-          textAnchor="middle"
-          style={{ fontSize: 9, fill: 'var(--color-muted)' }}
-        >
+        <text x="75" y="88" textAnchor="middle" style={{ fontSize: 9, fill: 'var(--color-muted)' }}>
           en total
         </text>
       </svg>

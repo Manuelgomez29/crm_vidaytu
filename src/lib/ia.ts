@@ -139,7 +139,10 @@ async function contextoClinico(supabase: Cliente): Promise<{ texto: string; fila
         : '  sesiones: ninguna registrada',
       susSeguimientos.length > 0
         ? `  seguimiento post-alta: ${susSeguimientos
-            .map((s) => `${s.hito_meses}m ${s.completado_at ? 'hecho' : `previsto ${s.fecha_prevista}`}`)
+            .map(
+              (s) =>
+                `${s.hito_meses}m ${s.completado_at ? 'hecho' : `previsto ${s.fecha_prevista}`}`,
+            )
             .join(', ')}`
         : '',
     ]
@@ -244,7 +247,8 @@ export async function preguntar(
   if (!iaConfigurada()) {
     return registrar({
       ok: false,
-      error: 'Falta ANTHROPIC_API_KEY en el servidor. Sin esa clave el asistente no puede responder.',
+      error:
+        'Falta ANTHROPIC_API_KEY en el servidor. Sin esa clave el asistente no puede responder.',
     });
   }
 
@@ -265,8 +269,7 @@ export async function preguntar(
     .select('valor')
     .eq('clave', 'ia_modelo')
     .maybeSingle();
-  const modelo =
-    typeof modeloConfig?.valor === 'string' ? modeloConfig.valor : MODELO_POR_DEFECTO;
+  const modelo = typeof modeloConfig?.valor === 'string' ? modeloConfig.valor : MODELO_POR_DEFECTO;
 
   const contexto =
     ambito === 'direccion' ? await contextoDireccion(supabase) : await contextoClinico(supabase);
@@ -309,7 +312,11 @@ export async function preguntar(
       .trim();
 
     if (!texto) {
-      return registrar({ ok: false, error: 'El asistente no devolvió texto.', filas: contexto.filas });
+      return registrar({
+        ok: false,
+        error: 'El asistente no devolvió texto.',
+        filas: contexto.filas,
+      });
     }
 
     return registrar({ ok: true, texto, filas: contexto.filas });

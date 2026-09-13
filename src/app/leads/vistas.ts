@@ -57,7 +57,13 @@ export async function guardarVista(
   const { data, error } = await supabase
     .from('vistas_guardadas')
     .upsert(
-      { usuario_id: user.id, pantalla, nombre: limpio, filtros, usada_at: new Date().toISOString() },
+      {
+        usuario_id: user.id,
+        pantalla,
+        nombre: limpio,
+        filtros,
+        usada_at: new Date().toISOString(),
+      },
       { onConflict: 'usuario_id,pantalla,nombre' },
     )
     .select('id')

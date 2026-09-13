@@ -57,7 +57,9 @@ export default async function Pacientes({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
 
       {!esDireccion && (

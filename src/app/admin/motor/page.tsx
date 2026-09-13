@@ -139,7 +139,7 @@ export default async function AdminMotor({
         </span>
       </nav>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Dato
           titulo="Pasadas registradas"
           valor={`${historico.total}`}
@@ -188,7 +188,7 @@ export default async function AdminMotor({
             actúa cuando hay algo que hacer, y no hacer nada no es lo mismo que no funcionar.
           </p>
         ) : (
-          <ul className="grid gap-1.5 text-[13px] sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-1.5 text-[13px] sm:grid-cols-2">
             {historico.totales.map((t) => (
               <li
                 key={t.texto}

@@ -39,7 +39,7 @@ export default async function Chat({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section className="panel p-4">
           <h2 className="mb-3 text-sm font-semibold">Conversaciones</h2>
           {(conversaciones ?? []).length === 0 ? (

@@ -297,7 +297,9 @@ export default async function MisTareas({
       </div>
 
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {errorParam && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -324,7 +326,13 @@ export default async function MisTareas({
             />
             <label className="text-xs text-ink2">
               <span className="mb-0.5 block">Para cuándo</span>
-              <input name="vence" type="datetime-local" defaultValue={porDefecto} className="campo" required />
+              <input
+                name="vence"
+                type="datetime-local"
+                defaultValue={porDefecto}
+                className="campo"
+                required
+              />
             </label>
             <label className="text-xs text-ink2">
               <span className="mb-0.5 block">Sobre un caso</span>

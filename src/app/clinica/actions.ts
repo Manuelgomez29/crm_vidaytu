@@ -44,10 +44,7 @@ export async function guardarPaciente(pacienteId: string, formData: FormData) {
       modalidad_id: String(formData.get('modalidad') ?? '') || null,
       adiccion_id: String(formData.get('adiccion') ?? '') || null,
       estado: String(formData.get('estado') ?? 'activo') as
-        | 'activo'
-        | 'alta'
-        | 'abandono'
-        | 'derivado_externo',
+        'activo' | 'alta' | 'abandono' | 'derivado_externo',
       fecha_ingreso: String(formData.get('fecha_ingreso') ?? '') || undefined,
       fecha_alta: String(formData.get('fecha_alta') ?? '') || null,
       notas: String(formData.get('notas') ?? '').trim() || null,
@@ -105,10 +102,7 @@ export async function crearSesion(pacienteId: string, formData: FormData) {
     terapeuta_id: perfil.id,
     tipo: String(formData.get('tipo') ?? 'individual') as 'individual' | 'grupal' | 'familiar',
     estado: String(formData.get('estado') ?? 'programada') as
-      | 'programada'
-      | 'realizada'
-      | 'no_show'
-      | 'cancelada',
+      'programada' | 'realizada' | 'no_show' | 'cancelada',
     inicio,
     fin,
     notas_clinicas: String(formData.get('notas') ?? '').trim() || null,
@@ -131,18 +125,16 @@ export async function cambiarEstadoSesion(pacienteId: string, sesionId: string, 
   volver(`/clinica/${pacienteId}`);
 }
 
-export async function guardarNotasSesion(
-  pacienteId: string,
-  sesionId: string,
-  formData: FormData,
-) {
+export async function guardarNotasSesion(pacienteId: string, sesionId: string, formData: FormData) {
   const { supabase } = await exigirAccesoClinico();
   const { error } = await supabase
     .from('sesiones')
     .update({ notas_clinicas: String(formData.get('notas') ?? '').trim() || null })
     .eq('id', sesionId);
   if (error) {
-    volver(`/clinica/${pacienteId}`, { error: `No se pudieron guardar las notas: ${error.message}` });
+    volver(`/clinica/${pacienteId}`, {
+      error: `No se pudieron guardar las notas: ${error.message}`,
+    });
   }
   volver(`/clinica/${pacienteId}`, { aviso: 'Notas guardadas.' });
 }
@@ -217,10 +209,7 @@ export async function subirDocumento(pacienteId: string, formData: FormData) {
     paciente_id: pacienteId,
     nombre: archivo.name,
     tipo: String(formData.get('tipo') ?? 'otro') as
-      | 'consentimiento'
-      | 'informe'
-      | 'derivacion'
-      | 'otro',
+      'consentimiento' | 'informe' | 'derivacion' | 'otro',
     ruta: destino,
     tamano_bytes: archivo.size,
     subido_por: perfil.id,

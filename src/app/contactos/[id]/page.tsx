@@ -15,7 +15,7 @@ import {
 } from '../actions';
 
 const inputClase =
-  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 const botonClase =
   'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover';
 const botonSecundario =
@@ -67,24 +67,32 @@ export default async function FichaContacto({
     .maybeSingle();
   if (!contacto) notFound();
 
-  const [{ data: susEtiquetas }, { data: etiquetas }, { data: listas }, { data: enListas }, { data: casos }] =
-    await Promise.all([
-      supabase
-        .from('contacto_etiquetas')
-        .select('etiqueta_id, aplicada_por, etiqueta:etiquetas (id, nombre, color)')
-        .eq('contacto_id', id),
-      supabase.from('etiquetas').select('id, nombre').eq('activa', true).order('nombre'),
-      supabase.from('listas').select('id, nombre, tipo').eq('tipo', 'estatica').order('nombre'),
-      supabase.from('lista_contactos').select('lista_id, lista:listas (id, nombre)').eq('contacto_id', id),
-      // Solo se ven los casos que permita RLS: un comercial de otro centro no
-      // verá aquí los casos de centros ajenos.
-      supabase
-        .from('lead_contactos')
-        .select(
-          'tipo, relacion, es_principal, lead:leads (id, nombre, estado, created_at, centro:centros (nombre))',
-        )
-        .eq('contacto_id', id),
-    ]);
+  const [
+    { data: susEtiquetas },
+    { data: etiquetas },
+    { data: listas },
+    { data: enListas },
+    { data: casos },
+  ] = await Promise.all([
+    supabase
+      .from('contacto_etiquetas')
+      .select('etiqueta_id, aplicada_por, etiqueta:etiquetas (id, nombre, color)')
+      .eq('contacto_id', id),
+    supabase.from('etiquetas').select('id, nombre').eq('activa', true).order('nombre'),
+    supabase.from('listas').select('id, nombre, tipo').eq('tipo', 'estatica').order('nombre'),
+    supabase
+      .from('lista_contactos')
+      .select('lista_id, lista:listas (id, nombre)')
+      .eq('contacto_id', id),
+    // Solo se ven los casos que permita RLS: un comercial de otro centro no
+    // verá aquí los casos de centros ajenos.
+    supabase
+      .from('lead_contactos')
+      .select(
+        'tipo, relacion, es_principal, lead:leads (id, nombre, estado, created_at, centro:centros (nombre))',
+      )
+      .eq('contacto_id', id),
+  ]);
 
   const idsPuestas = new Set((susEtiquetas ?? []).map((e) => e.etiqueta_id));
   const disponibles = (etiquetas ?? []).filter((e) => !idsPuestas.has(e.id));
@@ -92,229 +100,262 @@ export default async function FichaContacto({
   const listasDisponibles = (listas ?? []).filter((l) => !idsListas.has(l.id));
 
   return (
-    <AppShell
-      seccion="contactos"
-      subseccion="/contactos"
-      titulo="Ficha de contacto"
-    >
-        <Link href="/contactos" className="text-sm text-primary hover:underline">
-          ← Volver al directorio
-        </Link>
+    <AppShell seccion="contactos" subseccion="/contactos" titulo="Ficha de contacto">
+      <Link href="/contactos" className="text-sm text-primary hover:underline">
+        ← Volver al directorio
+      </Link>
 
-        {errorMsg && (
-          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
-            {errorMsg}
-          </p>
-        )}
-        {aviso && (
-          <p className="mt-3 rounded-lg bg-ok-soft px-4 py-2 text-sm text-ok ring-1 ring-ok/25">
-            {aviso}
-          </p>
-        )}
-
-        <h2 className="mt-3 text-2xl font-semibold">{contacto.nombre}</h2>
-        <p className="text-sm text-ink2">
-          {contacto.telefono}
-          {contacto.email && ` · ${contacto.email}`} · en el directorio desde{' '}
-          {fecha(contacto.created_at, false)}
+      {errorMsg && (
+        <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
+          {errorMsg}
         </p>
+      )}
+      {aviso && (
+        <p className="mt-3 rounded-lg bg-ok-soft px-4 py-2 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
+      )}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <Seccion titulo="Datos de la persona">
-            <form action={guardarContacto.bind(null, contacto.id)} className="flex flex-col gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                  Nombre *
-                  <input name="nombre" defaultValue={contacto.nombre} required className={inputClase} />
-                </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                  Teléfono *
-                  <input name="telefono" defaultValue={contacto.telefono} required className={inputClase} />
-                </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                  Email
-                  <input name="email" type="email" defaultValue={contacto.email ?? ''} className={inputClase} />
-                </label>
-                <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                  Zona
-                  <input name="zona" defaultValue={contacto.zona ?? ''} className={inputClase} />
-                </label>
-              </div>
+      <h2 className="mt-3 text-2xl font-semibold">{contacto.nombre}</h2>
+      <p className="text-sm text-ink2">
+        {contacto.telefono}
+        {contacto.email && ` · ${contacto.email}`} · en el directorio desde{' '}
+        {fecha(contacto.created_at, false)}
+      </p>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Seccion titulo="Datos de la persona">
+          <form action={guardarContacto.bind(null, contacto.id)} className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Notas
-                <textarea name="notas" rows={3} defaultValue={contacto.notas ?? ''} className={inputClase} />
+                Nombre *
+                <input
+                  name="nombre"
+                  defaultValue={contacto.nombre}
+                  required
+                  className={inputClase}
+                />
               </label>
-              <p className="text-xs text-muted">
-                Minimización de datos: aquí no se guardan diagnósticos ni documentos de identidad.
-              </p>
-              <button type="submit" className={`${botonClase} self-start`}>
-                Guardar
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                Teléfono *
+                <input
+                  name="telefono"
+                  defaultValue={contacto.telefono}
+                  required
+                  className={inputClase}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  defaultValue={contacto.email ?? ''}
+                  className={inputClase}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                Zona
+                <input name="zona" defaultValue={contacto.zona ?? ''} className={inputClase} />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Notas
+              <textarea
+                name="notas"
+                rows={3}
+                defaultValue={contacto.notas ?? ''}
+                className={inputClase}
+              />
+            </label>
+            <p className="text-xs text-muted">
+              Minimización de datos: aquí no se guardan diagnósticos ni documentos de identidad.
+            </p>
+            <button type="submit" className={`${botonClase} self-start`}>
+              Guardar
+            </button>
+          </form>
+        </Seccion>
+
+        <div className="flex flex-col gap-4">
+          <Seccion titulo="Consentimiento de marketing">
+            {contacto.consentimiento_marketing ? (
+              <div className="flex flex-col gap-3">
+                <p className="text-sm">
+                  <span className="rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok ring-1 ring-ok/25">
+                    Concedido
+                  </span>{' '}
+                  el {fecha(contacto.consentimiento_marketing_at)}
+                </p>
+                <p className="text-sm text-ink2">
+                  Origen: {contacto.consentimiento_marketing_origen ?? '—'}
+                </p>
+                <form action={cambiarConsentimiento.bind(null, contacto.id)}>
+                  <input type="hidden" name="conceder" value="no" />
+                  <button type="submit" className={botonSecundario}>
+                    Retirar consentimiento
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <form
+                action={cambiarConsentimiento.bind(null, contacto.id)}
+                className="flex flex-col gap-2"
+              >
+                <input type="hidden" name="conceder" value="si" />
+                <p className="text-sm text-ink2">
+                  Sin consentimiento: este contacto queda fuera de cualquier envío.
+                </p>
+                <input
+                  name="origen"
+                  placeholder="Origen (p. ej. casilla del formulario web, consentimiento verbal en cita…)"
+                  className={inputClase}
+                />
+                <button type="submit" className={`${botonClase} self-start`}>
+                  Registrar consentimiento
+                </button>
+              </form>
+            )}
+          </Seccion>
+
+          <Seccion titulo="Etiquetas">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {(susEtiquetas ?? []).map(
+                (ce) =>
+                  ce.etiqueta && (
+                    <form
+                      key={ce.etiqueta.id}
+                      action={quitarEtiqueta.bind(null, contacto.id, ce.etiqueta.id)}
+                    >
+                      <button
+                        type="submit"
+                        title="Quitar etiqueta"
+                        className={`rounded-full px-2.5 py-1 text-xs ring-1 transition hover:bg-danger-soft hover:text-danger hover:ring-danger/25 ${clasesEtiqueta(ce.etiqueta.color)}`}
+                      >
+                        {ce.etiqueta.nombre}
+                        {ce.aplicada_por === null && ' (auto)'} ×
+                      </button>
+                    </form>
+                  ),
+              )}
+              {(susEtiquetas ?? []).length === 0 && (
+                <span className="text-sm text-muted">Sin etiquetas.</span>
+              )}
+            </div>
+            <form action={anadirEtiqueta.bind(null, contacto.id)} className="flex flex-wrap gap-2">
+              <select name="etiqueta" defaultValue="" className={inputClase}>
+                <option value="">Etiqueta existente…</option>
+                {disponibles.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="nueva"
+                placeholder="…o crear una nueva"
+                className={`${inputClase} min-w-0 flex-1`}
+              />
+              <button type="submit" className={botonSecundario}>
+                Añadir
               </button>
             </form>
           </Seccion>
 
-          <div className="flex flex-col gap-4">
-            <Seccion titulo="Consentimiento de marketing">
-              {contacto.consentimiento_marketing ? (
-                <div className="flex flex-col gap-3">
-                  <p className="text-sm">
-                    <span className="rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok ring-1 ring-ok/25">
-                      Concedido
-                    </span>{' '}
-                    el {fecha(contacto.consentimiento_marketing_at)}
-                  </p>
-                  <p className="text-sm text-ink2">
-                    Origen: {contacto.consentimiento_marketing_origen ?? '—'}
-                  </p>
-                  <form action={cambiarConsentimiento.bind(null, contacto.id)}>
-                    <input type="hidden" name="conceder" value="no" />
-                    <button type="submit" className={botonSecundario}>
-                      Retirar consentimiento
-                    </button>
-                  </form>
-                </div>
-              ) : (
-                <form action={cambiarConsentimiento.bind(null, contacto.id)} className="flex flex-col gap-2">
-                  <input type="hidden" name="conceder" value="si" />
-                  <p className="text-sm text-ink2">
-                    Sin consentimiento: este contacto queda fuera de cualquier envío.
-                  </p>
-                  <input
-                    name="origen"
-                    placeholder="Origen (p. ej. casilla del formulario web, consentimiento verbal en cita…)"
-                    className={inputClase}
-                  />
-                  <button type="submit" className={`${botonClase} self-start`}>
-                    Registrar consentimiento
-                  </button>
-                </form>
-              )}
-            </Seccion>
-
-            <Seccion titulo="Etiquetas">
-              <div className="mb-3 flex flex-wrap gap-2">
-                {(susEtiquetas ?? []).map(
-                  (ce) =>
-                    ce.etiqueta && (
-                      <form
-                        key={ce.etiqueta.id}
-                        action={quitarEtiqueta.bind(null, contacto.id, ce.etiqueta.id)}
-                      >
+          <Seccion titulo="Listas">
+            <ul className="mb-3 flex flex-col gap-1.5">
+              {(enListas ?? []).map(
+                (l) =>
+                  l.lista && (
+                    <li
+                      key={l.lista.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span>{l.lista.nombre}</span>
+                      <form action={quitarDeLista.bind(null, contacto.id, l.lista.id)}>
                         <button
                           type="submit"
-                          title="Quitar etiqueta"
-                          className={`rounded-full px-2.5 py-1 text-xs ring-1 transition hover:bg-danger-soft hover:text-danger hover:ring-danger/25 ${clasesEtiqueta(ce.etiqueta.color)}`}
+                          className="text-xs text-ink2 hover:text-danger hover:underline"
                         >
-                          {ce.etiqueta.nombre}
-                          {ce.aplicada_por === null && ' (auto)'} ×
+                          Quitar
                         </button>
                       </form>
-                    ),
-                )}
-                {(susEtiquetas ?? []).length === 0 && (
-                  <span className="text-sm text-muted">Sin etiquetas.</span>
-                )}
-              </div>
-              <form action={anadirEtiqueta.bind(null, contacto.id)} className="flex flex-wrap gap-2">
-                <select name="etiqueta" defaultValue="" className={inputClase}>
-                  <option value="">Etiqueta existente…</option>
-                  {disponibles.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nombre}
+                    </li>
+                  ),
+              )}
+              {(enListas ?? []).length === 0 && (
+                <li className="text-sm text-muted">En ninguna lista estática.</li>
+              )}
+            </ul>
+            {listasDisponibles.length > 0 ? (
+              <form action={anadirAListaEstatica.bind(null, contacto.id)} className="flex gap-2">
+                <select name="lista" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
+                  <option value="">Añadir a una lista…</option>
+                  {listasDisponibles.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nombre}
                     </option>
                   ))}
                 </select>
-                <input name="nueva" placeholder="…o crear una nueva" className={`${inputClase} min-w-0 flex-1`} />
                 <button type="submit" className={botonSecundario}>
                   Añadir
                 </button>
               </form>
-            </Seccion>
-
-            <Seccion titulo="Listas">
-              <ul className="mb-3 flex flex-col gap-1.5">
-                {(enListas ?? []).map(
-                  (l) =>
-                    l.lista && (
-                      <li key={l.lista.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span>{l.lista.nombre}</span>
-                        <form action={quitarDeLista.bind(null, contacto.id, l.lista.id)}>
-                          <button type="submit" className="text-xs text-ink2 hover:text-danger hover:underline">
-                            Quitar
-                          </button>
-                        </form>
-                      </li>
-                    ),
-                )}
-                {(enListas ?? []).length === 0 && (
-                  <li className="text-sm text-muted">En ninguna lista estática.</li>
-                )}
-              </ul>
-              {listasDisponibles.length > 0 ? (
-                <form action={anadirAListaEstatica.bind(null, contacto.id)} className="flex gap-2">
-                  <select name="lista" defaultValue="" className={`${inputClase} min-w-0 flex-1`}>
-                    <option value="">Añadir a una lista…</option>
-                    {listasDisponibles.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="submit" className={botonSecundario}>
-                    Añadir
-                  </button>
-                </form>
-              ) : (
-                <Link href="/contactos/listas" className="text-sm text-primary hover:underline">
-                  Crear una lista
-                </Link>
-              )}
-              <p className="mt-2 text-xs text-muted">
-                Los segmentos dinámicos no se rellenan a mano: se calculan por sus criterios.
-              </p>
-            </Seccion>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <Seccion titulo="Casos en los que participa">
-            <ul className="flex flex-col gap-2">
-              {(casos ?? []).map(
-                (c) =>
-                  c.lead && (
-                    <li
-                      key={c.lead.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
-                    >
-                      <div>
-                        <Link href={`/leads/${c.lead.id}`} className="font-medium hover:text-primary hover:underline">
-                          {c.lead.nombre}
-                        </Link>
-                        <p className="text-xs text-ink2">
-                          {c.lead.centro?.nombre} · {TIPO_CONTACTO[c.tipo] ?? c.tipo}
-                          {c.relacion && ` (${c.relacion})`}
-                          {c.es_principal && ' · contacto principal'} · {fecha(c.lead.created_at, false)}
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
-                          etiquetaEstado(c.lead.estado).clases
-                        }`}
-                      >
-                        {etiquetaEstado(c.lead.estado).texto}
-                      </span>
-                    </li>
-                  ),
-              )}
-              {(casos ?? []).length === 0 && (
-                <li className="text-sm text-muted">
-                  Ningún caso visible para tu usuario. Puede tener casos en centros a los que no
-                  tienes acceso.
-                </li>
-              )}
-            </ul>
+            ) : (
+              <Link href="/contactos/listas" className="text-sm text-primary hover:underline">
+                Crear una lista
+              </Link>
+            )}
+            <p className="mt-2 text-xs text-muted">
+              Los segmentos dinámicos no se rellenan a mano: se calculan por sus criterios.
+            </p>
           </Seccion>
         </div>
-      </AppShell>
+      </div>
+
+      <div className="mt-4">
+        <Seccion titulo="Casos en los que participa">
+          <ul className="flex flex-col gap-2">
+            {(casos ?? []).map(
+              (c) =>
+                c.lead && (
+                  <li
+                    key={c.lead.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
+                  >
+                    <div>
+                      <Link
+                        href={`/leads/${c.lead.id}`}
+                        className="font-medium hover:text-primary hover:underline"
+                      >
+                        {c.lead.nombre}
+                      </Link>
+                      <p className="text-xs text-ink2">
+                        {c.lead.centro?.nombre} · {TIPO_CONTACTO[c.tipo] ?? c.tipo}
+                        {c.relacion && ` (${c.relacion})`}
+                        {c.es_principal && ' · contacto principal'} ·{' '}
+                        {fecha(c.lead.created_at, false)}
+                      </p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${
+                        etiquetaEstado(c.lead.estado).clases
+                      }`}
+                    >
+                      {etiquetaEstado(c.lead.estado).texto}
+                    </span>
+                  </li>
+                ),
+            )}
+            {(casos ?? []).length === 0 && (
+              <li className="text-sm text-muted">
+                Ningún caso visible para tu usuario. Puede tener casos en centros a los que no
+                tienes acceso.
+              </li>
+            )}
+          </ul>
+        </Seccion>
+      </div>
+    </AppShell>
   );
 }

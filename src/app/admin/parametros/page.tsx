@@ -123,7 +123,7 @@ export default async function AdminParametros({
         <hr className="border-line" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">Automatizacion</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Reactivar «no es el momento» (dias)
             <input
@@ -184,7 +184,7 @@ export default async function AdminParametros({
           </span>
         </label>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             <span className="flex items-center gap-2">
               <input
@@ -211,7 +211,7 @@ export default async function AdminParametros({
           </label>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             <span className="flex items-center gap-2">
               <input
@@ -248,7 +248,7 @@ export default async function AdminParametros({
         <hr className="border-line" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">Email marketing</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Remitente de las campanas
             <input
@@ -292,7 +292,7 @@ export default async function AdminParametros({
         <hr className="border-line" />
         <h2 className="text-sm font-semibold uppercase tracking-wide text-ink2">Facturacion</h2>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Razon social
             <input

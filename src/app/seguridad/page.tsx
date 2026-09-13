@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { fecha } from '@/lib/fechas';
 import { Alta2FA } from './alta-2fa';
+import { Dispositivos2FA } from './dispositivos';
 import { PushCliente } from '@/components/push-cliente';
+import { SalirDeLaPuerta } from '@/components/salir-de-la-puerta';
 
 /**
  * Seguridad de la cuenta. La verificación en dos pasos es obligatoria: la
@@ -35,22 +37,23 @@ export default async function Seguridad() {
 
       <div className="mt-4">
         {verificados.length === 0 ? (
-          <Alta2FA obligatorio />
+          <>
+            <Alta2FA obligatorio />
+            {/* El alta tambien es una puerta: se llega aqui redirigido y sin barra lateral. */}
+            <SalirDeLaPuerta />
+          </>
         ) : (
           <div className="panel p-5">
             <h3 className="text-[15px] font-bold text-ok">✓ Verificación en dos pasos activa</h3>
-            <ul className="mt-3 flex flex-col gap-1.5 text-[13px] text-ink2">
-              {verificados.map((f) => (
-                <li key={f.id} className="flex justify-between gap-3">
-                  <span>{f.friendly_name ?? 'App de autenticación'}</span>
-                  <span className="num text-muted">{fecha(f.created_at, false)}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-muted">
-              Para cambiar de dispositivo, pide a dirección que retire el factor actual y vuelve a
-              darlo de alta.
-            </p>
+
+            <Dispositivos2FA
+              dispositivos={verificados.map((f, i) => ({
+                id: f.id,
+                nombre: f.friendly_name || `App de autenticación ${i + 1}`,
+                alta: fecha(f.created_at, false),
+              }))}
+            />
+
             <div className="mt-4 border-t border-line pt-4">
               <h4 className="mb-1 text-[13px] font-semibold">Avisos en el móvil</h4>
               <p className="mb-2 text-xs text-ink2">

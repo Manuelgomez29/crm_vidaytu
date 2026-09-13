@@ -53,7 +53,9 @@ export default async function FichaPaciente({
 
   const { data: paciente } = await supabase
     .from('pacientes')
-    .select('*, centro:centros (nombre, slug), terapeuta:perfiles!pacientes_terapeuta_id_fkey (nombre)')
+    .select(
+      '*, centro:centros (nombre, slug), terapeuta:perfiles!pacientes_terapeuta_id_fkey (nombre)',
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -74,9 +76,17 @@ export default async function FichaPaciente({
     { data: respuestas },
     { data: seguimientos },
   ] = await Promise.all([
-    supabase.from('sesiones').select('*').eq('paciente_id', id).order('inicio', { ascending: false }),
+    supabase
+      .from('sesiones')
+      .select('*')
+      .eq('paciente_id', id)
+      .order('inicio', { ascending: false }),
     supabase.from('familiares').select('*').eq('paciente_id', id).order('nombre'),
-    supabase.from('documentos_clinicos').select('*').eq('paciente_id', id).order('created_at', { ascending: false }),
+    supabase
+      .from('documentos_clinicos')
+      .select('*')
+      .eq('paciente_id', id)
+      .order('created_at', { ascending: false }),
     supabase.from('fases_metodo').select('id, nombre, orden').eq('activa', true).order('orden'),
     supabase.from('modalidades').select('id, nombre').eq('activa', true).order('nombre'),
     supabase.from('adicciones').select('id, nombre').eq('activa', true).order('nombre'),
@@ -88,17 +98,19 @@ export default async function FichaPaciente({
           .or('rol.eq.terapeuta,acceso_clinico.eq.true')
           .order('nombre')
       : Promise.resolve({ data: null }),
-    supabase.from('cuestionarios').select('id, nombre, preguntas:cuestionario_preguntas (id, texto, orden, valor_min, valor_max)').eq('activo', true).order('nombre'),
+    supabase
+      .from('cuestionarios')
+      .select(
+        'id, nombre, preguntas:cuestionario_preguntas (id, texto, orden, valor_min, valor_max)',
+      )
+      .eq('activo', true)
+      .order('nombre'),
     supabase
       .from('cuestionario_respuestas')
       .select('id, fecha, puntuacion_total, notas, cuestionario:cuestionarios (nombre)')
       .eq('paciente_id', id)
       .order('fecha', { ascending: false }),
-    supabase
-      .from('seguimientos_post_alta')
-      .select('*')
-      .eq('paciente_id', id)
-      .order('hito_meses'),
+    supabase.from('seguimientos_post_alta').select('*').eq('paciente_id', id).order('hito_meses'),
   ]);
 
   // Respuestas agrupadas por cuestionario y en orden cronológico, para dibujar
@@ -114,7 +126,8 @@ export default async function FichaPaciente({
   const noShowsSeguidos = (sesiones ?? [])
     .filter((s) => s.estado === 'realizada' || s.estado === 'no_show')
     .slice(0, 2);
-  const enRiesgo = noShowsSeguidos.length === 2 && noShowsSeguidos.every((s) => s.estado === 'no_show');
+  const enRiesgo =
+    noShowsSeguidos.length === 2 && noShowsSeguidos.every((s) => s.estado === 'no_show');
 
   return (
     <AppShell
@@ -129,7 +142,9 @@ export default async function FichaPaciente({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -142,14 +157,22 @@ export default async function FichaPaciente({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="flex flex-col gap-4">
           {/* ---------------- 1. Datos y proceso ---------------- */}
           <Seccion titulo="Datos y proceso">
-            <form action={guardarPaciente.bind(null, id)} className="grid gap-3 sm:grid-cols-2">
+            <form
+              action={guardarPaciente.bind(null, id)}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            >
               <label className="block">
                 <span className="etiqueta-campo">Nombre</span>
-                <input name="nombre" defaultValue={paciente.nombre} className="campo w-full" required />
+                <input
+                  name="nombre"
+                  defaultValue={paciente.nombre}
+                  className="campo w-full"
+                  required
+                />
               </label>
               <label className="block">
                 <span className="etiqueta-campo">Teléfono</span>
@@ -162,7 +185,12 @@ export default async function FichaPaciente({
               </label>
               <label className="block">
                 <span className="etiqueta-campo">Email</span>
-                <input name="email" type="email" defaultValue={paciente.email ?? ''} className="campo w-full" />
+                <input
+                  name="email"
+                  type="email"
+                  defaultValue={paciente.email ?? ''}
+                  className="campo w-full"
+                />
               </label>
               <label className="block">
                 <span className="etiqueta-campo">Fecha de nacimiento</span>
@@ -195,7 +223,11 @@ export default async function FichaPaciente({
               </label>
               <label className="block">
                 <span className="etiqueta-campo">Modalidad</span>
-                <select name="modalidad" defaultValue={paciente.modalidad_id ?? ''} className="campo w-full">
+                <select
+                  name="modalidad"
+                  defaultValue={paciente.modalidad_id ?? ''}
+                  className="campo w-full"
+                >
                   <option value="">—</option>
                   {(modalidades ?? []).map((m) => (
                     <option key={m.id} value={m.id}>
@@ -206,7 +238,11 @@ export default async function FichaPaciente({
               </label>
               <label className="block">
                 <span className="etiqueta-campo">Adicción</span>
-                <select name="adiccion" defaultValue={paciente.adiccion_id ?? ''} className="campo w-full">
+                <select
+                  name="adiccion"
+                  defaultValue={paciente.adiccion_id ?? ''}
+                  className="campo w-full"
+                >
                   <option value="">—</option>
                   {(adicciones ?? []).map((a) => (
                     <option key={a.id} value={a.id}>
@@ -235,7 +271,12 @@ export default async function FichaPaciente({
               </label>
               <label className="block sm:col-span-2">
                 <span className="etiqueta-campo">Notas</span>
-                <textarea name="notas" rows={3} defaultValue={paciente.notas ?? ''} className="campo w-full" />
+                <textarea
+                  name="notas"
+                  rows={3}
+                  defaultValue={paciente.notas ?? ''}
+                  className="campo w-full"
+                />
               </label>
               <div className="sm:col-span-2">
                 <button type="submit" className="btn btn-primary">
@@ -247,7 +288,10 @@ export default async function FichaPaciente({
 
           {/* ---------------- 2. Sesiones y evolución ---------------- */}
           <Seccion titulo="Sesiones y evolución">
-            <form action={crearSesion.bind(null, id)} className="mb-4 flex flex-wrap items-end gap-2">
+            <form
+              action={crearSesion.bind(null, id)}
+              className="mb-4 flex flex-wrap items-end gap-2"
+            >
               <input name="inicio" type="datetime-local" className="campo" required />
               <select name="duracion" defaultValue="60" className="campo">
                 <option value="30">30 min</option>
@@ -285,12 +329,18 @@ export default async function FichaPaciente({
                         {s.estado === 'programada' && (
                           <span className="ml-auto flex gap-2">
                             <form action={cambiarEstadoSesion.bind(null, id, s.id, 'realizada')}>
-                              <button type="submit" className="text-xs font-medium text-primary hover:underline">
+                              <button
+                                type="submit"
+                                className="text-xs font-medium text-primary hover:underline"
+                              >
                                 Realizada
                               </button>
                             </form>
                             <form action={cambiarEstadoSesion.bind(null, id, s.id, 'no_show')}>
-                              <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
+                              <button
+                                type="submit"
+                                className="text-xs text-muted hover:text-danger hover:underline"
+                              >
                                 No vino
                               </button>
                             </form>
@@ -321,8 +371,16 @@ export default async function FichaPaciente({
 
           {/* ---------------- 3. Familia ---------------- */}
           <Seccion titulo="Familia y contactos">
-            <form action={anadirFamiliar.bind(null, id)} className="mb-4 flex flex-wrap items-center gap-2">
-              <input name="nombre" placeholder="Nombre" className="campo min-w-36 flex-1" required />
+            <form
+              action={anadirFamiliar.bind(null, id)}
+              className="mb-4 flex flex-wrap items-center gap-2"
+            >
+              <input
+                name="nombre"
+                placeholder="Nombre"
+                className="campo min-w-36 flex-1"
+                required
+              />
               <input name="relacion" placeholder="Relación" className="campo min-w-28" />
               <input name="telefono" placeholder="+34…" className="campo min-w-32" />
               <label className="flex items-center gap-1.5 text-xs text-ink2">
@@ -345,13 +403,19 @@ export default async function FichaPaciente({
                     <b className="text-[13px]">{f.nombre}</b>
                     {f.relacion && <span className="text-xs text-ink2">{f.relacion}</span>}
                     {f.telefono && (
-                      <a href={`tel:${f.telefono}`} className="text-xs text-primary hover:underline">
+                      <a
+                        href={`tel:${f.telefono}`}
+                        className="text-xs text-primary hover:underline"
+                      >
                         {f.telefono}
                       </a>
                     )}
                     {f.es_contacto_emergencia && <span className="chip chip-warn">Emergencia</span>}
                     <form action={borrarFamiliar.bind(null, id, f.id)} className="ml-auto">
-                      <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
+                      <button
+                        type="submit"
+                        className="text-xs text-muted hover:text-danger hover:underline"
+                      >
                         Quitar
                       </button>
                     </form>
@@ -363,8 +427,16 @@ export default async function FichaPaciente({
 
           {/* ---------------- 4. Documentos ---------------- */}
           <Seccion titulo="Documentos">
-            <form action={subirDocumento.bind(null, id)} className="mb-4 flex flex-wrap items-center gap-2">
-              <input type="file" name="archivo" className="campo min-w-48 flex-1 text-xs" required />
+            <form
+              action={subirDocumento.bind(null, id)}
+              className="mb-4 flex flex-wrap items-center gap-2"
+            >
+              <input
+                type="file"
+                name="archivo"
+                className="campo min-w-48 flex-1 text-xs"
+                required
+              />
               <select name="tipo" defaultValue="otro" className="campo">
                 <option value="consentimiento">Consentimiento</option>
                 <option value="informe">Informe</option>
@@ -394,7 +466,10 @@ export default async function FichaPaciente({
                     <span className="chip chip-mut">{d.tipo}</span>
                     <span className="text-xs text-muted">{fecha(d.created_at, false)}</span>
                     <form action={borrarDocumento.bind(null, id, d.id)} className="ml-auto">
-                      <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
+                      <button
+                        type="submit"
+                        className="text-xs text-muted hover:text-danger hover:underline"
+                      >
                         Borrar
                       </button>
                     </form>
@@ -414,7 +489,11 @@ export default async function FichaPaciente({
           {esDireccion && (
             <Seccion titulo="Terapeuta referente">
               <form action={asignarTerapeuta.bind(null, id)} className="flex flex-col gap-2">
-                <select name="terapeuta" defaultValue={paciente.terapeuta_id ?? ''} className="campo w-full">
+                <select
+                  name="terapeuta"
+                  defaultValue={paciente.terapeuta_id ?? ''}
+                  className="campo w-full"
+                >
                   <option value="">Sin asignar</option>
                   {(terapeutas ?? []).map((t) => (
                     <option key={t.id} value={t.id}>

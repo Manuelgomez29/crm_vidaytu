@@ -24,7 +24,9 @@ export default async function Cobros({
 
   let consulta = supabase
     .from('cobros')
-    .select('id, fecha, importe, metodo, es_primer_pago, notas, centro:centros (nombre), factura:facturas (numero)')
+    .select(
+      'id, fecha, importe, metodo, es_primer_pago, notas, centro:centros (nombre), factura:facturas (numero)',
+    )
     .order('fecha', { ascending: false })
     .limit(300);
   if (desde) consulta = consulta.gte('fecha', desde);
@@ -51,7 +53,9 @@ export default async function Cobros({
       descripcion={`${(cobros ?? []).length} cobro(s) · ${euros(total)}`}
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">

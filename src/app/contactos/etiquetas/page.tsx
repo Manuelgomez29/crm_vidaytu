@@ -14,7 +14,7 @@ import {
 import { CAMPOS_REGLA, describirCondicion, type CondicionRegla } from '@/lib/reglas';
 
 const inputClase =
-  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 export default async function GestionEtiquetas({
   searchParams,
@@ -61,194 +61,203 @@ export default async function GestionEtiquetas({
       titulo="Etiquetas"
       descripcion="Organización del directorio"
     >
+      <p className="mt-1 text-sm text-ink2">
+        Las etiquetas organizan el directorio (zona, origen, tipo de contacto…). Nunca deben
+        describir la situación clínica de nadie: cualquiera con acceso al directorio las ve.
+      </p>
 
-        <p className="mt-1 text-sm text-ink2">
-          Las etiquetas organizan el directorio (zona, origen, tipo de contacto…). Nunca deben
-          describir la situación clínica de nadie: cualquiera con acceso al directorio las ve.
+      {errorMsg && (
+        <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
+          {errorMsg}
         </p>
+      )}
 
-        {errorMsg && (
-          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
-            {errorMsg}
-          </p>
-        )}
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <section className="flex flex-col gap-2">
+          {(etiquetas ?? []).length === 0 && (
+            <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
+              Todavía no hay etiquetas. Crea la primera en el panel de la derecha.
+            </p>
+          )}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_320px]">
-          <section className="flex flex-col gap-2">
-            {(etiquetas ?? []).length === 0 && (
-              <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
-                Todavía no hay etiquetas. Crea la primera en el panel de la derecha.
-              </p>
-            )}
-
-            {(etiquetas ?? []).map((e) => (
-              <article
-                key={e.id}
-                className={`rounded-xl bg-surface p-3 ring-1 ring-line ${e.activa ? '' : 'opacity-60'}`}
+          {(etiquetas ?? []).map((e) => (
+            <article
+              key={e.id}
+              className={`rounded-xl bg-surface p-3 ring-1 ring-line ${e.activa ? '' : 'opacity-60'}`}
+            >
+              <form
+                action={editarEtiqueta.bind(null, e.id)}
+                className="flex flex-wrap items-center gap-2"
               >
-                <form
-                  action={editarEtiqueta.bind(null, e.id)}
-                  className="flex flex-wrap items-center gap-2"
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${clasesEtiqueta(e.color)}`}
                 >
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${clasesEtiqueta(e.color)}`}
-                  >
-                    {e.nombre}
-                  </span>
-                  <input
-                    name="nombre"
-                    defaultValue={e.nombre}
-                    className={`${inputClase} min-w-0 flex-1`}
-                    aria-label="Nombre de la etiqueta"
-                  />
-                  <select
-                    name="color"
-                    defaultValue={e.color ?? 'gris'}
-                    className={inputClase}
-                    aria-label="Color"
-                  >
-                    {Object.entries(COLORES_ETIQUETA).map(([clave, c]) => (
-                      <option key={clave} value={clave}>
-                        {c.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-1.5 text-sm text-ink2">
-                    <input type="checkbox" name="activa" defaultChecked={e.activa} /> Activa
-                  </label>
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-line2 bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface2"
-                  >
-                    Guardar
-                  </button>
-                </form>
-
-                <div className="mt-2 flex items-center justify-between gap-2">
-                  <Link
-                    href={`/contactos?etiqueta=${e.id}`}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {recuento.get(e.id) ?? 0} contacto{(recuento.get(e.id) ?? 0) === 1 ? '' : 's'}
-                  </Link>
-                  <form action={borrarEtiqueta.bind(null, e.id)}>
-                    <button
-                      type="submit"
-                      className="text-xs text-muted hover:text-danger hover:underline"
-                      title="Borrarla la quita también de todos los contactos que la llevan"
-                    >
-                      Borrar
-                    </button>
-                  </form>
-                </div>
-              </article>
-            ))}
-          </section>
-
-          <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
-              Nueva etiqueta
-            </h3>
-            <form action={crearEtiqueta} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Nombre *
-                <input name="nombre" required placeholder="p. ej. Zona Reus" className={inputClase} />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Color
-                <select name="color" defaultValue="gris" className={inputClase}>
+                  {e.nombre}
+                </span>
+                <input
+                  name="nombre"
+                  defaultValue={e.nombre}
+                  className={`${inputClase} min-w-0 flex-1`}
+                  aria-label="Nombre de la etiqueta"
+                />
+                <select
+                  name="color"
+                  defaultValue={e.color ?? 'gris'}
+                  className={inputClase}
+                  aria-label="Color"
+                >
                   {Object.entries(COLORES_ETIQUETA).map(([clave, c]) => (
                     <option key={clave} value={clave}>
                       {c.nombre}
                     </option>
                   ))}
                 </select>
-              </label>
-              <button
-                type="submit"
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
-              >
-                Crear etiqueta
-              </button>
-            </form>
-            <p className="mt-3 text-xs text-muted">
-              Desactivar una etiqueta la retira de los desplegables sin perder las que ya están
-              puestas. Borrarla sí la quita de todos los contactos.
-            </p>
-          </aside>
-        </div>
+                <label className="flex items-center gap-1.5 text-sm text-ink2">
+                  <input type="checkbox" name="activa" defaultChecked={e.activa} /> Activa
+                </label>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-line2 bg-surface px-3 py-2 text-sm font-medium text-ink transition hover:bg-surface2"
+                >
+                  Guardar
+                </button>
+              </form>
 
-        <section className="panel mt-4 p-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
-            Reglas de etiquetado automático
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <Link
+                  href={`/contactos?etiqueta=${e.id}`}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {recuento.get(e.id) ?? 0} contacto{(recuento.get(e.id) ?? 0) === 1 ? '' : 's'}
+                </Link>
+                <form action={borrarEtiqueta.bind(null, e.id)}>
+                  <button
+                    type="submit"
+                    className="text-xs text-muted hover:text-danger hover:underline"
+                    title="Borrarla la quita también de todos los contactos que la llevan"
+                  >
+                    Borrar
+                  </button>
+                </form>
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
+            Nueva etiqueta
           </h3>
-          <p className="mb-3 mt-0.5 text-xs text-ink2">
-            Aquí se definen: «si el canal es Instagram, etiqueta Lolo Drago». El motor que las
-            aplica llega en la fase 2; mientras tanto quedan registradas y las etiquetas puestas a
-            mano siguen funcionando igual.
-          </p>
-
-          <form action={crearRegla} className="mb-4 flex flex-wrap gap-2">
-            <input name="nombre" placeholder="Nombre de la regla" className={`${inputClase} min-w-44 flex-1`} />
-            <select name="campo" defaultValue="canal" className={inputClase}>
-              {Object.entries(CAMPOS_REGLA).map(([clave, texto]) => (
-                <option key={clave} value={clave}>
-                  {texto}
-                </option>
-              ))}
-            </select>
-            <input name="valor" placeholder="es igual a…" className={`${inputClase} min-w-36`} />
-            <select name="etiqueta" defaultValue="" className={inputClase}>
-              <option value="">Etiqueta a aplicar…</option>
-              {(etiquetas ?? [])
-                .filter((e) => e.activa)
-                .map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre}
+          <form action={crearEtiqueta} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Nombre *
+              <input name="nombre" required placeholder="p. ej. Zona Reus" className={inputClase} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Color
+              <select name="color" defaultValue="gris" className={inputClase}>
+                {Object.entries(COLORES_ETIQUETA).map(([clave, c]) => (
+                  <option key={clave} value={clave}>
+                    {c.nombre}
                   </option>
                 ))}
-            </select>
-            <button type="submit" className="btn btn-primary">
-              Crear regla
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
+            >
+              Crear etiqueta
             </button>
           </form>
+          <p className="mt-3 text-xs text-muted">
+            Desactivar una etiqueta la retira de los desplegables sin perder las que ya están
+            puestas. Borrarla sí la quita de todos los contactos.
+          </p>
+        </aside>
+      </div>
 
-          <ul className="flex flex-col gap-2">
-            {(reglas ?? []).map((r) => (
-              <li
-                key={r.id}
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface2 px-3 py-2 ${
-                  r.activa ? '' : 'opacity-60'
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className="text-[13.5px] font-semibold">{r.nombre}</p>
-                  <p className="text-xs text-ink2">
-                    Si {describirCondicion(r.condicion as unknown as CondicionRegla)} → etiqueta{' '}
-                    <span className={`chip ${clasesEtiqueta(r.etiqueta?.color ?? null)}`}>
-                      {r.etiqueta?.nombre}
-                    </span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <form action={cambiarEstadoRegla.bind(null, r.id, !r.activa)}>
-                    <button type="submit" className="text-xs font-medium text-primary hover:underline">
-                      {r.activa ? 'Desactivar' : 'Activar'}
-                    </button>
-                  </form>
-                  <form action={borrarRegla.bind(null, r.id)}>
-                    <button type="submit" className="text-xs text-muted hover:text-danger hover:underline">
-                      Borrar
-                    </button>
-                  </form>
-                </div>
-              </li>
+      <section className="panel mt-4 p-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Reglas de etiquetado automático
+        </h3>
+        <p className="mb-3 mt-0.5 text-xs text-ink2">
+          Aquí se definen: «si el canal es Instagram, etiqueta Lolo Drago». El motor que las aplica
+          llega en la fase 2; mientras tanto quedan registradas y las etiquetas puestas a mano
+          siguen funcionando igual.
+        </p>
+
+        <form action={crearRegla} className="mb-4 flex flex-wrap gap-2">
+          <input
+            name="nombre"
+            placeholder="Nombre de la regla"
+            className={`${inputClase} min-w-44 flex-1`}
+          />
+          <select name="campo" defaultValue="canal" className={inputClase}>
+            {Object.entries(CAMPOS_REGLA).map(([clave, texto]) => (
+              <option key={clave} value={clave}>
+                {texto}
+              </option>
             ))}
-            {(reglas ?? []).length === 0 && (
-              <li className="text-sm text-muted">Todavía no hay reglas definidas.</li>
-            )}
-          </ul>
-        </section>
-      </AppShell>
+          </select>
+          <input name="valor" placeholder="es igual a…" className={`${inputClase} min-w-36`} />
+          <select name="etiqueta" defaultValue="" className={inputClase}>
+            <option value="">Etiqueta a aplicar…</option>
+            {(etiquetas ?? [])
+              .filter((e) => e.activa)
+              .map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+          </select>
+          <button type="submit" className="btn btn-primary">
+            Crear regla
+          </button>
+        </form>
+
+        <ul className="flex flex-col gap-2">
+          {(reglas ?? []).map((r) => (
+            <li
+              key={r.id}
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface2 px-3 py-2 ${
+                r.activa ? '' : 'opacity-60'
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="text-[13.5px] font-semibold">{r.nombre}</p>
+                <p className="text-xs text-ink2">
+                  Si {describirCondicion(r.condicion as unknown as CondicionRegla)} → etiqueta{' '}
+                  <span className={`chip ${clasesEtiqueta(r.etiqueta?.color ?? null)}`}>
+                    {r.etiqueta?.nombre}
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <form action={cambiarEstadoRegla.bind(null, r.id, !r.activa)}>
+                  <button
+                    type="submit"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {r.activa ? 'Desactivar' : 'Activar'}
+                  </button>
+                </form>
+                <form action={borrarRegla.bind(null, r.id)}>
+                  <button
+                    type="submit"
+                    className="text-xs text-muted hover:text-danger hover:underline"
+                  >
+                    Borrar
+                  </button>
+                </form>
+              </div>
+            </li>
+          ))}
+          {(reglas ?? []).length === 0 && (
+            <li className="text-sm text-muted">Todavía no hay reglas definidas.</li>
+          )}
+        </ul>
+      </section>
+    </AppShell>
   );
 }

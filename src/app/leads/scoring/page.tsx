@@ -162,7 +162,7 @@ export default async function LeadScoring({
           </p>
         ) : (
           <form action={crearRegla} className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1 text-xs text-ink2">
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
               Nombre
               <input
                 name="nombre"
@@ -171,7 +171,7 @@ export default async function LeadScoring({
                 required
               />
             </label>
-            <label className="flex flex-col gap-1 text-xs text-ink2">
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
               Señal
               <select name="senal" className={inputAdmin} required defaultValue="">
                 <option value="" disabled>
@@ -184,7 +184,7 @@ export default async function LeadScoring({
                 ))}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-xs text-ink2">
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
               Puntos
               <input
                 name="puntos"

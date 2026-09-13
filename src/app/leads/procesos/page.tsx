@@ -42,7 +42,9 @@ export default async function Procesos({
     await Promise.all([
       supabase
         .from('pipelines')
-        .select('id, nombre, centro_id, activo, es_predeterminado, created_by, etapas:pipeline_etapas (id, nombre, orden, estado_sistema)')
+        .select(
+          'id, nombre, centro_id, activo, es_predeterminado, created_by, etapas:pipeline_etapas (id, nombre, orden, estado_sistema)',
+        )
         .order('nombre'),
       supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
       supabase.from('leads').select('pipeline_id, etapa_id'),
@@ -75,7 +77,9 @@ export default async function Procesos({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -133,10 +137,7 @@ export default async function Procesos({
           const etapas = [...(proceso.etapas ?? [])].sort((a, b) => a.orden - b.orden);
 
           return (
-            <article
-              key={proceso.id}
-              className={`panel p-4 ${proceso.activo ? '' : 'opacity-65'}`}
-            >
+            <article key={proceso.id} className={`panel p-4 ${proceso.activo ? '' : 'opacity-65'}`}>
               {/* Cabecera */}
               <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-line pb-3">
                 {puedoEditar ? (

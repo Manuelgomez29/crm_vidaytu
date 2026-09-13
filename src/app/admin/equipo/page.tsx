@@ -89,7 +89,7 @@ export default async function AdminEquipo({
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
           Nuevo usuario
         </h3>
-        <form action={crearUsuario} className="grid gap-3 sm:grid-cols-2">
+        <form action={crearUsuario} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm font-medium text-ink">
             Nombre *
             <input name="nombre" required className={inputAdmin} />
@@ -159,7 +159,7 @@ export default async function AdminEquipo({
           persona que los recibe es avisada.
         </p>
         <form action={reasignarEnBloque} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Casos de
             <select name="origen" defaultValue="" className={inputAdmin} required>
               <option value="">Elige…</option>
@@ -173,7 +173,7 @@ export default async function AdminEquipo({
                 ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Pasan a
             <select name="destino" defaultValue="" className={inputAdmin} required>
               <option value="">Elige…</option>
@@ -186,7 +186,7 @@ export default async function AdminEquipo({
                 ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Solo del centro
             <select name="centro" defaultValue="" className={inputAdmin}>
               <option value="">Todos</option>
@@ -255,7 +255,7 @@ export default async function AdminEquipo({
         </div>
 
         <form action={traspasarTodo} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Todo lo de
             <select name="origen" defaultValue="" className={inputAdmin} required>
               <option value="">Elige…</option>
@@ -266,7 +266,7 @@ export default async function AdminEquipo({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Pasa a
             <select name="destino" defaultValue="" className={inputAdmin} required>
               <option value="">Elige…</option>
@@ -346,11 +346,11 @@ export default async function AdminEquipo({
 
               <form action={editarUsuario.bind(null, p.id)} className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-end gap-2">
-                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                     Nombre
                     <input name="nombre" defaultValue={p.nombre} className={inputAdmin} />
                   </label>
-                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                     Rol
                     <select name="rol" defaultValue={p.rol} className={inputAdmin}>
                       {ROLES.map(([valor, texto]) => (
@@ -362,7 +362,7 @@ export default async function AdminEquipo({
                   </label>
                   {/* El alcance solo se ofrece donde significa algo. */}
                   {p.rol === 'direccion' && (
-                    <label className="flex flex-col gap-1 text-xs text-ink2">
+                    <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                       Alcance
                       <select name="alcance" defaultValue={p.alcance} className={inputAdmin}>
                         <option value="grupo">Todo el grupo</option>
