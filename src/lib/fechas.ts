@@ -65,6 +65,23 @@ export function fechaCorta(iso: string): string {
   });
 }
 
+/**
+ * Un dia suelto, escrito como lo escribiria una persona: «14 sep 2026».
+ *
+ * Toma la clave YYYY-MM-DD que usan los filtros, no un instante. El informe
+ * economico enseñaba «Del 2026-09-01 al 2026-09-14» mientras el resto de la
+ * plataforma decia «Del 1 sep al 14 sep»: la misma fecha contada de dos formas
+ * en dos pantallas que se miran seguidas.
+ */
+export function diaLargo(clave: string): string {
+  return new Date(`${clave}T12:00:00`).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: ZONA,
+  });
+}
+
 /** "hoy" / "hace N días", contando días naturales en Madrid. */
 export function hace(iso: string): string {
   const diaDe = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: ZONA });
