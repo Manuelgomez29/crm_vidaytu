@@ -3,6 +3,8 @@ import { AppShell } from '@/components/app-shell';
 import { fecha, hoyMadrid } from '@/lib/fechas';
 import { estadoDelMotor } from '@/lib/salud-motor';
 import { quienEstaDentro } from '@/lib/accesos';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { puestaEnMarcha, resumen } from '@/lib/puesta-en-marcha';
 import { exigirDireccion } from './guard';
 
 function Seccion({
@@ -82,12 +84,43 @@ export default async function AdminPortada() {
 
   const ausencias = (ausenciasHoy ?? []).length;
 
+  /*
+   * Lo que falta para arrancar, solo para la direccion de grupo: es la unica
+   * que puede resolverlo, y a la de un centro le saldria a cero por las mismas
+   * politicas que le esconden el resto.
+   */
+  const pendiente = esDeGrupo ? resumen(await puestaEnMarcha(supabase, createAdminClient())) : null;
+
   return (
     <AppShell
       seccion="admin"
       titulo="Administración"
       descripcion="Todo gestionable sin tocar código · cada cambio queda auditado"
     >
+      {pendiente && pendiente.bloquean.length + pendiente.convienen.length > 0 && (
+        <Link
+          href="/admin/puesta-en-marcha"
+          className={`mb-4 block rounded-xl p-4 ring-1 transition hover:ring-2 ${
+            pendiente.bloquean.length > 0
+              ? 'bg-danger-soft ring-danger/25'
+              : 'bg-warn-soft ring-warn/25'
+          }`}
+        >
+          <p className="text-[13.5px] font-bold">
+            {pendiente.bloquean.length > 0
+              ? `Faltan ${pendiente.bloquean.length} cosa(s) para poder trabajar con normalidad`
+              : `Quedan ${pendiente.convienen.length} cosa(s) por configurar`}
+          </p>
+          <p className="mt-0.5 text-[12.5px] text-ink2">
+            {[...pendiente.bloquean, ...pendiente.convienen]
+              .slice(0, 3)
+              .map((p) => p.titulo)
+              .join(' · ')}
+            {pendiente.bloquean.length + pendiente.convienen.length > 3 ? ' · …' : ''}
+          </p>
+        </Link>
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Seccion
           href="/admin/equipo"

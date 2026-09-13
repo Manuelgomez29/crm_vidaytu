@@ -146,6 +146,7 @@ const SUBSECCIONES: Partial<
   ],
   admin: [
     { texto: 'Resumen', href: '/admin' },
+    { texto: 'Puesta en marcha', href: '/admin/puesta-en-marcha', soloGrupo: true },
     { texto: 'Equipo', href: '/admin/equipo' },
     /*
      * `soloGrupo` no es seguridad —de eso se encargan las acciones del servidor,
