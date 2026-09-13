@@ -462,6 +462,50 @@ async function main() {
       : `${(claves ?? []).length} claves revisadas`,
   );
 
+  // ---------------------------------------------------------------------------
+  console.log('\n12. La politica de contenido no permite scripts en linea');
+
+  /*
+   * Vigila un fallo que YA ocurrio: `script-src` llevaba `unsafe-inline`
+   * mientras el comentario de al lado afirmaba que no lo llevaba. Con eso, un
+   * XSS —un nombre de contacto o una plantilla de correo pintados sin escapar—
+   * ejecutaba. Ahora va con nonce; esto existe para que nadie lo deshaga
+   * «un momento» y se quede asi.
+   *
+   * Se mira el codigo y no una peticion porque en desarrollo la politica es a
+   * proposito la permisiva: preguntarle a un servidor local diria lo contrario
+   * de lo que se publica.
+   */
+  const csp = readFileSync('src/lib/csp.ts', 'utf8');
+  const configNext = readFileSync('next.config.ts', 'utf8');
+  const medio = readFileSync('src/middleware.ts', 'utf8');
+
+  comprobar(
+    'en produccion script-src va con nonce y strict-dynamic',
+    csp.includes("'nonce-${nonce}' 'strict-dynamic'"),
+  );
+  /*
+   * Se aisla la rama de PRODUCCION del ternario y se mira solo esa. Comprobar
+   * el fichero entero no valdria: `unsafe-inline` sigue —y debe seguir— en la
+   * rama de desarrollo y en los estilos, asi que un `includes` a secas daria
+   * verde siempre o rojo siempre, que son las dos formas de no comprobar nada.
+   */
+  const ramaProduccion = csp.split(': `script-src')[1]?.split('`')[0] ?? '';
+  comprobar(
+    'en la rama de produccion no aparece unsafe-inline',
+    ramaProduccion.length > 0 && !ramaProduccion.includes('unsafe-inline'),
+    ramaProduccion ? `script-src${ramaProduccion}` : 'no se ha encontrado la rama',
+  );
+  comprobar(
+    'la CSP se define en UN solo sitio',
+    !configNext.includes('Content-Security-Policy'),
+    'en next.config.ts no: dos politicas a la vez se aplican las dos y despistan',
+  );
+  comprobar(
+    'el middleware reenvia el nonce hacia dentro para que Next lo use',
+    medio.includes('x-nonce') && medio.includes('politicaCSP'),
+  );
+
   console.log(
     fallos === 0
       ? '\nNingún agujero reabierto: todas las comprobaciones pasan.\n'

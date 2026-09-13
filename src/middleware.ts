@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { obligatoria } from '@/lib/supabase/entorno';
+import { nuevoNonce, politicaCSP } from '@/lib/csp';
 
 /** ¿El fallo es de sesión (token caducado, revocado o de otro proyecto)? */
 function esErrorDeSesion(error: { message?: string; status?: number } | null): boolean {
@@ -15,7 +16,32 @@ function esErrorDeSesion(error: { message?: string; status?: number } | null): b
 }
 
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  /*
+   * El nonce de esta peticion. Va en DOS sitios y hacen falta los dos:
+   *
+   *   · en las cabeceras que se reenvian hacia dentro, porque de ahi lo lee
+   *     Next para ponerselo a sus propios <script>;
+   *   · en la respuesta, porque es la instruccion que recibe el navegador.
+   *
+   * Y se clonan las cabeceras EN CADA respuesta, no una vez al principio: en
+   * medio, el refresco de sesion de Supabase escribe cookies con
+   * `request.cookies.set`, y una copia hecha antes se las dejaria fuera. Es el
+   * mismo cuidado que ya avisaba el comentario de `redirigirA`.
+   */
+  const nonce = nuevoNonce();
+  const csp = politicaCSP(nonce);
+  const haciaDentro = () => {
+    const cabeceras = new Headers(request.headers);
+    cabeceras.set('x-nonce', nonce);
+    cabeceras.set('Content-Security-Policy', csp);
+    return cabeceras;
+  };
+  const conCSP = <T extends NextResponse>(respuesta: T): T => {
+    respuesta.headers.set('Content-Security-Policy', csp);
+    return respuesta;
+  };
+
+  let supabaseResponse = conCSP(NextResponse.next({ request: { headers: haciaDentro() } }));
 
   const supabase = createServerClient(
     obligatoria(process.env.NEXT_PUBLIC_SUPABASE_URL, 'NEXT_PUBLIC_SUPABASE_URL'),
@@ -27,7 +53,7 @@ export async function middleware(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
+          supabaseResponse = conCSP(NextResponse.next({ request: { headers: haciaDentro() } }));
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           );
@@ -60,7 +86,7 @@ export async function middleware(request: NextRequest) {
     url.pathname = ruta;
     const respuesta = NextResponse.redirect(url);
     supabaseResponse.cookies.getAll().forEach((cookie) => respuesta.cookies.set(cookie));
-    return respuesta;
+    return conCSP(respuesta);
   };
 
   /**
@@ -69,7 +95,9 @@ export async function middleware(request: NextRequest) {
    * atascado. Se limpian y se manda al login una sola vez.
    */
   if (!user && esErrorDeSesion(error)) {
-    const respuesta = esLogin ? NextResponse.next({ request }) : redirigirA('/login');
+    const respuesta = esLogin
+      ? conCSP(NextResponse.next({ request: { headers: haciaDentro() } }))
+      : redirigirA('/login');
     for (const cookie of request.cookies.getAll()) {
       if (cookie.name.startsWith('sb-')) respuesta.cookies.delete(cookie.name);
     }
