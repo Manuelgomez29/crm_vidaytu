@@ -47,6 +47,15 @@ export default async function AdminCaptacion() {
       supabase.from('modalidades').select('id, nombre').eq('activa', true).order('nombre'),
     ]);
 
+  /*
+   * La dirección sale de la configuración del entorno, no escrita aquí.
+   * Estaba puesta a mano y eso es lo que hace que un día se copie una URL que
+   * ya no es —y quien monte la landing no tiene forma de saberlo—. Si el
+   * entorno no la tiene, se dice, en vez de enseñar algo que parece bueno.
+   */
+  const urlApp = (process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/+$/, '');
+  const urlBuena = /^https:\/\//.test(urlApp);
+
   return (
     <AppShell
       seccion="admin"
@@ -136,7 +145,7 @@ export default async function AdminCaptacion() {
           obligatorios.
         </p>
         <pre className="overflow-x-auto rounded-lg bg-surface2 p-3 text-[12px] leading-relaxed">
-          {`POST https://crm-vidaytu.vercel.app/api/formularios
+          {`POST ${urlBuena ? urlApp : '(falta NEXT_PUBLIC_URL_APP)'}/api/formularios
 Content-Type: application/json
 x-fuente-token: (el token de la fuente)
 
@@ -152,6 +161,13 @@ x-fuente-token: (el token de la fuente)
   "origen_ref": "id-unico-del-envio"
 }`}
         </pre>
+        {!urlBuena && (
+          <p className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger ring-1 ring-danger/25">
+            En este entorno <code>NEXT_PUBLIC_URL_APP</code> no es una dirección https, así que la
+            de arriba no se puede dar por buena{urlApp ? ` (dice «${urlApp}»)` : ''}. En producción
+            tiene que apuntar al dominio real.
+          </p>
+        )}
         <ul className="mt-3 flex list-disc flex-col gap-1.5 pl-5 text-xs text-ink2">
           <li>
             <b>El token va en la cabecera, nunca en la página.</b> Si el formulario lo envía el
