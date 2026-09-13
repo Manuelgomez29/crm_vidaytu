@@ -158,7 +158,9 @@ export async function importarContactos(
     if (!telefono) {
       resultado.omitidos++;
       if (resultado.errores.length < 15) {
-        resultado.errores.push(`Línea ${linea}: teléfono vacío o no válido («${dame('telefono')}»).`);
+        resultado.errores.push(
+          `Línea ${linea}: teléfono vacío o no válido («${dame('telefono')}»).`,
+        );
       }
       continue;
     }

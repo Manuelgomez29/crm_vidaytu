@@ -148,7 +148,7 @@ export function Simulador({
         </div>
 
         {/* ---------- Dónde está el listón ---------- */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {(
             [
               ['caliente', 'Caliente a partir de', umbrales.caliente],

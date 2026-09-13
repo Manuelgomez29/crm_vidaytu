@@ -32,7 +32,10 @@ export default async function EstablecerClave({
           </p>
 
           {error && (
-            <p role="alert" className="mt-4 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger"
+            >
               {error}
             </p>
           )}

@@ -7,9 +7,9 @@ import { exigirAccesoClinico } from '../guard';
 export async function consultarAsistente(formData: FormData) {
   const { supabase, perfil } = await exigirAccesoClinico();
 
-  const ambito = (String(formData.get('ambito') ?? 'clinica') === 'psicologia'
-    ? 'psicologia'
-    : 'clinica') as Ambito;
+  const ambito = (
+    String(formData.get('ambito') ?? 'clinica') === 'psicologia' ? 'psicologia' : 'clinica'
+  ) as Ambito;
   const pregunta = String(formData.get('pregunta') ?? '').trim();
 
   if (!pregunta) redirect(`/clinica/asistente?ambito=${ambito}`);

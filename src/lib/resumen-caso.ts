@@ -303,7 +303,11 @@ export async function resumirCaso(
       .trim();
 
     if (!texto) {
-      return { ok: false, error: 'El asistente no devolvió texto.', consultaId: await registrar({ error: 'sin texto' }) };
+      return {
+        ok: false,
+        error: 'El asistente no devolvió texto.',
+        consultaId: await registrar({ error: 'sin texto' }),
+      };
     }
 
     // Se guarda con la huella de AHORA: si mientras se generaba alguien anotó

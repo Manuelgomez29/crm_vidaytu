@@ -8,10 +8,30 @@ import { registrarLlamada, type SalidaLlamada } from './registrar-llamada';
 type Motivo = { id: string; nombre: string };
 
 const SALIDAS: { clave: SalidaLlamada; texto: string; icono: string; clases: string }[] = [
-  { clave: 'contactado', texto: 'Contactado', icono: '✓', clases: 'border-ok/40 text-ok hover:bg-ok-soft' },
-  { clave: 'no_contesta', texto: 'No contesta', icono: '↻', clases: 'border-warn/40 text-warn hover:bg-warn-soft' },
-  { clave: 'cita', texto: 'Cita agendada', icono: '▤', clases: 'border-primary/40 text-primary hover:bg-primary-soft' },
-  { clave: 'perdido', texto: 'Perdido', icono: '✕', clases: 'border-danger/40 text-danger hover:bg-danger-soft' },
+  {
+    clave: 'contactado',
+    texto: 'Contactado',
+    icono: '✓',
+    clases: 'border-ok/40 text-ok hover:bg-ok-soft',
+  },
+  {
+    clave: 'no_contesta',
+    texto: 'No contesta',
+    icono: '↻',
+    clases: 'border-warn/40 text-warn hover:bg-warn-soft',
+  },
+  {
+    clave: 'cita',
+    texto: 'Cita agendada',
+    icono: '▤',
+    clases: 'border-primary/40 text-primary hover:bg-primary-soft',
+  },
+  {
+    clave: 'perdido',
+    texto: 'Perdido',
+    icono: '✕',
+    clases: 'border-danger/40 text-danger hover:bg-danger-soft',
+  },
 ];
 
 /**

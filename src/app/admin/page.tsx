@@ -88,7 +88,7 @@ export default async function AdminPortada() {
       titulo="Administración"
       descripcion="Todo gestionable sin tocar código · cada cambio queda auditado"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Seccion
           href="/admin/equipo"
           icono="👥"

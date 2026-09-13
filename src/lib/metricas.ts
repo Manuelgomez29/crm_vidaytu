@@ -99,7 +99,11 @@ export function minutosEntre(desde: string, hasta: string): number {
  * Un mes se compara con el mes anterior; un rango de N días, con los N días
  * previos.
  */
-export function periodoAnterior(periodo: Periodo): { desde: string; hasta: string; titulo: string } {
+export function periodoAnterior(periodo: Periodo): {
+  desde: string;
+  hasta: string;
+  titulo: string;
+} {
   const desde = new Date(`${periodo.desde}T12:00:00`);
   const hasta = new Date(`${periodo.hasta}T12:00:00`);
 

@@ -6,7 +6,7 @@ import { contactosDelSegmento, describirFiltro, type FiltroSegmento } from '@/li
 import { borrarLista, crearLista, editarLista } from '../actions';
 
 const inputClase =
-  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 
 /** Criterios de segmento, reutilizados por el formulario de alta y el de edición. */
 function CriteriosSegmento({
@@ -25,7 +25,10 @@ function CriteriosSegmento({
       <legend className="px-1 text-xs font-medium text-ink2">
         Criterios (solo para segmentos)
       </legend>
-      <label className="flex flex-col gap-1 text-xs text-ink2" htmlFor={`${idPrefijo}-etiquetas`}>
+      <label
+        className="flex min-w-0 flex-col gap-1 text-xs text-ink2"
+        htmlFor={`${idPrefijo}-etiquetas`}
+      >
         Etiquetas (debe tenerlas todas)
         <select
           id={`${idPrefijo}-etiquetas`}
@@ -42,11 +45,11 @@ function CriteriosSegmento({
           ))}
         </select>
       </label>
-      <label className="flex flex-col gap-1 text-xs text-ink2">
+      <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
         Zona contiene
         <input name="zona" defaultValue={filtro?.zona ?? ''} className={inputClase} />
       </label>
-      <label className="flex flex-col gap-1 text-xs text-ink2">
+      <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
         Consentimiento de marketing
         <select name="consentimiento" defaultValue={consentimiento} className={inputClase}>
           <option value="">Indiferente</option>
@@ -117,162 +120,169 @@ export default async function ListasYSegmentos({
       titulo="Listas y segmentos"
       descripcion="Estáticas por selección, dinámicas por criterios"
     >
-        <p className="mt-3 text-sm text-ink2">
-          Una <strong>lista estática</strong> tiene los contactos que le añades a mano. Un{' '}
-          <strong>segmento dinámico</strong> no guarda miembros: se calcula cada vez a partir de sus
-          criterios.
+      <p className="mt-3 text-sm text-ink2">
+        Una <strong>lista estática</strong> tiene los contactos que le añades a mano. Un{' '}
+        <strong>segmento dinámico</strong> no guarda miembros: se calcula cada vez a partir de sus
+        criterios.
+      </p>
+
+      {errorMsg && (
+        <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
+          {errorMsg}
         </p>
+      )}
 
-        {errorMsg && (
-          <p className="mt-3 rounded-lg bg-danger-soft px-4 py-2 text-sm text-danger ring-1 ring-danger/25">
-            {errorMsg}
-          </p>
-        )}
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
+        <section className="flex flex-col gap-2">
+          {(listas ?? []).length === 0 && (
+            <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
+              Todavía no hay listas ni segmentos. Crea el primero en el panel de la derecha.
+            </p>
+          )}
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
-          <section className="flex flex-col gap-2">
-            {(listas ?? []).length === 0 && (
-              <p className="rounded-xl bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
-                Todavía no hay listas ni segmentos. Crea el primero en el panel de la derecha.
-              </p>
-            )}
-
-            {(listas ?? []).map((lista) => {
-              const enEdicion = editar === lista.id;
-              const filtro = (lista.filtro ?? {}) as FiltroSegmento;
-              return (
-                <article key={lista.id} className="rounded-xl bg-surface p-4 ring-1 ring-line">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{lista.nombre}</h3>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${
-                          lista.tipo === 'dinamica'
-                            ? 'bg-ec-bg text-ec ring-ec/25'
-                            : 'bg-surface2 text-ink2 ring-line'
-                        }`}
-                      >
-                        {lista.tipo === 'dinamica' ? 'Segmento dinámico' : 'Lista estática'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/contactos?lista=${lista.id}`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        Ver {recuentos.get(lista.id) ?? 0} contacto
-                        {(recuentos.get(lista.id) ?? 0) === 1 ? '' : 's'}
-                      </Link>
-                      <Link
-                        href={enEdicion ? '/contactos/listas' : `/contactos/listas?editar=${lista.id}`}
-                        className="text-xs text-ink2 hover:text-primary hover:underline"
-                      >
-                        {enEdicion ? 'Cancelar' : 'Editar'}
-                      </Link>
-                      <form action={borrarLista.bind(null, lista.id)}>
-                        <button
-                          type="submit"
-                          className="text-xs text-muted hover:text-danger hover:underline"
-                        >
-                          Borrar
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-
-                  {!enEdicion && lista.descripcion && (
-                    <p className="mt-1 text-sm text-ink2">{lista.descripcion}</p>
-                  )}
-                  {!enEdicion && lista.tipo === 'dinamica' && (
-                    <p className="mt-1 text-xs text-ink2">
-                      Criterios: {describirFiltro(filtro, nombresEtiquetas)}
-                    </p>
-                  )}
-
-                  {enEdicion && (
-                    <form
-                      action={editarLista.bind(null, lista.id)}
-                      className="mt-3 flex flex-col gap-3 border-t border-line pt-3"
+          {(listas ?? []).map((lista) => {
+            const enEdicion = editar === lista.id;
+            const filtro = (lista.filtro ?? {}) as FiltroSegmento;
+            return (
+              <article key={lista.id} className="rounded-xl bg-surface p-4 ring-1 ring-line">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{lista.nombre}</h3>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${
+                        lista.tipo === 'dinamica'
+                          ? 'bg-ec-bg text-ec ring-ec/25'
+                          : 'bg-surface2 text-ink2 ring-line'
+                      }`}
                     >
-                      <input type="hidden" name="tipo" value={lista.tipo} />
-                      <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                        Nombre *
-                        <input name="nombre" defaultValue={lista.nombre} required className={inputClase} />
-                      </label>
-                      <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                        Descripción
-                        <input
-                          name="descripcion"
-                          defaultValue={lista.descripcion ?? ''}
-                          className={inputClase}
-                        />
-                      </label>
-                      {lista.tipo === 'dinamica' && (
-                        <CriteriosSegmento
-                          etiquetas={etiquetas ?? []}
-                          filtro={filtro}
-                          idPrefijo={lista.id}
-                        />
-                      )}
+                      {lista.tipo === 'dinamica' ? 'Segmento dinámico' : 'Lista estática'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Link
+                      href={`/contactos?lista=${lista.id}`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Ver {recuentos.get(lista.id) ?? 0} contacto
+                      {(recuentos.get(lista.id) ?? 0) === 1 ? '' : 's'}
+                    </Link>
+                    <Link
+                      href={
+                        enEdicion ? '/contactos/listas' : `/contactos/listas?editar=${lista.id}`
+                      }
+                      className="text-xs text-ink2 hover:text-primary hover:underline"
+                    >
+                      {enEdicion ? 'Cancelar' : 'Editar'}
+                    </Link>
+                    <form action={borrarLista.bind(null, lista.id)}>
                       <button
                         type="submit"
-                        className="self-start rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
+                        className="text-xs text-muted hover:text-danger hover:underline"
                       >
-                        Guardar cambios
+                        Borrar
                       </button>
                     </form>
-                  )}
-                </article>
-              );
-            })}
-          </section>
+                  </div>
+                </div>
 
-          <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
-              Nueva lista o segmento
-            </h3>
-            <form action={crearLista} className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Nombre *
-                <input name="nombre" required className={inputClase} />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Descripción
-                <input name="descripcion" className={inputClase} />
-              </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Tipo
-                <select name="tipo" defaultValue="estatica" className={inputClase}>
-                  <option value="estatica">Lista estática (se añade a mano)</option>
-                  <option value="dinamica">Segmento dinámico (por criterios)</option>
-                </select>
-              </label>
+                {!enEdicion && lista.descripcion && (
+                  <p className="mt-1 text-sm text-ink2">{lista.descripcion}</p>
+                )}
+                {!enEdicion && lista.tipo === 'dinamica' && (
+                  <p className="mt-1 text-xs text-ink2">
+                    Criterios: {describirFiltro(filtro, nombresEtiquetas)}
+                  </p>
+                )}
 
-              {(etiquetas ?? []).length === 0 ? (
-                <p className="rounded-lg bg-ground px-3 py-2 text-xs text-ink2">
-                  Aún no hay etiquetas.{' '}
-                  <Link href="/contactos/etiquetas" className="text-primary hover:underline">
-                    Crea alguna
-                  </Link>{' '}
-                  para poder segmentar por ellas.
-                </p>
-              ) : (
-                <CriteriosSegmento etiquetas={etiquetas ?? []} idPrefijo="nueva" />
-              )}
+                {enEdicion && (
+                  <form
+                    action={editarLista.bind(null, lista.id)}
+                    className="mt-3 flex flex-col gap-3 border-t border-line pt-3"
+                  >
+                    <input type="hidden" name="tipo" value={lista.tipo} />
+                    <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                      Nombre *
+                      <input
+                        name="nombre"
+                        defaultValue={lista.nombre}
+                        required
+                        className={inputClase}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+                      Descripción
+                      <input
+                        name="descripcion"
+                        defaultValue={lista.descripcion ?? ''}
+                        className={inputClase}
+                      />
+                    </label>
+                    {lista.tipo === 'dinamica' && (
+                      <CriteriosSegmento
+                        etiquetas={etiquetas ?? []}
+                        filtro={filtro}
+                        idPrefijo={lista.id}
+                      />
+                    )}
+                    <button
+                      type="submit"
+                      className="self-start rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
+                    >
+                      Guardar cambios
+                    </button>
+                  </form>
+                )}
+              </article>
+            );
+          })}
+        </section>
 
-              <button
-                type="submit"
-                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
-              >
-                Crear
-              </button>
-            </form>
-            <p className="mt-3 text-xs text-muted">
-              Los criterios son siempre comerciales (etiqueta, zona, consentimiento). Nunca clínicos:
-              ninguna lista puede revelar el motivo de consulta de nadie.
-            </p>
-          </aside>
-        </div>
-      </AppShell>
+        <aside className="h-fit rounded-xl bg-surface p-4 ring-1 ring-line">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">
+            Nueva lista o segmento
+          </h3>
+          <form action={crearLista} className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Nombre *
+              <input name="nombre" required className={inputClase} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Descripción
+              <input name="descripcion" className={inputClase} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+              Tipo
+              <select name="tipo" defaultValue="estatica" className={inputClase}>
+                <option value="estatica">Lista estática (se añade a mano)</option>
+                <option value="dinamica">Segmento dinámico (por criterios)</option>
+              </select>
+            </label>
+
+            {(etiquetas ?? []).length === 0 ? (
+              <p className="rounded-lg bg-ground px-3 py-2 text-xs text-ink2">
+                Aún no hay etiquetas.{' '}
+                <Link href="/contactos/etiquetas" className="text-primary hover:underline">
+                  Crea alguna
+                </Link>{' '}
+                para poder segmentar por ellas.
+              </p>
+            ) : (
+              <CriteriosSegmento etiquetas={etiquetas ?? []} idPrefijo="nueva" />
+            )}
+
+            <button
+              type="submit"
+              className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover"
+            >
+              Crear
+            </button>
+          </form>
+          <p className="mt-3 text-xs text-muted">
+            Los criterios son siempre comerciales (etiqueta, zona, consentimiento). Nunca clínicos:
+            ninguna lista puede revelar el motivo de consulta de nadie.
+          </p>
+        </aside>
+      </div>
+    </AppShell>
   );
 }

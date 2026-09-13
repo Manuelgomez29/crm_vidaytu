@@ -60,7 +60,8 @@ export async function registrarLlamada(
     contenido: `Llamada — ${ETIQUETA[salida]}`,
     usuario_id: user.id,
   });
-  if (errorActividad) return { ok: false, error: `No se pudo registrar: ${errorActividad.message}` };
+  if (errorActividad)
+    return { ok: false, error: `No se pudo registrar: ${errorActividad.message}` };
 
   // Llamar es responder: si era la primera, el SLA queda cumplido.
   if (!lead.primera_respuesta_at) {
@@ -72,7 +73,10 @@ export async function registrarLlamada(
 
   if (salida === 'perdido') {
     if (!motivoPerdidaId) {
-      return { ok: false, error: 'Un caso perdido necesita motivo: es lo que hace útil la métrica.' };
+      return {
+        ok: false,
+        error: 'Un caso perdido necesita motivo: es lo que hace útil la métrica.',
+      };
     }
     const { error } = await supabase
       .from('leads')
@@ -145,7 +149,13 @@ export async function registrarLlamada(
       mensaje: agotada
         ? `Registrado. Cadencia agotada: se propone el cierre mañana.`
         : `Registrado. Siguiente intento en ${Math.max(dias, 1)} día(s).`,
-      whatsapp: telefono ? { url: `https://wa.me/${telefono}?text=${encodeURIComponent(texto)}`, texto, para: lead.nombre } : null,
+      whatsapp: telefono
+        ? {
+            url: `https://wa.me/${telefono}?text=${encodeURIComponent(texto)}`,
+            texto,
+            para: lead.nombre,
+          }
+        : null,
     };
   }
 

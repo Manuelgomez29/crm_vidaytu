@@ -82,7 +82,10 @@ export async function ejecutarAlertas(admin: Cliente): Promise<ResultadoAlertas>
   // Un comercial ausente no recibe alertas: van a dirección (regla 10).
   const ausentes = new Set((ausenciasHoy ?? []).map((a) => a.perfil_id));
   const paraQuien = (propietarioId: string | null) =>
-    destinatarios(propietarioId && !ausentes.has(propietarioId) ? propietarioId : null, idsDireccion);
+    destinatarios(
+      propietarioId && !ausentes.has(propietarioId) ? propietarioId : null,
+      idsDireccion,
+    );
 
   const resultado: ResultadoAlertas = {
     sla: 0,

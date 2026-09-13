@@ -201,7 +201,7 @@ function Pagina({
       titulo="Contactos"
       descripcion={`${total} personas · deduplicadas por teléfono y email`}
     >
-      <div className="grid items-start gap-4 lg:grid-cols-[230px_1fr]">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[230px_1fr]">
         {/* Panel de vistas: listas fijas y segmentos que se recalculan solos. */}
         <aside className="panel p-2.5">
           <p className="px-2.5 pb-1 pt-2 text-[10.5px] uppercase tracking-[0.1em] text-muted">
@@ -210,7 +210,9 @@ function Pagina({
           <Link
             href="/contactos"
             className={`flex items-center justify-between rounded-md px-2.5 py-1.5 text-[13px] font-medium transition ${
-              !filtros.lista ? 'bg-primary-soft font-semibold text-primary' : 'text-ink2 hover:bg-ground'
+              !filtros.lista
+                ? 'bg-primary-soft font-semibold text-primary'
+                : 'text-ink2 hover:bg-ground'
             }`}
           >
             Todos <span className="num">{total}</span>
@@ -251,128 +253,120 @@ function Pagina({
         </aside>
 
         <div>
-        <BarraVistas
-          pantalla="contactos"
-          vistas={vistas}
-          filtrosActuales={filtrosPuestos}
-          vistaActiva={filtros.vista}
-        />
-
-        <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
-          <input
-            name="q"
-            defaultValue={filtros.q ?? ''}
-            placeholder="Nombre, teléfono o email…"
-            className="campo min-w-56 flex-1"
+          <BarraVistas
+            pantalla="contactos"
+            vistas={vistas}
+            filtrosActuales={filtrosPuestos}
+            vistaActiva={filtros.vista}
           />
-          <select
-            name="etiqueta"
-            defaultValue={filtros.etiqueta ?? ''}
-            className="campo"
-          >
-            <option value="">Cualquier etiqueta</option>
-            {etiquetas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-          <input type="hidden" name="lista" value={filtros.lista ?? ''} />
-          <select
-            name="consent"
-            defaultValue={filtros.consent ?? ''}
-            className="campo"
-          >
-            <option value="">Consentimiento: indiferente</option>
-            <option value="si">Con consentimiento</option>
-            <option value="no">Sin consentimiento</option>
-          </select>
-          <button
-            type="submit"
-            className="btn btn-primary"
-          >
-            Buscar
-          </button>
-          {hayFiltros && (
-            <Link href="/contactos" className="px-2 py-2 text-primary hover:underline">
-              Limpiar
-            </Link>
-          )}
-        </form>
 
-        {error ? (
-          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
-            No se pudo cargar el directorio: {error}
-          </p>
-        ) : contactos.length === 0 ? (
-          <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
-            Ningún contacto coincide con la búsqueda.
-          </p>
-        ) : (
-          <>
-            <p className="mb-2 text-sm text-ink2">
-              {contactos.length} contacto{contactos.length === 1 ? '' : 's'}
-              {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
+          <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
+            <input
+              name="q"
+              defaultValue={filtros.q ?? ''}
+              placeholder="Nombre, teléfono o email…"
+              className="campo min-w-56 flex-1"
+            />
+            <select name="etiqueta" defaultValue={filtros.etiqueta ?? ''} className="campo">
+              <option value="">Cualquier etiqueta</option>
+              {etiquetas.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+            <input type="hidden" name="lista" value={filtros.lista ?? ''} />
+            <select name="consent" defaultValue={filtros.consent ?? ''} className="campo">
+              <option value="">Consentimiento: indiferente</option>
+              <option value="si">Con consentimiento</option>
+              <option value="no">Sin consentimiento</option>
+            </select>
+            <button type="submit" className="btn btn-primary">
+              Buscar
+            </button>
+            {hayFiltros && (
+              <Link href="/contactos" className="px-2 py-2 text-primary hover:underline">
+                Limpiar
+              </Link>
+            )}
+          </form>
+
+          {error ? (
+            <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
+              No se pudo cargar el directorio: {error}
             </p>
-            <div className="panel overflow-x-auto">
-              <table className="tabla min-w-[720px]">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Email</th>
-                    <th>Zona</th>
-                    <th>Etiquetas</th>
-                    <th>Casos</th>
-                    <th>Marketing</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contactos.map((c) => (
-                    <tr key={c.id}>
-                      <td className="font-semibold">
-                        <Link href={`/contactos/${c.id}`} className="hover:text-primary hover:underline">
-                          {c.nombre}
-                        </Link>
-                      </td>
-                      <td className="num text-ink2">{c.telefono}</td>
-                      <td className="num text-ink2">{c.email ?? '—'}</td>
-                      <td className="num text-ink2">{c.zona ?? '—'}</td>
-                      <td>
-                        <div className="flex flex-wrap gap-1">
-                          {c.contacto_etiquetas.map(
-                            (ce) =>
-                              ce.etiqueta && (
-                                <span
-                                  key={ce.etiqueta.id}
-                                  className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(ce.etiqueta.color)}`}
-                                >
-                                  {ce.etiqueta.nombre}
-                                </span>
-                              ),
-                          )}
-                          {c.contacto_etiquetas.length === 0 && (
-                            <span className="text-muted">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="num text-ink2">{c.lead_contactos.length}</td>
-                      <td>
-                        {c.consentimiento_marketing ? (
-                          <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok ring-1 ring-ok/25">
-                            Sí
-                          </span>
-                        ) : (
-                          <span className="text-muted">No</span>
-                        )}
-                      </td>
+          ) : contactos.length === 0 ? (
+            <p className="rounded-lg bg-surface px-4 py-8 text-center text-sm text-ink2 ring-1 ring-line">
+              Ningún contacto coincide con la búsqueda.
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 text-sm text-ink2">
+                {contactos.length} contacto{contactos.length === 1 ? '' : 's'}
+                {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
+              </p>
+              <div className="panel overflow-x-auto">
+                <table className="tabla min-w-[720px]">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Teléfono</th>
+                      <th>Email</th>
+                      <th>Zona</th>
+                      <th>Etiquetas</th>
+                      <th>Casos</th>
+                      <th>Marketing</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+                  </thead>
+                  <tbody>
+                    {contactos.map((c) => (
+                      <tr key={c.id}>
+                        <td className="font-semibold">
+                          <Link
+                            href={`/contactos/${c.id}`}
+                            className="hover:text-primary hover:underline"
+                          >
+                            {c.nombre}
+                          </Link>
+                        </td>
+                        <td className="num text-ink2">{c.telefono}</td>
+                        <td className="num text-ink2">{c.email ?? '—'}</td>
+                        <td className="num text-ink2">{c.zona ?? '—'}</td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            {c.contacto_etiquetas.map(
+                              (ce) =>
+                                ce.etiqueta && (
+                                  <span
+                                    key={ce.etiqueta.id}
+                                    className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(ce.etiqueta.color)}`}
+                                  >
+                                    {ce.etiqueta.nombre}
+                                  </span>
+                                ),
+                            )}
+                            {c.contacto_etiquetas.length === 0 && (
+                              <span className="text-muted">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="num text-ink2">{c.lead_contactos.length}</td>
+                        <td>
+                          {c.consentimiento_marketing ? (
+                            <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok ring-1 ring-ok/25">
+                              Sí
+                            </span>
+                          ) : (
+                            <span className="text-muted">No</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </AppShell>

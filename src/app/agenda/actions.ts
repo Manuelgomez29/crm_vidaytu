@@ -18,7 +18,9 @@ function volver(destino: Destino, aviso?: { error?: string; aviso?: string }): n
     revalidatePath(`/leads/${destino.lead}`);
     redirect(`/leads/${destino.lead}${q}`);
   }
-  redirect(`/agenda${destino.agenda ? `?semana=${destino.agenda}` : ''}${q ? q.replace('?', destino.agenda ? '&' : '?') : ''}`);
+  redirect(
+    `/agenda${destino.agenda ? `?semana=${destino.agenda}` : ''}${q ? q.replace('?', destino.agenda ? '&' : '?') : ''}`,
+  );
 }
 
 export async function crearCita(leadId: string, formData: FormData) {
@@ -58,7 +60,13 @@ export async function crearCita(leadId: string, formData: FormData) {
       lead_id: leadId,
       centro_id: lead.centro_id,
       profesional_id: profesionalId,
-      tipo: tipo as 'primera_llamada' | 'primera_cita' | 'valoracion' | 'seguimiento' | 'visita_centro' | 'otro',
+      tipo: tipo as
+        | 'primera_llamada'
+        | 'primera_cita'
+        | 'valoracion'
+        | 'seguimiento'
+        | 'visita_centro'
+        | 'otro',
       modalidad_cita: modalidad as 'presencial' | 'videollamada' | 'telefonica',
       inicio,
       fin,
@@ -89,7 +97,10 @@ export async function crearCita(leadId: string, formData: FormData) {
     });
   }
 
-  volver(destino, avisoDisponibilidad ? { aviso: `Cita creada. Aviso: ${avisoDisponibilidad}` } : undefined);
+  volver(
+    destino,
+    avisoDisponibilidad ? { aviso: `Cita creada. Aviso: ${avisoDisponibilidad}` } : undefined,
+  );
 }
 
 export async function cambiarEstadoCita(citaId: string, estado: string, destino: Destino) {

@@ -8,7 +8,9 @@ export async function establecerClave(formData: FormData) {
   const repetida = String(formData.get('repetida') ?? '');
 
   if (clave.length < 10) {
-    redirect(`/establecer-clave?error=${encodeURIComponent('La contraseña necesita al menos 10 caracteres.')}`);
+    redirect(
+      `/establecer-clave?error=${encodeURIComponent('La contraseña necesita al menos 10 caracteres.')}`,
+    );
   }
   if (clave !== repetida) {
     redirect(`/establecer-clave?error=${encodeURIComponent('Las dos contraseñas no coinciden.')}`);

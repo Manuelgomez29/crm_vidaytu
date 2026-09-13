@@ -77,7 +77,7 @@ export default async function AsistentePanel({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="panel p-4">
           <form action={consultarPanel} className="flex flex-col gap-3">
             <label className="block">
@@ -108,7 +108,9 @@ export default async function AsistentePanel({
           {ultima?.respuesta && (
             <div className="mt-4 rounded-lg bg-ground p-4 ring-1 ring-line">
               <p className="mb-2 text-[11px] uppercase tracking-[0.1em] text-muted">Respuesta</p>
-              <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed">{ultima.respuesta}</p>
+              <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed">
+                {ultima.respuesta}
+              </p>
             </div>
           )}
         </section>

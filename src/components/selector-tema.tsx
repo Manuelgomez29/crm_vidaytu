@@ -47,9 +47,7 @@ export function SelectorTema({ actual }: { actual: Tema }) {
             })
           }
           className={`rounded-md px-2 py-1 text-[13px] leading-5 transition disabled:opacity-50 ${
-            actual === o.valor
-              ? 'bg-surface text-primary shadow-sm'
-              : 'text-muted hover:text-ink'
+            actual === o.valor ? 'bg-surface text-primary shadow-sm' : 'text-muted hover:text-ink'
           }`}
         >
           <span aria-hidden>{o.icono}</span>

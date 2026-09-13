@@ -10,9 +10,9 @@ import { useEffect, useState } from 'react';
  * difícil de revertir. Se pide cuando la persona pulsa el botón.
  */
 export function PushCliente({ clavePublica }: { clavePublica: string | null }) {
-  const [estado, setEstado] = useState<'cargando' | 'no_soportado' | 'activo' | 'inactivo' | 'bloqueado'>(
-    'cargando',
-  );
+  const [estado, setEstado] = useState<
+    'cargando' | 'no_soportado' | 'activo' | 'inactivo' | 'bloqueado'
+  >('cargando');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

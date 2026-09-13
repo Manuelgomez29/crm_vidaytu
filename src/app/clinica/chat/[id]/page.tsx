@@ -76,7 +76,10 @@ export default async function Conversacion({
           nombres={nombres}
         />
 
-        <form action={enviarMensaje.bind(null, id)} className="mt-2 flex items-end gap-2 border-t border-line pt-3">
+        <form
+          action={enviarMensaje.bind(null, id)}
+          className="mt-2 flex items-end gap-2 border-t border-line pt-3"
+        >
           <textarea
             name="cuerpo"
             rows={2}

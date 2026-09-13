@@ -89,7 +89,7 @@ export default async function AdminRetencion({
         </p>
 
         <form className="mb-4 flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-xs text-ink2">
+          <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
             Simular con
             <input
               name="meses"
@@ -104,7 +104,7 @@ export default async function AdminRetencion({
           </button>
         </form>
 
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="rounded-lg bg-ground p-3 ring-1 ring-line">
             <p className="text-[11px] uppercase tracking-wide text-muted">Casos</p>
             <p className="text-[19px] font-bold tabular-nums">{candidatos.casos.length}</p>
@@ -166,7 +166,7 @@ export default async function AdminRetencion({
 
       <section className="panel p-4">
         <h2 className="mb-2 text-sm font-semibold">Qué se conserva y qué se va</h2>
-        <div className="grid gap-4 text-xs sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
           <div>
             <p className="mb-1 font-semibold text-ok">Se conserva</p>
             <ul className="flex flex-col gap-1 text-ink2">

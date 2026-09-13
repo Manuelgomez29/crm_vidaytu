@@ -181,12 +181,26 @@ export async function reabrirCaso(
     .update({ estado: 'reabierto', motivo_perdida_id: null, propietario_id: propietarioId })
     .eq('id', caso.leadId);
 
-  await admin.from('actividades').insert([
-    { lead_id: caso.leadId, tipo: 'reapertura', contenido: motivo, usuario_id: usuarioId ?? null },
-    ...(notaExtra
-      ? [{ lead_id: caso.leadId, tipo: 'nota' as const, contenido: notaExtra, usuario_id: usuarioId ?? null }]
-      : []),
-  ]);
+  await admin
+    .from('actividades')
+    .insert([
+      {
+        lead_id: caso.leadId,
+        tipo: 'reapertura',
+        contenido: motivo,
+        usuario_id: usuarioId ?? null,
+      },
+      ...(notaExtra
+        ? [
+            {
+              lead_id: caso.leadId,
+              tipo: 'nota' as const,
+              contenido: notaExtra,
+              usuario_id: usuarioId ?? null,
+            },
+          ]
+        : []),
+    ]);
 
   await admin.from('tareas').insert({
     lead_id: caso.leadId,

@@ -111,7 +111,7 @@ export default async function AdminCatalogos({
         los formularios sin tocar los casos que ya lo usan.
       </p>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Bloque
           catalogo="canales"
           titulo="Canales de entrada"

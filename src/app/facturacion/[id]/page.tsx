@@ -35,7 +35,11 @@ export default async function Factura({
 
   const [{ data: lineas }, { data: cobros }, { data: datosFiscales }] = await Promise.all([
     supabase.from('factura_lineas').select('*').eq('factura_id', id).order('orden'),
-    supabase.from('cobros').select('id, fecha, importe, metodo').eq('factura_id', id).order('fecha'),
+    supabase
+      .from('cobros')
+      .select('id, fecha, importe, metodo')
+      .eq('factura_id', id)
+      .order('fecha'),
     supabase.from('configuracion').select('valor').eq('clave', 'datos_fiscales').maybeSingle(),
   ]);
 
@@ -62,7 +66,9 @@ export default async function Factura({
       }
     >
       {aviso && (
-        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">{aviso}</p>
+        <p className="mb-4 rounded-lg bg-ok-soft px-4 py-3 text-sm text-ok ring-1 ring-ok/25">
+          {aviso}
+        </p>
       )}
       {error && (
         <p className="mb-4 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -76,11 +82,14 @@ export default async function Factura({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="flex flex-col gap-4">
           <section className="panel p-4">
             <h2 className="mb-3 text-sm font-semibold">Datos de la factura</h2>
-            <form action={guardarFactura.bind(null, id)} className="grid gap-3 sm:grid-cols-2">
+            <form
+              action={guardarFactura.bind(null, id)}
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            >
               <label className="block">
                 <span className="etiqueta-campo">Cliente</span>
                 <input
@@ -210,8 +219,16 @@ export default async function Factura({
             )}
 
             {editable && (
-              <form action={anadirLinea.bind(null, id)} className="flex flex-wrap items-center gap-2">
-                <input name="concepto" placeholder="Concepto" className="campo min-w-40 flex-1" required />
+              <form
+                action={anadirLinea.bind(null, id)}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <input
+                  name="concepto"
+                  placeholder="Concepto"
+                  className="campo min-w-40 flex-1"
+                  required
+                />
                 <input
                   name="cantidad"
                   type="number"

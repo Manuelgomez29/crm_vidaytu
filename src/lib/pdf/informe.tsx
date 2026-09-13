@@ -77,11 +77,21 @@ function colorDe(nombre: string): string {
 }
 
 const euros = (n: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
-    .format(n);
+  new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(n);
 
 const e = StyleSheet.create({
-  pagina: { paddingTop: 48, paddingBottom: 56, paddingHorizontal: 46, fontFamily: 'Kumbh Sans', fontSize: 9.5, color: TINTA },
+  pagina: {
+    paddingTop: 48,
+    paddingBottom: 56,
+    paddingHorizontal: 46,
+    fontFamily: 'Kumbh Sans',
+    fontSize: 9.5,
+    color: TINTA,
+  },
 
   marca: { fontSize: 17, fontWeight: 700, color: AZUL },
   marcaAcento: { color: CORAL },
@@ -90,15 +100,32 @@ const e = StyleSheet.create({
   titulo: { fontSize: 26, fontWeight: 700, marginTop: 30, color: TINTA },
   subtitulo: { fontSize: 10.5, color: TINTA2, marginTop: 4 },
 
-  seccion: { fontSize: 8, fontWeight: 700, letterSpacing: 1.2, color: MUTED, marginTop: 24, marginBottom: 8 },
+  seccion: {
+    fontSize: 8,
+    fontWeight: 700,
+    letterSpacing: 1.2,
+    color: MUTED,
+    marginTop: 24,
+    marginBottom: 8,
+  },
 
   cifras: { flexDirection: 'row', gap: 10, marginTop: 18 },
   cifra: { flex: 1, backgroundColor: FONDO, borderRadius: 6, padding: 11 },
   cifraValor: { fontSize: 18, fontWeight: 700, color: AZUL },
   cifraEtiqueta: { fontSize: 7.5, color: MUTED, marginTop: 3 },
 
-  fila: { flexDirection: 'row', borderBottomWidth: 0.6, borderBottomColor: LINEA, paddingVertical: 5.5 },
-  cabecera: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: TINTA2, paddingBottom: 4 },
+  fila: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.6,
+    borderBottomColor: LINEA,
+    paddingVertical: 5.5,
+  },
+  cabecera: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: TINTA2,
+    paddingBottom: 4,
+  },
   th: { fontSize: 7.5, fontWeight: 700, letterSpacing: 0.6, color: MUTED },
   td: { fontSize: 9 },
   dcha: { textAlign: 'right' },
@@ -106,10 +133,17 @@ const e = StyleSheet.create({
   puntoCentro: { width: 6, height: 6, borderRadius: 3, marginRight: 5, marginTop: 2 },
 
   pie: {
-    position: 'absolute', bottom: 26, left: 46, right: 46,
-    borderTopWidth: 0.6, borderTopColor: LINEA, paddingTop: 7,
-    flexDirection: 'row', justifyContent: 'space-between',
-    fontSize: 7, color: MUTED,
+    position: 'absolute',
+    bottom: 26,
+    left: 46,
+    right: 46,
+    borderTopWidth: 0.6,
+    borderTopColor: LINEA,
+    paddingTop: 7,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    fontSize: 7,
+    color: MUTED,
   },
 
   nota: { fontSize: 7.5, color: MUTED, marginTop: 10, lineHeight: 1.5 },
@@ -205,36 +239,37 @@ export function DocumentoInforme({
         {/* ---- Por centro ---- */}
         {lleva('centros') && (
           <>
-        <Text style={e.seccion}>POR CENTRO</Text>
-        <View style={e.cabecera}>
-          <Text style={[e.th, { flex: 3 }]}>CENTRO</Text>
-          <Text style={[e.th, e.dcha, { flex: 1 }]}>CASOS</Text>
-          <Text style={[e.th, e.dcha, { flex: 1 }]}>CITAS</Text>
-          <Text style={[e.th, e.dcha, { flex: 1.2 }]}>CONVER.</Text>
-          <Text style={[e.th, e.dcha, { flex: 1.6 }]}>INGRESOS</Text>
-          <Text style={[e.th, e.dcha, { flex: 1 }]}>PERDIDOS</Text>
-        </View>
-        {informe.porCentro.map((c) => (
-          <View key={c.centro} style={e.fila}>
-            <View style={{ flex: 3, flexDirection: 'row' }}>
-              <View style={[e.puntoCentro, { backgroundColor: colorDe(c.centro) }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={e.td}>{c.centro}</Text>
-                <Barra parte={c.leads} total={maxLeadsCentro} color={colorDe(c.centro)} />
-              </View>
+            <Text style={e.seccion}>POR CENTRO</Text>
+            <View style={e.cabecera}>
+              <Text style={[e.th, { flex: 3 }]}>CENTRO</Text>
+              <Text style={[e.th, e.dcha, { flex: 1 }]}>CASOS</Text>
+              <Text style={[e.th, e.dcha, { flex: 1 }]}>CITAS</Text>
+              <Text style={[e.th, e.dcha, { flex: 1.2 }]}>CONVER.</Text>
+              <Text style={[e.th, e.dcha, { flex: 1.6 }]}>INGRESOS</Text>
+              <Text style={[e.th, e.dcha, { flex: 1 }]}>PERDIDOS</Text>
             </View>
-            <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.leads}</Text>
-            <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.citas}</Text>
-            <Text style={[e.td, e.dcha, { flex: 1.2 }]}>{c.conversiones}</Text>
-            <Text style={[e.td, e.dcha, { flex: 1.6 }]}>{euros(c.ingresos)}</Text>
-            <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.perdidos}</Text>
-          </View>
-        ))}
+            {informe.porCentro.map((c) => (
+              <View key={c.centro} style={e.fila}>
+                <View style={{ flex: 3, flexDirection: 'row' }}>
+                  <View style={[e.puntoCentro, { backgroundColor: colorDe(c.centro) }]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={e.td}>{c.centro}</Text>
+                    <Barra parte={c.leads} total={maxLeadsCentro} color={colorDe(c.centro)} />
+                  </View>
+                </View>
+                <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.leads}</Text>
+                <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.citas}</Text>
+                <Text style={[e.td, e.dcha, { flex: 1.2 }]}>{c.conversiones}</Text>
+                <Text style={[e.td, e.dcha, { flex: 1.6 }]}>{euros(c.ingresos)}</Text>
+                <Text style={[e.td, e.dcha, { flex: 1 }]}>{c.perdidos}</Text>
+              </View>
+            ))}
 
-        <Text style={e.nota}>
-          Los ingresos son de conversiones validadas por dirección. Las registradas y aún sin
-          validar no cuentan aquí, para que este número no dependa de quién se apresure a anotar.
-        </Text>
+            <Text style={e.nota}>
+              Los ingresos son de conversiones validadas por dirección. Las registradas y aún sin
+              validar no cuentan aquí, para que este número no dependa de quién se apresure a
+              anotar.
+            </Text>
           </>
         )}
 
@@ -247,71 +282,71 @@ export function DocumentoInforme({
         {/* ---- Canales ---- */}
         {lleva('canales') && (
           <>
-        <Text style={e.seccion}>DE DÓNDE LLEGAN</Text>
-        {informe.porCanal.length === 0 ? (
-          <Text style={e.nota}>Ningún caso nuevo este mes.</Text>
-        ) : (
-          informe.porCanal.map(([canal, n]) => (
-            <View key={canal} style={e.fila}>
-              <View style={{ flex: 4 }}>
-                <Text style={e.td}>{canal}</Text>
-                <Barra parte={n} total={maxCanal} color={AZUL} />
-              </View>
-              <Text style={[e.td, e.dcha, { flex: 1 }]}>{n}</Text>
-            </View>
-          ))
-        )}
+            <Text style={e.seccion}>DE DÓNDE LLEGAN</Text>
+            {informe.porCanal.length === 0 ? (
+              <Text style={e.nota}>Ningún caso nuevo este mes.</Text>
+            ) : (
+              informe.porCanal.map(([canal, n]) => (
+                <View key={canal} style={e.fila}>
+                  <View style={{ flex: 4 }}>
+                    <Text style={e.td}>{canal}</Text>
+                    <Barra parte={n} total={maxCanal} color={AZUL} />
+                  </View>
+                  <Text style={[e.td, e.dcha, { flex: 1 }]}>{n}</Text>
+                </View>
+              ))
+            )}
 
-        <Text style={e.nota}>
-          La bandeja de grupo aportó {informe.bandeja} caso(s) este mes. Son los que entran sin
-          centro claro —sobre todo por el Instagram de Lolo Drago— y se reparten después.
-        </Text>
+            <Text style={e.nota}>
+              La bandeja de grupo aportó {informe.bandeja} caso(s) este mes. Son los que entran sin
+              centro claro —sobre todo por el Instagram de Lolo Drago— y se reparten después.
+            </Text>
           </>
         )}
 
         {/* ---- Pérdidas ---- */}
         {lleva('perdidas') && (
           <>
-        <Text style={e.seccion}>POR QUÉ SE PIERDEN</Text>
-        {informe.motivosPerdida.length === 0 ? (
-          <Text style={e.nota}>Ningún caso cerrado como perdido este mes.</Text>
-        ) : (
-          informe.motivosPerdida.map(([motivo, n]) => (
-            <View key={motivo} style={e.fila}>
-              <Text style={[e.td, { flex: 4 }]}>{motivo}</Text>
-              <Text style={[e.td, e.dcha, { flex: 1 }]}>{n}</Text>
-            </View>
-          ))
-        )}
-
+            <Text style={e.seccion}>POR QUÉ SE PIERDEN</Text>
+            {informe.motivosPerdida.length === 0 ? (
+              <Text style={e.nota}>Ningún caso cerrado como perdido este mes.</Text>
+            ) : (
+              informe.motivosPerdida.map(([motivo, n]) => (
+                <View key={motivo} style={e.fila}>
+                  <Text style={[e.td, { flex: 4 }]}>{motivo}</Text>
+                  <Text style={[e.td, e.dcha, { flex: 1 }]}>{n}</Text>
+                </View>
+              ))
+            )}
           </>
         )}
 
         {/* ---- Previsión ---- */}
         {lleva('prevision') && (
           <>
-        <Text style={e.seccion}>PREVISIÓN DEL MES ENTRANTE</Text>
-        {prevision === null ? (
-          <Text style={e.nota}>Sin presupuestos vivos suficientes para estimar.</Text>
-        ) : (
-          <>
-            <Text style={{ fontSize: 22, fontWeight: 700, color: AZUL }}>{euros(prevision)}</Text>
-            <Text style={e.nota}>
-              Suma de los presupuestos vivos de cada caso abierto, multiplicados por la probabilidad
-              de cierre de su etapa. Es una estimación con las probabilidades configuradas, no una
-              promesa: mientras no haya histórico propio suficiente, esos porcentajes son una
-              hipótesis.
-            </Text>
-          </>
-        )}
-
+            <Text style={e.seccion}>PREVISIÓN DEL MES ENTRANTE</Text>
+            {prevision === null ? (
+              <Text style={e.nota}>Sin presupuestos vivos suficientes para estimar.</Text>
+            ) : (
+              <>
+                <Text style={{ fontSize: 22, fontWeight: 700, color: AZUL }}>
+                  {euros(prevision)}
+                </Text>
+                <Text style={e.nota}>
+                  Suma de los presupuestos vivos de cada caso abierto, multiplicados por la
+                  probabilidad de cierre de su etapa. Es una estimación con las probabilidades
+                  configuradas, no una promesa: mientras no haya histórico propio suficiente, esos
+                  porcentajes son una hipótesis.
+                </Text>
+              </>
+            )}
           </>
         )}
 
         {lleva('clinica') && (
           <>
-        <Text style={e.seccion}>ÁREA CLÍNICA</Text>
-        <Text style={e.td}>{informe.pacientesAlta} paciente(s) dados de alta este mes.</Text>
+            <Text style={e.seccion}>ÁREA CLÍNICA</Text>
+            <Text style={e.td}>{informe.pacientesAlta} paciente(s) dados de alta este mes.</Text>
           </>
         )}
 

@@ -425,12 +425,24 @@ export async function AppShell({
             </>
           )}
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
             {/* El tema se cambia desde arriba: abajo, pegado al nombre, no lo
                 buscaba nadie. */}
             <SelectorTema actual={perfil?.tema ?? 'sistema'} />
 
-            {acciones}
+            {/*
+              La accion de la pagina se esconde en el movil.
+              Este grupo es `shrink-0` —si se encogiera, el boton coral quedaria
+              ilegible—, asi que lo que no cabe no se aprieta: DESBORDA. Con el
+              menu, la lupa, el tema, la campana y el «+ Nuevo lead» ya se llega
+              a 375px justos; anadir «Ver el tablero» ponia la barra en 493 y
+              toda la pagina se movia en horizontal. Y no se pierde nada: lo que
+              va aqui esta siempre tambien en el menu o en el cuerpo.
+
+              `sm:contents` y no `sm:block` para que en pantalla grande los
+              botones sigan siendo hijos directos del flex, como antes.
+            */}
+            <span className="hidden sm:contents">{acciones}</span>
 
             {/* Exportar: solo dirección, y cada descarga queda auditada. */}
             {perfil?.rol === 'direccion' && (

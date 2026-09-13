@@ -725,21 +725,21 @@ export default async function Panel({
               type="date"
               name="desde"
               defaultValue={filtros.desde || periodo.desde}
-              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+              className="max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-2 py-1.5"
             />
             <span className="text-muted">→</span>
             <input
               type="date"
               name="hasta"
               defaultValue={filtros.hasta || periodo.desde}
-              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+              className="max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-2 py-1.5"
             />
           </>
         )}
         <select
           name="centro"
           defaultValue={filtros.centro ?? ''}
-          className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+          className="max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-2 py-1.5"
         >
           <option value="">Todos los centros</option>
           {centrosElegibles.map((c) => (
@@ -765,7 +765,7 @@ export default async function Panel({
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Tarjeta
               titulo="Leads nuevos"
               valor={String(leads.length)}
@@ -802,7 +802,7 @@ export default async function Panel({
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Tarjeta
               titulo="Cumplimiento del SLA"
               valor={porcentaje(dentroDeSla.length, respondidos.length)}
@@ -822,7 +822,7 @@ export default async function Panel({
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Tarjeta
               titulo="1ª respuesta (media)"
               valor={mediaRespuesta === null ? '—' : `${mediaRespuesta} min`}
@@ -853,7 +853,7 @@ export default async function Panel({
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Seccion titulo="Embudo del periodo">
               <ul className="flex flex-col gap-2.5">
                 {EMBUDO.map((estado) => {
@@ -997,7 +997,7 @@ export default async function Panel({
             )}
           </Seccion>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <Seccion titulo="Quién contacta">
               <Lista filas={porQuienContacta} total={leads.length} color="bg-primary" />
             </Seccion>
@@ -1020,7 +1020,7 @@ export default async function Panel({
             </Seccion>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Tarjeta
               titulo="Nacidos en la bandeja de grupo"
               valor={String(nacidosEnBandeja)}
@@ -1053,7 +1053,7 @@ export default async function Panel({
 
           {/* ---------- Previsión de ingresos ---------- */}
           <Seccion titulo="Previsión de ingresos">
-            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <p className="text-xs text-ink2">Sobre la mesa</p>
                 <p className="num text-xl font-bold">{euros(previsionTotal.importe)}</p>
@@ -1111,7 +1111,7 @@ export default async function Panel({
               </p>
             ) : (
               <>
-                <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
                     <p className="text-xs text-ink2">Invertido</p>
                     <p className="num text-xl font-bold">{euros(Math.round(gastoTotal))}</p>
@@ -1236,7 +1236,7 @@ export default async function Panel({
                   <input type="hidden" name="centro" value={filtros.centro ?? ''} />
                   <input type="hidden" name="cruceVista" value={vista} />
 
-                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                     Filas
                     <select name="cruceFila" defaultValue={claveFila} className="campo">
                       {dimensiones.map(([k, d]) => (
@@ -1256,7 +1256,7 @@ export default async function Panel({
                     ⇄
                   </Link>
 
-                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                     Columnas
                     <select name="cruceCol" defaultValue={claveCol} className="campo">
                       {dimensiones.map(([k, d]) => (
@@ -1267,7 +1267,7 @@ export default async function Panel({
                     </select>
                   </label>
 
-                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                  <label className="flex min-w-0 flex-col gap-1 text-xs text-ink2">
                     Qué se cuenta
                     <select name="cruceMetrica" defaultValue={claveMetrica} className="campo">
                       {Object.entries(METRICAS).map(([k, d]) => (
@@ -1416,7 +1416,7 @@ export default async function Panel({
               paciente, así que lo único que sabe es cuántas veces propuso hacerlo.
             </p>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
                   Reseñas propuestas ({(resenasPeriodo ?? []).length})

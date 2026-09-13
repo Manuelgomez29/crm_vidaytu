@@ -188,7 +188,7 @@ export default async function AdminAccesos({
       </nav>
 
       {/* --- Señales de que alguien está probando -------------------------- */}
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="panel p-4">
           <p className="text-[11.5px] text-ink2">Intentos fallidos en 24 h</p>
           <b

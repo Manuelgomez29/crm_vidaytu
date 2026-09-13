@@ -16,7 +16,7 @@ export function Avisos({ error, aviso }: { error?: string; aviso?: string }) {
 }
 
 export const inputAdmin =
-  'rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+  'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
 export const botonAdmin =
   'rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white transition hover:bg-primary-hover';
 export const botonAdminSecundario =

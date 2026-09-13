@@ -31,7 +31,11 @@ export default async function Informe({
       .select('centro_id, total, base_imponible, estado')
       .gte('fecha', inicio)
       .lte('fecha', fin),
-    supabase.from('cobros').select('centro_id, importe, metodo').gte('fecha', inicio).lte('fecha', fin),
+    supabase
+      .from('cobros')
+      .select('centro_id, importe, metodo')
+      .gte('fecha', inicio)
+      .lte('fecha', fin),
     supabase.from('centros').select('id, nombre').order('nombre'),
   ]);
 
@@ -98,7 +102,7 @@ export default async function Informe({
         </a>
       </form>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-4">
         {[
           ['Facturado', totales.facturado],
           ['Base imponible', totales.base],

@@ -85,7 +85,11 @@ export function BarraVistas({
             </button>
             <button
               type="button"
-              aria-label={v.es_favorita ? `Quitar ${v.nombre} de favoritas` : `Marcar ${v.nombre} como favorita`}
+              aria-label={
+                v.es_favorita
+                  ? `Quitar ${v.nombre} de favoritas`
+                  : `Marcar ${v.nombre} como favorita`
+              }
               title="Favorita"
               onClick={() =>
                 empezar(async () => {

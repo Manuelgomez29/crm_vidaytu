@@ -29,7 +29,10 @@ export function emailConfigurado(): boolean {
 
 export async function enviarCorreo(correo: Correo): Promise<{ enviado: boolean; error?: string }> {
   if (!emailConfigurado()) {
-    return { enviado: false, error: 'Email no configurado (falta RESEND_API_KEY o EMAIL_REMITENTE)' };
+    return {
+      enviado: false,
+      error: 'Email no configurado (falta RESEND_API_KEY o EMAIL_REMITENTE)',
+    };
   }
 
   try {
@@ -57,7 +60,10 @@ export async function enviarCorreo(correo: Correo): Promise<{ enviado: boolean; 
     });
 
     if (!respuesta.ok) {
-      return { enviado: false, error: `Resend respondió ${respuesta.status}: ${await respuesta.text()}` };
+      return {
+        enviado: false,
+        error: `Resend respondió ${respuesta.status}: ${await respuesta.text()}`,
+      };
     }
     return { enviado: true };
   } catch (e) {

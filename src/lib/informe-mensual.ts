@@ -104,11 +104,7 @@ export async function calcularInformeMensual(
       .eq('estado', 'validada')
       .gte('created_at', desde)
       .lt('created_at', hasta),
-    cliente
-      .from('citas')
-      .select('id, centro_id, estado')
-      .gte('inicio', desde)
-      .lt('inicio', hasta),
+    cliente.from('citas').select('id, centro_id, estado').gte('inicio', desde).lt('inicio', hasta),
     cliente
       .from('pacientes')
       .select('id')
@@ -133,10 +129,7 @@ export async function calcularInformeMensual(
     perdidos: (leads ?? []).filter((l) => l.centro_id === c.id && l.estado === 'perdido').length,
   }));
 
-  const ingresos = (conversiones ?? []).reduce(
-    (s, c) => s + Number(c.importe_primer_pago ?? 0),
-    0,
-  );
+  const ingresos = (conversiones ?? []).reduce((s, c) => s + Number(c.importe_primer_pago ?? 0), 0);
 
   const bandejaId = (centros ?? []).find((c) => c.es_bandeja_grupo)?.id;
 

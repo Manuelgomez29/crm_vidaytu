@@ -70,13 +70,17 @@ export async function repartirLeadsSinPropietario(admin: Cliente): Promise<Resul
   const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: ZONA });
   const { dia, hora } = ahoraEnMadrid();
 
-  const [{ data: centrosPorPerfil }, { data: disponibilidad }, { data: ausentes }, { data: activos }] =
-    await Promise.all([
-      admin.from('perfil_centros').select('perfil_id, centro_id'),
-      admin.from('disponibilidad').select('perfil_id, dia_semana, hora_inicio, hora_fin'),
-      admin.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
-      admin.from('perfiles').select('id').eq('rol', 'admisiones').eq('activo', true),
-    ]);
+  const [
+    { data: centrosPorPerfil },
+    { data: disponibilidad },
+    { data: ausentes },
+    { data: activos },
+  ] = await Promise.all([
+    admin.from('perfil_centros').select('perfil_id, centro_id'),
+    admin.from('disponibilidad').select('perfil_id, dia_semana, hora_inicio, hora_fin'),
+    admin.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
+    admin.from('perfiles').select('id').eq('rol', 'admisiones').eq('activo', true),
+  ]);
 
   const ausentesSet = new Set((ausentes ?? []).map((a) => a.perfil_id));
   const activosSet = new Set((activos ?? []).map((p) => p.id));
@@ -111,9 +115,7 @@ export async function repartirLeadsSinPropietario(admin: Cliente): Promise<Resul
     const candidatos = (centrosPorPerfil ?? [])
       .filter((pc) => pc.centro_id === lead.centro_id)
       .map((pc) => pc.perfil_id)
-      .filter(
-        (id) => activosSet.has(id) && !ausentesSet.has(id) && disponiblesAhora.has(id),
-      );
+      .filter((id) => activosSet.has(id) && !ausentesSet.has(id) && disponiblesAhora.has(id));
 
     if (candidatos.length === 0) {
       sinCandidato++;
@@ -143,18 +145,16 @@ export async function repartirLeadsSinPropietario(admin: Cliente): Promise<Resul
       usuario_id: null,
     });
 
-    await admin
-      .from('notificaciones')
-      .upsert(
-        {
-          usuario_id: elegido,
-          tipo: 'lead_asignado' as const,
-          lead_id: lead.id,
-          mensaje: `Te hemos asignado a ${lead.nombre}`,
-          clave: `reparto:${lead.id}`,
-        },
-        { onConflict: 'clave', ignoreDuplicates: true },
-      );
+    await admin.from('notificaciones').upsert(
+      {
+        usuario_id: elegido,
+        tipo: 'lead_asignado' as const,
+        lead_id: lead.id,
+        mensaje: `Te hemos asignado a ${lead.nombre}`,
+        clave: `reparto:${lead.id}`,
+      },
+      { onConflict: 'clave', ignoreDuplicates: true },
+    );
   }
 
   return { asignados, sinCandidato };

@@ -31,9 +31,7 @@ export function useAviso(): Contexto {
    * accion. Costo una tarde averiguar cual de los tres era.
    */
   if (process.env.NODE_ENV !== 'production') {
-    console.warn(
-      '[avisos] Se ha pedido un aviso fuera de <ProveedorAvisos>. No se vera nada.',
-    );
+    console.warn('[avisos] Se ha pedido un aviso fuera de <ProveedorAvisos>. No se vera nada.');
   }
   return { mostrar: () => {} };
 }
