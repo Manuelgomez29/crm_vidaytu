@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { anotarSegundoFactor } from './actions';
 
-export function Verificar2FA({ factorId }: { factorId: string }) {
+export function Verificar2FA({ factores }: { factores: { id: string; nombre: string }[] }) {
   const router = useRouter();
+  const [factorId, setFactorId] = useState(factores[0].id);
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -33,7 +34,11 @@ export function Verificar2FA({ factorId }: { factorId: string }) {
     if (errorVerif) {
       // El registro no puede hacer esperar a nadie: se manda y se sigue.
       void anotarSegundoFactor(false);
-      setError('Código incorrecto o caducado. Prueba con el siguiente que muestre la app.');
+      setError(
+        factores.length > 1
+          ? 'Código incorrecto o caducado. Comprueba que has elegido abajo el dispositivo del que lo estás copiando.'
+          : 'Código incorrecto o caducado. Prueba con el siguiente que muestre la app.',
+      );
       setCodigo('');
       return;
     }
@@ -65,6 +70,18 @@ export function Verificar2FA({ factorId }: { factorId: string }) {
       <button type="submit" disabled={ocupado} className="btn btn-primary py-2.5">
         {ocupado ? 'Comprobando…' : 'Entrar'}
       </button>
+      {factores.length > 1 && (
+        <label className="etiqueta-campo text-[12.5px]">
+          ¿De qué dispositivo es el código?
+          <select value={factorId} onChange={(e) => setFactorId(e.target.value)} className="campo">
+            {factores.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </form>
   );
 }

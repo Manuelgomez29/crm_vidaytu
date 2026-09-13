@@ -142,6 +142,36 @@ async function main() {
     comprobar('y sobre cualquier persona', sobreCualquiera === true);
   }
 
+  console.log('\nY puede trabajar: el tablero no le sale vacío');
+
+  /*
+   * El kanban se dibuja a partir del proceso de venta y sus etapas. El proceso
+   * del grupo tiene `centro_id` nulo y la politica pedia `manda_en(centro_id)`,
+   * que con nulo es falso para un alcance de centro. Resultado: «2 casos
+   * abiertos» sobre un tablero sin una sola columna.
+   */
+  const { count: procesos } = await jefe
+    .from('pipelines')
+    .select('id', { count: 'exact', head: true })
+    .eq('activo', true);
+  comprobar('la dirección de un centro ve el proceso de venta', (procesos ?? 0) > 0);
+
+  const { count: etapas } = await jefe
+    .from('pipeline_etapas')
+    .select('id', { count: 'exact', head: true });
+  comprobar('y sus etapas, que son las columnas del tablero', (etapas ?? 0) > 0, `${etapas}`);
+
+  const comercial = await sesion('equipo@test.com');
+  comprobar('hay sesión de comercial para contrastar', comercial !== null);
+  if (comercial) {
+    const { count: suyas } = await comercial
+      .from('pipeline_etapas')
+      .select('id', { count: 'exact', head: true });
+    comprobar('y un comercial las sigue viendo igual', (suyas ?? 0) === (etapas ?? -1));
+  }
+
+  // ---------------------------------------------------------------------------
+
   // ---------------------------------------------------------------------------
   console.log('\nTodas las acciones del panel tienen guardián:');
 
@@ -161,7 +191,10 @@ async function main() {
   comprobar(
     `se han encontrado las ${acciones.length} acciones del panel`,
     acciones.length >= 20,
-    acciones.map((a) => a.nombre).join(', ').slice(0, 90) + '…',
+    acciones
+      .map((a) => a.nombre)
+      .join(', ')
+      .slice(0, 90) + '…',
   );
 
   const sinGuardian = acciones.filter(
@@ -211,7 +244,12 @@ async function main() {
     'el menú esconde los ajustes de grupo a quien dirige un centro',
     /soloGrupo[\s\S]*\|\|[\s\S]{0,60}alcance === 'grupo'/.test(shell),
   );
-  for (const ruta of ['/admin/parametros', '/admin/catalogos', '/admin/pipelines', '/admin/centros']) {
+  for (const ruta of [
+    '/admin/parametros',
+    '/admin/catalogos',
+    '/admin/pipelines',
+    '/admin/centros',
+  ]) {
     comprobar(
       `${ruta} marcado como solo de grupo`,
       new RegExp(`href: '${ruta}', soloGrupo: true`).test(shell),

@@ -83,7 +83,9 @@ export function Alta2FA({ obligatorio }: { obligatorio: boolean }) {
           </p>
         )}
         {error && (
-          <p className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</p>
+          <p className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[13px] text-danger">
+            {error}
+          </p>
         )}
         <button onClick={empezar} disabled={ocupado} className="btn btn-primary mt-4">
           {ocupado ? 'Preparando…' : 'Empezar'}
