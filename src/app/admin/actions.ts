@@ -39,11 +39,41 @@ async function exigirDireccion() {
  * de servicio, que se salta RLS. O sea que este es el sitio donde la regla
  * manda de verdad, y por eso esta aqui y no solo alli.
  */
-async function exigirDireccionDeGrupo() {
+async function exigirDireccionDeGrupo(seccion = 'equipo', que?: string) {
   const contexto = await exigirDireccion();
   if (!contexto.esDeGrupo) {
-    volver('equipo', {
-      error: 'Solo la dirección de grupo puede cambiar el rol, el alcance o los centros.',
+    volver(seccion, {
+      error: que
+        ? `${que}: esto lo decide la dirección de grupo, porque afecta a los tres centros. Un cambio hecho desde aquí se les aplicaría a todos.`
+        : 'Solo la dirección de grupo puede cambiar el rol, el alcance o los centros.',
+    });
+  }
+  return contexto;
+}
+
+/**
+ * Mandar sobre UNA persona en concreto.
+ *
+ * La dirección de un centro gestiona a su gente —objetivos, disponibilidad,
+ * ausencias, el segundo factor cuando pierden el móvil— y a nadie más. La regla
+ * de quién es «su gente» ya está escrita en la base, en `manda_sobre_perfil`, y
+ * se llama de ahí en vez de copiarla aquí: dos copias de una regla de permisos
+ * son dos reglas, y la segunda se queda vieja sin que nadie se entere.
+ *
+ * Se pregunta con la sesión del usuario, no con la clave de servicio, porque la
+ * función mira `auth.uid()`. Con la clave de servicio no hay usuario y la
+ * respuesta no significaría nada.
+ */
+async function exigirMandoSobrePerfil(perfilId: string, seccion = 'equipo') {
+  const contexto = await exigirDireccion();
+  if (contexto.esDeGrupo) return contexto;
+
+  const { data: manda } = await contexto.supabase.rpc('manda_sobre_perfil', {
+    p_perfil: perfilId,
+  });
+  if (manda !== true) {
+    volver(seccion, {
+      error: 'Esa persona no es de tus centros: solo puedes gestionar a los tuyos.',
     });
   }
   return contexto;
@@ -239,7 +269,7 @@ export async function editarUsuario(perfilId: string, formData: FormData) {
  * porque sin él no se entra.
  */
 export async function retirarSegundoFactor(perfilId: string) {
-  await exigirDireccion();
+  await exigirMandoSobrePerfil(perfilId);
   const admin = createAdminClient();
 
   const { data, error } = await admin.auth.admin.mfa.listFactors({ userId: perfilId });
@@ -269,7 +299,7 @@ export async function retirarSegundoFactor(perfilId: string) {
  * por WhatsApp.
  */
 export async function reasignarEnBloque(formData: FormData) {
-  const { user } = await exigirDireccion();
+  const { user, esDeGrupo, supabase } = await exigirDireccion();
 
   const origen = String(formData.get('origen') ?? '');
   const destino = String(formData.get('destino') ?? '');
@@ -279,6 +309,30 @@ export async function reasignarEnBloque(formData: FormData) {
   if (!destino) volver('equipo', { error: 'Elige a quién le pasas los casos.' });
   if (origen === destino)
     volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+
+  /*
+   * Mover carteras es mover trabajo entre personas, asi que la direccion de un
+   * centro solo puede hacerlo entre las SUYAS. Si no, bastaria con reasignarse
+   * los casos de Bellamar para acabar viendolos, que es justo el muro que
+   * levanta el alcance.
+   */
+  if (!esDeGrupo) {
+    for (const quien of [origen, destino]) {
+      if (!quien || quien === 'sin') continue;
+      const { data: manda } = await supabase.rpc('manda_sobre_perfil', { p_perfil: quien });
+      if (manda !== true) {
+        volver('equipo', {
+          error: 'Solo puedes mover casos entre personas de tus centros.',
+        });
+      }
+    }
+    // «Sin propietario» sin centro elegido seria toda la bandeja del grupo.
+    if (origen === 'sin' && !centroId) {
+      volver('equipo', {
+        error: 'Elige un centro: sin él, «sin propietario» son los casos de todo el grupo.',
+      });
+    }
+  }
 
   const admin = createAdminClient();
 
@@ -348,7 +402,7 @@ export async function reasignarEnBloque(formData: FormData) {
  * huérfanos en silencio.
  */
 export async function traspasarTodo(formData: FormData) {
-  const { user } = await exigirDireccion();
+  const { user, esDeGrupo, supabase } = await exigirDireccion();
 
   const origen = String(formData.get('origen') ?? '');
   const destino = String(formData.get('destino') ?? '');
@@ -357,6 +411,17 @@ export async function traspasarTodo(formData: FormData) {
     volver('equipo', { error: 'Elige de quién sale el trabajo y quién lo recibe.' });
   if (origen === destino)
     volver('equipo', { error: 'El origen y el destino son la misma persona.' });
+
+  // Un traspaso completo se lleva casos, tareas, citas y pacientes: las dos
+  // personas tienen que ser de los centros de quien lo ordena.
+  if (!esDeGrupo) {
+    for (const quien of [origen, destino]) {
+      const { data: manda } = await supabase.rpc('manda_sobre_perfil', { p_perfil: quien });
+      if (manda !== true) {
+        volver('equipo', { error: 'Solo puedes traspasar entre personas de tus centros.' });
+      }
+    }
+  }
 
   const admin = createAdminClient();
 
@@ -475,7 +540,7 @@ export async function traspasarTodo(formData: FormData) {
 }
 
 export async function guardarObjetivos(perfilId: string, formData: FormData) {
-  const { user } = await exigirDireccion();
+  const { user } = await exigirMandoSobrePerfil(perfilId);
 
   const mes = String(formData.get('mes') ?? '');
   if (!mes) volver('equipo', { error: 'Indica el mes de los objetivos.' });
@@ -502,7 +567,7 @@ export async function guardarObjetivos(perfilId: string, formData: FormData) {
 }
 
 export async function guardarDisponibilidad(perfilId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirMandoSobrePerfil(perfilId);
   const admin = createAdminClient();
 
   const franjas: {
@@ -531,7 +596,7 @@ export async function guardarDisponibilidad(perfilId: string, formData: FormData
 }
 
 export async function crearAusencia(perfilId: string, formData: FormData) {
-  const { user } = await exigirDireccion();
+  const { user } = await exigirMandoSobrePerfil(perfilId);
   const desde = String(formData.get('desde') ?? '');
   const hasta = String(formData.get('hasta') ?? '');
   const motivo = String(formData.get('motivo') ?? '').trim() || null;
@@ -548,8 +613,22 @@ export async function crearAusencia(perfilId: string, formData: FormData) {
 }
 
 export async function borrarAusencia(ausenciaId: string) {
-  await exigirDireccion();
   const admin = createAdminClient();
+
+  /*
+   * Aqui llega el id de la AUSENCIA, no el de la persona, asi que hay que mirar
+   * de quien es antes de poder decidir. Se lee con la clave de servicio a
+   * proposito: si se leyera con la sesion y la ausencia fuera de otro centro,
+   * no aparecerian filas y el error seria «no existe» en vez de «no es tuya».
+   */
+  const { data: suya } = await admin
+    .from('ausencias')
+    .select('perfil_id')
+    .eq('id', ausenciaId)
+    .maybeSingle();
+  if (!suya) volver('equipo', { error: 'Esa ausencia ya no existe.' });
+  await exigirMandoSobrePerfil(suya.perfil_id);
+
   const { error } = await admin.from('ausencias').delete().eq('id', ausenciaId);
   if (error) volver('equipo', { error: `No se pudo borrar: ${error.message}` });
   volver('equipo');
@@ -569,7 +648,7 @@ function aSlug(texto: string): string {
 }
 
 export async function crearCentro(formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('centros', 'El alta de centros');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const ciudad = String(formData.get('ciudad') ?? '').trim() || null;
   if (!nombre) volver('centros', { error: 'El centro necesita un nombre.' });
@@ -589,7 +668,7 @@ export async function crearCentro(formData: FormData) {
 }
 
 export async function editarCentro(centroId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('centros', 'La ficha de un centro');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const ciudad = String(formData.get('ciudad') ?? '').trim() || null;
   const activo = formData.get('activo') === 'on';
@@ -616,7 +695,7 @@ export async function editarCentro(centroId: string, formData: FormData) {
 export type Catalogo = 'canales' | 'adicciones' | 'modalidades' | 'motivos_perdida';
 
 export async function crearElementoCatalogo(catalogo: Catalogo, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('catalogos', 'Ampliar los catálogos');
   const nombre = String(formData.get('nombre') ?? '').trim();
   if (!nombre) volver('catalogos', { error: 'Escribe un nombre.' });
 
@@ -646,7 +725,7 @@ export async function editarElementoCatalogo(
   elementoId: string,
   formData: FormData,
 ) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('catalogos', 'Los catálogos');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const activo = formData.get('activo') === 'on';
   if (!nombre) volver('catalogos', { error: 'Escribe un nombre.' });
@@ -667,7 +746,7 @@ export async function editarElementoCatalogo(
 
 /** Qué modalidades ofrece cada centro (alimenta los formularios del caso). */
 export async function guardarModalidadCentros(modalidadId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('catalogos', 'Qué centro ofrece qué modalidad');
   const centros = formData.getAll('centros').map(String).filter(Boolean);
 
   const admin = createAdminClient();
@@ -686,7 +765,7 @@ export async function guardarModalidadCentros(modalidadId: string, formData: For
 // ---------------------------------------------------------------------------
 
 export async function crearPipeline(formData: FormData) {
-  const { user } = await exigirDireccion();
+  const { user } = await exigirDireccionDeGrupo('pipelines', 'Crear un proceso de venta');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const centroId = String(formData.get('centro') ?? '') || null;
   if (!nombre) volver('pipelines', { error: 'El pipeline necesita un nombre.' });
@@ -717,7 +796,7 @@ export async function crearPipeline(formData: FormData) {
 }
 
 export async function editarPipeline(pipelineId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('pipelines', 'Los procesos de venta');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const activo = formData.get('activo') === 'on';
   if (!nombre) volver('pipelines', { error: 'El pipeline necesita un nombre.' });
@@ -729,7 +808,7 @@ export async function editarPipeline(pipelineId: string, formData: FormData) {
 }
 
 export async function anadirEtapa(pipelineId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('pipelines', 'Las etapas de un proceso');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const estado = String(formData.get('estado_sistema') ?? '');
   if (!nombre || !estado) volver('pipelines', { error: 'La etapa necesita nombre y estado.' });
@@ -754,7 +833,7 @@ export async function anadirEtapa(pipelineId: string, formData: FormData) {
 }
 
 export async function editarEtapa(etapaId: string, formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('pipelines', 'Las etapas de un proceso');
   const nombre = String(formData.get('nombre') ?? '').trim();
   const estado = String(formData.get('estado_sistema') ?? '');
   if (!nombre || !estado) volver('pipelines', { error: 'La etapa necesita nombre y estado.' });
@@ -769,7 +848,7 @@ export async function editarEtapa(etapaId: string, formData: FormData) {
 }
 
 export async function borrarEtapa(etapaId: string) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('pipelines', 'Las etapas de un proceso');
   const admin = createAdminClient();
 
   // Una etapa con leads dentro no se borra: dejaría casos huérfanos.
@@ -793,7 +872,7 @@ export async function borrarEtapa(etapaId: string) {
 // ---------------------------------------------------------------------------
 
 export async function guardarParametros(formData: FormData) {
-  await exigirDireccion();
+  await exigirDireccionDeGrupo('parametros', 'El SLA, la cadencia y la plantilla del recordatorio');
   const admin = createAdminClient();
 
   const sla = Number(String(formData.get('sla_primera_respuesta_minutos') ?? '').trim());

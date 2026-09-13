@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { Verificar2FA } from './verificar';
+import { SalirDeLaPuerta } from '@/components/salir-de-la-puerta';
 
 /** Segundo paso del acceso: el código de la app de autenticación. */
 export default async function Login2FA() {
@@ -29,6 +30,7 @@ export default async function Login2FA() {
             Verificación en dos pasos
           </p>
           <Verificar2FA factorId={factor.id} />
+          <SalirDeLaPuerta />
         </div>
       </div>
     </main>

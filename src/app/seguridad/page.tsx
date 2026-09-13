@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { fecha } from '@/lib/fechas';
 import { Alta2FA } from './alta-2fa';
 import { PushCliente } from '@/components/push-cliente';
+import { SalirDeLaPuerta } from '@/components/salir-de-la-puerta';
 
 /**
  * Seguridad de la cuenta. La verificación en dos pasos es obligatoria: la
@@ -35,7 +36,11 @@ export default async function Seguridad() {
 
       <div className="mt-4">
         {verificados.length === 0 ? (
-          <Alta2FA obligatorio />
+          <>
+            <Alta2FA obligatorio />
+            {/* El alta tambien es una puerta: se llega aqui redirigido y sin barra lateral. */}
+            <SalirDeLaPuerta />
+          </>
         ) : (
           <div className="panel p-5">
             <h3 className="text-[15px] font-bold text-ok">✓ Verificación en dos pasos activa</h3>

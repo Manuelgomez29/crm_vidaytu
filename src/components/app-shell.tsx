@@ -27,7 +27,12 @@ export type Seccion =
 type Entrada = { clave: Seccion; texto: string; href: string; icono: string };
 type Bloque = { titulo: string; entradas: Entrada[] };
 
-export type PerfilNav = { rol: string | undefined; accesoClinico: boolean };
+export type PerfilNav = {
+  rol: string | undefined;
+  accesoClinico: boolean;
+  /** 'grupo' manda en todo; 'centros', solo en los suyos. */
+  alcance: string | undefined;
+};
 
 /**
  * La navegación es el muro hecho visible: un comercial no ve el área clínica,
@@ -66,9 +71,7 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
   if (rol === 'direccion') {
     salida.push({
       titulo: 'Área de marketing',
-      entradas: [
-        { clave: 'marketing', texto: 'Campañas', href: '/marketing', icono: '✉' },
-      ],
+      entradas: [{ clave: 'marketing', texto: 'Campañas', href: '/marketing', icono: '✉' }],
     });
   }
 
@@ -109,7 +112,9 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
 }
 
 /** Subsecciones de las áreas que las tienen. */
-const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> = {
+const SUBSECCIONES: Partial<
+  Record<Seccion, { texto: string; href: string; soloGrupo?: boolean }[]>
+> = {
   leads: [
     { texto: 'Kanban', href: '/leads' },
     { texto: 'Procesos de venta', href: '/leads/procesos' },
@@ -142,16 +147,22 @@ const SUBSECCIONES: Partial<Record<Seccion, { texto: string; href: string }[]>> 
   admin: [
     { texto: 'Resumen', href: '/admin' },
     { texto: 'Equipo', href: '/admin/equipo' },
-    { texto: 'Centros', href: '/admin/centros' },
-    { texto: 'Catálogos', href: '/admin/catalogos' },
-    { texto: 'Pipelines', href: '/admin/pipelines' },
-    { texto: 'Clínica', href: '/admin/clinica' },
-    { texto: 'Integraciones', href: '/admin/integraciones' },
-    { texto: 'Captación', href: '/admin/captacion' },
-    { texto: 'Retención', href: '/admin/retencion' },
-    { texto: 'Parámetros', href: '/admin/parametros' },
-    { texto: 'Motor', href: '/admin/motor' },
-    { texto: 'Accesos', href: '/admin/accesos' },
+    /*
+     * `soloGrupo` no es seguridad —de eso se encargan las acciones del servidor,
+     * que rechazan por su cuenta— sino cortesia: son ajustes que rigen para los
+     * tres centros, y ensenarle el formulario a quien va a recibir un «esto no
+     * es tuyo» al enviarlo es hacerle perder el tiempo dos veces.
+     */
+    { texto: 'Centros', href: '/admin/centros', soloGrupo: true },
+    { texto: 'Catálogos', href: '/admin/catalogos', soloGrupo: true },
+    { texto: 'Pipelines', href: '/admin/pipelines', soloGrupo: true },
+    { texto: 'Clínica', href: '/admin/clinica', soloGrupo: true },
+    { texto: 'Integraciones', href: '/admin/integraciones', soloGrupo: true },
+    { texto: 'Captación', href: '/admin/captacion', soloGrupo: true },
+    { texto: 'Retención', href: '/admin/retencion', soloGrupo: true },
+    { texto: 'Parámetros', href: '/admin/parametros', soloGrupo: true },
+    { texto: 'Motor', href: '/admin/motor', soloGrupo: true },
+    { texto: 'Accesos', href: '/admin/accesos', soloGrupo: true },
   ],
 };
 
@@ -178,7 +189,9 @@ function Navegacion({
           </p>
           {bloque.entradas.map((e) => {
             const activo = e.clave === seccion;
-            const hijos = SUBSECCIONES[e.clave];
+            const hijos = SUBSECCIONES[e.clave]?.filter(
+              (h) => !h.soloGrupo || perfil.alcance === 'grupo',
+            );
             return (
               <div key={e.clave}>
                 <Link
@@ -214,7 +227,6 @@ function Navegacion({
           })}
         </div>
       ))}
-
     </nav>
   );
 }
@@ -236,7 +248,8 @@ function Campana({
     <details className="relative">
       <summary
         aria-label={sinLeer > 0 ? `Notificaciones, ${sinLeer} sin leer` : 'Notificaciones'}
-        className="relative flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
+        className="relative flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden"
+      >
         <IconoCampana />
         {sinLeer > 0 && (
           <span className="absolute -right-0.5 -top-0.5 rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">
@@ -311,7 +324,7 @@ export async function AppShell({
       .limit(15),
     supabase
       .from('perfiles')
-      .select('nombre, rol, acceso_clinico, tema')
+      .select('nombre, rol, acceso_clinico, alcance, tema')
       .eq('id', user.id)
       .maybeSingle(),
   ]);
@@ -338,9 +351,7 @@ export async function AppShell({
       <b className="block text-[17px] font-bold tracking-[0.02em] text-white">
         Vidaitu <span className="text-[#F08F7E]">DATA</span>
       </b>
-      <span className="text-[11px] uppercase tracking-[0.14em] text-[#AEBBD6]">
-        Grupo Vidaitu
-      </span>
+      <span className="text-[11px] uppercase tracking-[0.14em] text-[#AEBBD6]">Grupo Vidaitu</span>
     </Link>
   );
 
@@ -351,7 +362,11 @@ export async function AppShell({
         <Navegacion
           seccion={seccion}
           subseccion={subseccion}
-          perfil={{ rol: perfil?.rol, accesoClinico: perfil?.acceso_clinico ?? false }}
+          perfil={{
+            rol: perfil?.rol,
+            accesoClinico: perfil?.acceso_clinico ?? false,
+            alcance: perfil?.alcance,
+          }}
         />
       </div>
       <div className="flex items-center gap-2.5 border-t border-white/12 px-4 py-3.5">
@@ -391,7 +406,8 @@ export async function AppShell({
           <details className="relative lg:hidden">
             <summary
               aria-label="Abrir el menú de navegación"
-              className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden">
+              className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden"
+            >
               <IconoMenu />
             </summary>
             <div
