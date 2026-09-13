@@ -1,5 +1,5 @@
 import { AppShell } from '@/components/app-shell';
-import { hoyMadrid } from '@/lib/fechas';
+import { hoyMadrid, diaLargo } from '@/lib/fechas';
 import { exigirAccesoEconomico } from '../guard';
 
 const euros = (n: number) =>
@@ -80,7 +80,7 @@ export default async function Informe({
       seccion="facturacion"
       subseccion="/facturacion/informe"
       titulo="Informe económico"
-      descripcion={`Del ${inicio} al ${fin}`}
+      descripcion={`Del ${diaLargo(inicio)} al ${diaLargo(fin)}`}
     >
       <form className="mb-5 flex flex-wrap items-center gap-2 print:hidden">
         <label className="text-xs text-ink2">
