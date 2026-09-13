@@ -1,7 +1,7 @@
 /**
- * El cruce de datos dice la verdad, en las 75 combinaciones.
+ * El cruce de datos dice la verdad, en todas sus combinaciones.
  *
- * Cinco dimensiones por cinco por tres métricas. Basta con que una casilla sume
+ * Cada dimensión contra cada dimensión, con cada métrica. Basta con que una casilla sume
  * mal para que dirección tome una decisión sobre un centro con una cifra que no
  * es. Y una tabla cruzada no se revisa a ojo: si el número está mal, parece un
  * número igual de bien.
@@ -24,6 +24,7 @@ import {
   METRICAS,
   cruzar,
   conversionesDe,
+  dimensionesVisibles,
   resolverCruce,
   type FilaCruce,
 } from '../src/lib/cruce';
@@ -42,7 +43,7 @@ const comprobar = (t: string, ok: boolean, d = '') => {
 };
 
 const SELECT =
-  'id, estado, urgencia, created_at, centro_id, centro:centros (nombre), canal:canales (nombre), propietario:perfiles!leads_propietario_id_fkey (nombre), conversiones (importe_primer_pago, estado)';
+  'id, estado, urgencia, created_at, centro_id, centro:centros (nombre), canal:canales (nombre), propietario:perfiles!leads_propietario_id_fkey (nombre), fuente:fuentes_captacion (nombre), conversiones (importe_primer_pago, estado)';
 
 async function main() {
   console.log('\nCruce de datos del panel\n');
@@ -57,7 +58,7 @@ async function main() {
   console.log(`  ${casos.length} casos en la base.\n`);
 
   // ---------------------------------------------------------------------------
-  console.log('Las 75 combinaciones cuadran:');
+  console.log('Cada dimensión contra cada dimensión, con cada métrica:');
 
   const dims = Object.keys(DIMENSIONES);
   const mets = Object.keys(METRICAS);
@@ -114,6 +115,7 @@ async function main() {
     centro: { nombre: 'Prueba' },
     canal: { nombre: 'Prueba' },
     propietario: null,
+    fuente: null,
     conversiones: null,
   };
 
@@ -141,6 +143,30 @@ async function main() {
   );
 
   // ---------------------------------------------------------------------------
+  console.log('\nLa dimensión de landing solo se le ofrece a quien la ve:');
+
+  /*
+   * Las fuentes solo las lee dirección. A un comercial la relación incrustada le
+   * vuelve nula, así que TODOS los casos le saldrían como «Entrada manual»
+   * —incluidos los que entraron por una landing—. Eso no es un dato incompleto,
+   * es un dato falso, y se cuela sin ruido: la tabla se pinta perfecta.
+   */
+  comprobar(
+    'dirección sí la tiene',
+    dimensionesVisibles(true).some(([k]) => k === 'fuente'),
+  );
+  comprobar('un comercial no', !dimensionesVisibles(false).some(([k]) => k === 'fuente'));
+
+  const pedida = { cruceFila: 'fuente', cruceCol: 'centro' };
+  comprobar(
+    'y pedirla por la URL no se la da',
+    resolverCruce(pedida, false).claveFila !== 'fuente',
+    `le sale ${resolverCruce(pedida, false).claveFila}`,
+  );
+  comprobar('pero a dirección sí', resolverCruce(pedida, true).claveFila === 'fuente');
+
+  // ---------------------------------------------------------------------------
+
   console.log('\nEl filtro de centro llega al cruce:');
 
   const { data: centros } = await admin.from('centros').select('id, nombre');

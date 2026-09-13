@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { secretoCoincide } from '@/lib/enlaces';
+import { apuntarLead, fuentePorToken } from '@/lib/fuentes';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import {
   anotarEnCasoAbierto,
@@ -64,9 +65,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Demasiadas peticiones' }, { status: 429 });
   }
 
+  /*
+   * Dos formas de entrar, y no son equivalentes.
+   *
+   * Con TOKEN DE FUENTE (`x-fuente-token`): la fuente dice quien es, y a partir
+   * de ahi el CENTRO y el CANAL los pone el CRM. Es lo que usan las landings.
+   *
+   * Con el secreto global de siempre: sigue funcionando igual que antes —el
+   * WordPress y lo que ya estuviera conectado no se enteran de este cambio— y el
+   * centro sigue viniendo en el cuerpo. Es el camino viejo, y se queda para no
+   * romper nada, no porque sea igual de bueno.
+   */
+  const admin = createAdminClient();
+  const tokenFuente = (req.headers.get('x-fuente-token') ?? '').trim();
+  const fuente = tokenFuente ? await fuentePorToken(admin, tokenFuente) : null;
+
+  if (tokenFuente && !fuente) {
+    return NextResponse.json({ error: 'Fuente desconocida o desactivada' }, { status: 401 });
+  }
   // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
   // cuantos acertaste.
-  if (!secretoCoincide(secreto, secretoEsperado)) {
+  if (!fuente && !secretoCoincide(secreto, secretoEsperado)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
@@ -86,8 +105,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const admin = createAdminClient();
-  const origenSistema = (datos.origen_sistema ?? 'formulario_web').trim();
+  const origenSistema = fuente ? fuente.slug : (datos.origen_sistema ?? 'formulario_web').trim();
   const origenRef = (datos.origen_ref ?? '').trim() || null;
 
   // Idempotencia: el mismo envío no crea dos leads.
@@ -122,6 +140,7 @@ export async function POST(req: NextRequest) {
         motivo: `Reapertura automática: nuevo formulario del teléfono ${telefono}`,
         notaExtra: notaFormulario || null,
       });
+      if (fuente) await apuntarLead(admin, fuente.id);
       return NextResponse.json({ accion: 'reabierto', lead_id: caso.leadId }, { status: 200 });
     }
     // Caso abierto: NO se toca su estado ni su etapa; solo se anota y se avisa.
@@ -129,6 +148,7 @@ export async function POST(req: NextRequest) {
       caso,
       nota: notaFormulario || 'Nuevo formulario web recibido para este caso.',
     });
+    if (fuente) await apuntarLead(admin, fuente.id);
     return NextResponse.json({ accion: 'anotado', lead_id: caso.leadId }, { status: 200 });
   }
 
@@ -141,12 +161,24 @@ export async function POST(req: NextRequest) {
       admin.from('modalidades').select('id, slug').eq('activa', true),
     ]);
 
-  const centro =
-    centros?.find((c) => c.slug === (datos.centro ?? '').trim()) ??
-    centros?.find((c) => c.es_bandeja_grupo);
-  const canal =
-    canales?.find((c) => c.slug === (datos.canal ?? '').trim()) ??
-    canales?.find((c) => c.slug === 'formulario_web');
+  /*
+   * Si hay fuente, MANDA la fuente.
+   *
+   * Lo que venga en el cuerpo se ignora a proposito: el token de una landing
+   * acaba en manos de quien la monta, y no puede servir para meter leads en un
+   * centro que no es el suyo —menos aun en Horizonte, que es el restringido—.
+   */
+  const centro = fuente
+    ? fuente.centro_id
+      ? centros?.find((c) => c.id === fuente.centro_id)
+      : centros?.find((c) => c.es_bandeja_grupo)
+    : (centros?.find((c) => c.slug === (datos.centro ?? '').trim()) ??
+      centros?.find((c) => c.es_bandeja_grupo));
+
+  const canal = fuente
+    ? canales?.find((c) => c.id === fuente.canal_id)
+    : (canales?.find((c) => c.slug === (datos.canal ?? '').trim()) ??
+      canales?.find((c) => c.slug === 'formulario_web'));
   if (!centro || !canal) {
     return NextResponse.json({ error: 'Catálogos incompletos en la BD' }, { status: 500 });
   }
@@ -189,12 +221,20 @@ export async function POST(req: NextRequest) {
       relacion_con_afectado: relacion,
       nombre_afectado: (datos.nombre_afectado ?? '').trim() || null,
       adiccion_id: adicciones?.find((a) => a.slug === (datos.adiccion ?? '').trim())?.id ?? null,
+      /*
+       * La modalidad de la fuente cuando la tiene. Para Bellamar tiene sentido
+       * —solo ofrece ingreso residencial— y para Eclipse no, que ofrece cuatro:
+       * ahi la manda la landing o se queda sin poner.
+       */
       modalidad_interes_id:
-        modalidades?.find((m) => m.slug === (datos.modalidad ?? '').trim())?.id ?? null,
+        fuente?.modalidad_id ??
+        modalidades?.find((m) => m.slug === (datos.modalidad ?? '').trim())?.id ??
+        null,
       urgencia: urgencia ?? null,
       zona: (datos.zona ?? '').trim() || null,
       canal_id: canal.id,
-      subcanal: (datos.subcanal ?? '').trim() || null,
+      subcanal: fuente?.subcanal ?? (datos.subcanal ?? '').trim() ?? null,
+      fuente_id: fuente?.id ?? null,
       estado: 'nuevo',
       utm_source: (datos.utm_source ?? '').trim() || null,
       utm_medium: (datos.utm_medium ?? '').trim() || null,
@@ -256,5 +296,6 @@ export async function POST(req: NextRequest) {
       : Promise.resolve(null),
   ]);
 
+  if (fuente) await apuntarLead(admin, fuente.id);
   return NextResponse.json({ accion: 'creado', lead_id: lead.id }, { status: 201 });
 }

@@ -1520,6 +1520,86 @@ export type Database = {
         }
         Relationships: []
       }
+      fuentes_captacion: {
+        Row: {
+          activa: boolean
+          canal_id: string
+          centro_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          modalidad_id: string | null
+          nombre: string
+          slug: string
+          subcanal: string | null
+          token_hash: string
+          total_leads: number
+          ultimo_lead_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          canal_id: string
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          modalidad_id?: string | null
+          nombre: string
+          slug: string
+          subcanal?: string | null
+          token_hash: string
+          total_leads?: number
+          ultimo_lead_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          canal_id?: string
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          modalidad_id?: string | null
+          nombre?: string
+          slug?: string
+          subcanal?: string | null
+          token_hash?: string
+          total_leads?: number
+          ultimo_lead_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuentes_captacion_canal_id_fkey"
+            columns: ["canal_id"]
+            isOneToOne: false
+            referencedRelation: "canales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuentes_captacion_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuentes_captacion_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuentes_captacion_modalidad_id_fkey"
+            columns: ["modalidad_id"]
+            isOneToOne: false
+            referencedRelation: "modalidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gasto_campanas: {
         Row: {
           campana: string
@@ -1792,6 +1872,7 @@ export type Database = {
           created_by: string | null
           estado: Database["public"]["Enums"]["estado_lead"]
           etapa_id: string
+          fuente_id: string | null
           id: string
           landing_url: string | null
           modalidad_interes_id: string | null
@@ -1829,6 +1910,7 @@ export type Database = {
           created_by?: string | null
           estado?: Database["public"]["Enums"]["estado_lead"]
           etapa_id: string
+          fuente_id?: string | null
           id?: string
           landing_url?: string | null
           modalidad_interes_id?: string | null
@@ -1866,6 +1948,7 @@ export type Database = {
           created_by?: string | null
           estado?: Database["public"]["Enums"]["estado_lead"]
           etapa_id?: string
+          fuente_id?: string | null
           id?: string
           landing_url?: string | null
           modalidad_interes_id?: string | null
@@ -1928,6 +2011,13 @@ export type Database = {
             columns: ["etapa_id"]
             isOneToOne: false
             referencedRelation: "pipeline_etapas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_fuente_id_fkey"
+            columns: ["fuente_id"]
+            isOneToOne: false
+            referencedRelation: "fuentes_captacion"
             referencedColumns: ["id"]
           },
           {
