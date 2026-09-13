@@ -23,6 +23,8 @@ export type FilaCruce = {
   centro: { nombre: string } | null;
   canal: { nombre: string } | null;
   propietario: { nombre: string } | null;
+  /** Por qué landing o formulario entró. Nulo si no vino por una fuente. */
+  fuente: { nombre: string } | null;
   /*
    * Objeto O lista, y por eso está escrito así.
    *
@@ -46,7 +48,10 @@ export function conversionesDe(fila: FilaCruce): Conversion[] {
   return Array.isArray(c) ? c : [c];
 }
 
-export const DIMENSIONES: Record<string, { texto: string; de: (l: FilaCruce) => string }> = {
+export const DIMENSIONES: Record<
+  string,
+  { texto: string; de: (l: FilaCruce) => string; soloDireccion?: true }
+> = {
   centro: { texto: 'Centro', de: (l) => l.centro?.nombre ?? 'Sin centro' },
   canal: { texto: 'Canal', de: (l) => l.canal?.nombre ?? 'Sin canal' },
   estado: {
@@ -55,7 +60,29 @@ export const DIMENSIONES: Record<string, { texto: string; de: (l: FilaCruce) => 
   },
   propietario: { texto: 'Propietario', de: (l) => l.propietario?.nombre ?? 'Sin asignar' },
   urgencia: { texto: 'Urgencia', de: (l) => l.urgencia ?? 'Sin marcar' },
+  /*
+   * Con dos landings de Meta apuntando a centros distintos, «canal: Meta Ads»
+   * deja de decir nada útil: las mete a las dos en el mismo saco. Esto es lo que
+   * permite ver cuál de las dos trae más y cuál convierte mejor.
+   */
+  fuente: {
+    texto: 'Landing o formulario',
+    de: (l) => l.fuente?.nombre ?? 'Entrada manual',
+    /*
+     * Solo para dirección, y no por discreción sino porque para los demás sería
+     * FALSA. Las fuentes solo las lee dirección —llevan la huella de su token—,
+     * así que a un comercial la relación incrustada le vuelve nula y todos los
+     * casos le saldrían como «Entrada manual», incluidos los que entraron por
+     * una landing. Un dato que miente es peor que uno que no está.
+     */
+    soloDireccion: true,
+  },
 };
+
+/** Las dimensiones que este usuario puede ver sin que le salgan datos falsos. */
+export function dimensionesVisibles(esDireccion: boolean) {
+  return Object.entries(DIMENSIONES).filter(([, d]) => esDireccion || !d.soloDireccion);
+}
 
 export const METRICAS: Record<string, { texto: string; de: (l: FilaCruce) => number }> = {
   casos: { texto: 'Casos', de: () => 1 },
@@ -86,22 +113,32 @@ export const VISTAS: Record<string, string> = {
  * escribe cualquiera en la barra de direcciones, y una pantalla no puede
  * romperse porque alguien escriba `cruceFila=loquesea`.
  */
-export function resolverCruce(filtros: {
-  cruceFila?: string;
-  cruceCol?: string;
-  cruceMetrica?: string;
-  cruceVista?: string;
-}) {
-  const claveFila = DIMENSIONES[filtros.cruceFila ?? ''] ? filtros.cruceFila! : 'centro';
+export function resolverCruce(
+  filtros: {
+    cruceFila?: string;
+    cruceCol?: string;
+    cruceMetrica?: string;
+    cruceVista?: string;
+  },
+  esDireccion = true,
+) {
+  // Una dimensión que este usuario no puede ver se trata como si no existiera,
+  // venga de la URL escrita a mano o de un enlace guardado de otra sesión.
+  const vale = (k?: string) =>
+    !!k && !!DIMENSIONES[k] && (esDireccion || !DIMENSIONES[k].soloDireccion);
+
+  const claveFila = vale(filtros.cruceFila) ? filtros.cruceFila! : 'centro';
 
   /*
    * Cruzar una dimensión consigo misma da una diagonal y nada más. En vez de
    * dejar elegirlo y que la pantalla salga vacía de sentido, se corrige sola a
    * la primera dimensión distinta.
    */
-  const pedidaCol = DIMENSIONES[filtros.cruceCol ?? ''] ? filtros.cruceCol! : 'canal';
+  const pedidaCol = vale(filtros.cruceCol) ? filtros.cruceCol! : 'canal';
   const claveCol =
-    pedidaCol === claveFila ? Object.keys(DIMENSIONES).find((d) => d !== claveFila)! : pedidaCol;
+    pedidaCol === claveFila
+      ? dimensionesVisibles(esDireccion).find(([d]) => d !== claveFila)![0]
+      : pedidaCol;
 
   const claveMetrica = METRICAS[filtros.cruceMetrica ?? ''] ? filtros.cruceMetrica! : 'casos';
   const vista = VISTAS[filtros.cruceVista ?? ''] ? filtros.cruceVista! : 'tabla';

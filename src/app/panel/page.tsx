@@ -22,6 +22,7 @@ import {
   METRICAS,
   VISTAS,
   cruzar,
+  dimensionesVisibles,
   resolverCruce,
   type FilaCruce,
 } from '@/lib/cruce';
@@ -176,18 +177,13 @@ export default async function Panel({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: perfil } = await supabase
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .single();
+  const { data: perfil } = await supabase.from('perfiles').select('rol').eq('id', user.id).single();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
   const esDireccion = perfil?.rol === 'direccion';
 
   const periodo = periodoDesdeFiltros(filtros);
   const desdeIso = desdeDatetimeLocal(`${periodo.desde}T00:00`)!;
   const hastaIso = desdeDatetimeLocal(`${periodo.hasta}T00:00`)!;
-
 
   /*
    * Los casos del periodo, UNA vez.
@@ -205,6 +201,7 @@ export default async function Panel({
        quien_contacta, adiccion_id, modalidad_interes_id, motivo_perdida_id, utm_campaign,
        centro:centros (nombre), canal:canales (nombre),
        propietario:perfiles!leads_propietario_id_fkey (nombre),
+       fuente:fuentes_captacion (nombre),
        conversiones (importe_primer_pago, estado)`,
     )
     .gte('created_at', desdeIso)
@@ -245,7 +242,8 @@ export default async function Panel({
     .eq('estado', 'validada')
     .gte('created_at', anteriorDesde)
     .lt('created_at', anteriorHasta);
-  if (filtros.centro) conversionesAnteriores = conversionesAnteriores.eq('centro_id', filtros.centro);
+  if (filtros.centro)
+    conversionesAnteriores = conversionesAnteriores.eq('centro_id', filtros.centro);
 
   /*
    * TODO lo que necesita la pantalla, en UN viaje.
@@ -304,7 +302,9 @@ export default async function Panel({
       .eq('activo', true)
       .in('rol', ['direccion', 'admisiones'])
       .order('nombre'),
-    supabase.from('objetivos').select('perfil_id, meta_citas, meta_conversiones, meta_ingresos, mes'),
+    supabase
+      .from('objetivos')
+      .select('perfil_id, meta_citas, meta_conversiones, meta_ingresos, mes'),
     supabase
       .from('configuracion')
       .select('valor')
@@ -370,7 +370,7 @@ export default async function Panel({
   const resenasPorCentro = new Map<string, number>();
   for (const r of resenasPeriodo ?? []) {
     const nombre =
-      ((r.lead as { centro: { nombre: string } | null } | null)?.centro?.nombre) ?? 'Sin centro';
+      (r.lead as { centro: { nombre: string } | null } | null)?.centro?.nombre ?? 'Sin centro';
     resenasPorCentro.set(nombre, (resenasPorCentro.get(nombre) ?? 0) + 1);
   }
 
@@ -482,9 +482,15 @@ export default async function Panel({
   const nombreModalidad = new Map((modalidades ?? []).map((m) => [m.id, m.nombre]));
   const nombreMotivo = new Map((motivosPerdida ?? []).map((m) => [m.id, m.nombre]));
 
-  const porQuienContacta = agrupar((l) => l.quien_contacta, new Map(
-    [['familiar', 'Familiar'], ['afectado', 'Afectado'], ['prescriptor', 'Prescriptor'], ['otro', 'Otro']],
-  ));
+  const porQuienContacta = agrupar(
+    (l) => l.quien_contacta,
+    new Map([
+      ['familiar', 'Familiar'],
+      ['afectado', 'Afectado'],
+      ['prescriptor', 'Prescriptor'],
+      ['otro', 'Otro'],
+    ]),
+  );
   const porAdiccion = agrupar((l) => l.adiccion_id, nombreAdiccion);
   const porModalidad = agrupar((l) => l.modalidad_interes_id, nombreModalidad);
   const porMotivoPerdida = agrupar(
@@ -503,9 +509,7 @@ export default async function Panel({
       : null;
 
   // No-shows del periodo sobre las citas que ya deberían haberse dado.
-  const citasCerradas = (citas ?? []).filter((c) =>
-    ['realizada', 'no_show'].includes(c.estado),
-  );
+  const citasCerradas = (citas ?? []).filter((c) => ['realizada', 'no_show'].includes(c.estado));
   const noShows = (citas ?? []).filter((c) => c.estado === 'no_show').length;
 
   // Tiempo medio de lead a conversión validada.
@@ -513,7 +517,9 @@ export default async function Panel({
   const diasHastaConversion = validadas
     .map((c) => {
       const alta = fechaLead.get(c.lead_id);
-      return alta ? (new Date(c.created_at).getTime() - new Date(alta).getTime()) / 86_400_000 : null;
+      return alta
+        ? (new Date(c.created_at).getTime() - new Date(alta).getTime()) / 86_400_000
+        : null;
     })
     .filter((d): d is number => d !== null);
   const mediaDiasConversion =
@@ -566,7 +572,10 @@ export default async function Panel({
       : PROBABILIDAD_POR_DEFECTO;
 
   const centrosVisibles = new Set(centrosElegibles.map((c) => c.id));
-  const previsionPorEstado = new Map<string, { importe: number; ponderado: number; casos: number }>();
+  const previsionPorEstado = new Map<
+    string,
+    { importe: number; ponderado: number; casos: number }
+  >();
 
   for (const p of presupuestosVivos ?? []) {
     const estado = p.lead?.estado;
@@ -641,882 +650,903 @@ export default async function Panel({
       titulo="Dashboard de dirección"
       descripcion={`${periodo.titulo} · solo cuentan las conversiones validadas`}
     >
-        {/*
-          * El motor parado, dicho en la primera pantalla que mira dirección.
-          *
-          * Cuando el cron deja de correr no se rompe nada de forma visible:
-          * simplemente dejan de llegar avisos. Y no recibir ningún aviso se
-          * parece muchísimo a no tener nada pendiente, así que puede pasar días
-          * sin que nadie lo note. Este recuadro es la única forma de enterarse.
-          */}
-        {motor.nuncaHaCorrido && (
-          <div className="mb-4 rounded-lg bg-warn-soft px-4 py-3 ring-1 ring-warn/25">
-            <p className="text-sm font-medium text-warn-ink">
-              Los automatismos no han corrido nunca en este entorno
-            </p>
-            <p className="mt-1 text-sm text-ink2">
-              Aquí no se reparten leads solos, ni salen alertas de SLA o de cadencia, ni se mandan
-              recordatorios. En staging es lo normal. En producción significa que el cron no está
-              activo.
-            </p>
-          </div>
-        )}
-
-        {motor.parado && (
-          <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 ring-1 ring-danger/25">
-            <p className="text-sm font-bold text-danger">
-              Los automatismos llevan {textoDeEspera(motor.minutosDesdeBuena!)} sin ejecutarse
-            </p>
-            <p className="mt-1 text-sm text-ink2">
-              Mientras siga así no salen alertas de SLA ni de cadencia, los leads sin propietario no
-              se reparten, no se mandan recordatorios de cita y no se proponen reactivaciones ni
-              reseñas. El trabajo no se pierde: se queda esperando. Lo normal es que corra cada 15
-              minutos.
-            </p>
-            {motor.fallos.length > 0 && (
-              <p className="mt-2 text-sm text-ink2">
-                En la última pasada falló:{' '}
-                <span className="font-medium text-ink">
-                  {motor.fallos.map((f) => f.fase).join(', ')}
-                </span>
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
-          <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
-            {[
-              ['mes', 'Este mes'],
-              ['mes_anterior', 'Mes anterior'],
-              ['trimestre', '3 meses'],
-              ['anio', 'Año'],
-              ['rango', 'Fechas'],
-            ].map(([clave, texto]) => (
-              <Link
-                key={clave}
-                href={enlacePeriodo(clave)}
-                className={`rounded-md px-3 py-1.5 font-medium transition ${
-                  (filtros.periodo ?? 'mes') === clave
-                    ? 'bg-surface text-primary shadow-sm'
-                    : 'text-ink2 hover:bg-surface/60'
-                }`}
-              >
-                {texto}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        <form method="get" className="mb-4 flex flex-wrap items-center gap-2 text-sm">
-          <input type="hidden" name="periodo" value={filtros.periodo ?? 'mes'} />
-          {filtros.periodo === 'rango' && (
-            <>
-              <input
-                type="date"
-                name="desde"
-                defaultValue={filtros.desde || periodo.desde}
-                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
-              />
-              <span className="text-muted">→</span>
-              <input
-                type="date"
-                name="hasta"
-                defaultValue={filtros.hasta || periodo.desde}
-                className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
-              />
-            </>
-          )}
-          <select
-            name="centro"
-            defaultValue={filtros.centro ?? ''}
-            className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
-          >
-            <option value="">Todos los centros</option>
-            {centrosElegibles.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-lg bg-primary px-3 py-1.5 font-medium text-white transition hover:bg-primary-hover"
-          >
-            Aplicar
-          </button>
-          <span className="text-ink2">
-            <span className="font-medium capitalize text-ink">{periodo.titulo}</span>
-          </span>
-        </form>
-
-        {error ? (
-          <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
-            No se pudieron cargar las métricas: {error.message}
+      {/*
+       * El motor parado, dicho en la primera pantalla que mira dirección.
+       *
+       * Cuando el cron deja de correr no se rompe nada de forma visible:
+       * simplemente dejan de llegar avisos. Y no recibir ningún aviso se
+       * parece muchísimo a no tener nada pendiente, así que puede pasar días
+       * sin que nadie lo note. Este recuadro es la única forma de enterarse.
+       */}
+      {motor.nuncaHaCorrido && (
+        <div className="mb-4 rounded-lg bg-warn-soft px-4 py-3 ring-1 ring-warn/25">
+          <p className="text-sm font-medium text-warn-ink">
+            Los automatismos no han corrido nunca en este entorno
           </p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <Tarjeta
-                titulo="Leads nuevos"
-                valor={String(leads.length)}
-                delta={variacion(leads.length, totalPrevio)}
-                contra={anterior.titulo}
-              />
-              <Tarjeta
-                titulo="Sin atender ahora"
-                valor={String(sinResponder)}
-                pie={`SLA ${slaMinutos} min`}
-                acento={sinResponder > 0 ? 'rojo' : 'verde'}
-              />
-              <Tarjeta
-                titulo="Conversión"
-                valor={porcentaje(validadas.length, leads.length)}
-                delta={Math.round(tasaActual - tasaPrevia)}
-                contra={anterior.titulo}
-                pie="Solo conversiones validadas"
-              />
-              <Tarjeta
-                titulo="Ingresos validados"
-                valor={euros(ingresos)}
-                delta={variacion(ingresos, ingresosPrevios)}
-                contra={anterior.titulo}
-                acento="verde"
-              />
-              <Tarjeta
-                titulo="Pend. validación"
-                valor={String(pendientes.length)}
-                pie={euros(
-                  pendientes.reduce((suma, c) => suma + Number(c.importe_primer_pago ?? 0), 0),
+          <p className="mt-1 text-sm text-ink2">
+            Aquí no se reparten leads solos, ni salen alertas de SLA o de cadencia, ni se mandan
+            recordatorios. En staging es lo normal. En producción significa que el cron no está
+            activo.
+          </p>
+        </div>
+      )}
+
+      {motor.parado && (
+        <div className="mb-4 rounded-lg bg-danger-soft px-4 py-3 ring-1 ring-danger/25">
+          <p className="text-sm font-bold text-danger">
+            Los automatismos llevan {textoDeEspera(motor.minutosDesdeBuena!)} sin ejecutarse
+          </p>
+          <p className="mt-1 text-sm text-ink2">
+            Mientras siga así no salen alertas de SLA ni de cadencia, los leads sin propietario no
+            se reparten, no se mandan recordatorios de cita y no se proponen reactivaciones ni
+            reseñas. El trabajo no se pierde: se queda esperando. Lo normal es que corra cada 15
+            minutos.
+          </p>
+          {motor.fallos.length > 0 && (
+            <p className="mt-2 text-sm text-ink2">
+              En la última pasada falló:{' '}
+              <span className="font-medium text-ink">
+                {motor.fallos.map((f) => f.fase).join(', ')}
+              </span>
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-3">
+        <nav className="flex flex-wrap items-center gap-1 rounded-lg bg-surface2 p-1 text-sm">
+          {[
+            ['mes', 'Este mes'],
+            ['mes_anterior', 'Mes anterior'],
+            ['trimestre', '3 meses'],
+            ['anio', 'Año'],
+            ['rango', 'Fechas'],
+          ].map(([clave, texto]) => (
+            <Link
+              key={clave}
+              href={enlacePeriodo(clave)}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${
+                (filtros.periodo ?? 'mes') === clave
+                  ? 'bg-surface text-primary shadow-sm'
+                  : 'text-ink2 hover:bg-surface/60'
+              }`}
+            >
+              {texto}
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      <form method="get" className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+        <input type="hidden" name="periodo" value={filtros.periodo ?? 'mes'} />
+        {filtros.periodo === 'rango' && (
+          <>
+            <input
+              type="date"
+              name="desde"
+              defaultValue={filtros.desde || periodo.desde}
+              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+            />
+            <span className="text-muted">→</span>
+            <input
+              type="date"
+              name="hasta"
+              defaultValue={filtros.hasta || periodo.desde}
+              className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+            />
+          </>
+        )}
+        <select
+          name="centro"
+          defaultValue={filtros.centro ?? ''}
+          className="rounded-lg border border-line2 bg-surface px-2 py-1.5"
+        >
+          <option value="">Todos los centros</option>
+          {centrosElegibles.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.nombre}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="rounded-lg bg-primary px-3 py-1.5 font-medium text-white transition hover:bg-primary-hover"
+        >
+          Aplicar
+        </button>
+        <span className="text-ink2">
+          <span className="font-medium capitalize text-ink">{periodo.titulo}</span>
+        </span>
+      </form>
+
+      {error ? (
+        <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
+          No se pudieron cargar las métricas: {error.message}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Tarjeta
+              titulo="Leads nuevos"
+              valor={String(leads.length)}
+              delta={variacion(leads.length, totalPrevio)}
+              contra={anterior.titulo}
+            />
+            <Tarjeta
+              titulo="Sin atender ahora"
+              valor={String(sinResponder)}
+              pie={`SLA ${slaMinutos} min`}
+              acento={sinResponder > 0 ? 'rojo' : 'verde'}
+            />
+            <Tarjeta
+              titulo="Conversión"
+              valor={porcentaje(validadas.length, leads.length)}
+              delta={Math.round(tasaActual - tasaPrevia)}
+              contra={anterior.titulo}
+              pie="Solo conversiones validadas"
+            />
+            <Tarjeta
+              titulo="Ingresos validados"
+              valor={euros(ingresos)}
+              delta={variacion(ingresos, ingresosPrevios)}
+              contra={anterior.titulo}
+              acento="verde"
+            />
+            <Tarjeta
+              titulo="Pend. validación"
+              valor={String(pendientes.length)}
+              pie={euros(
+                pendientes.reduce((suma, c) => suma + Number(c.importe_primer_pago ?? 0), 0),
+              )}
+              acento={pendientes.length > 0 ? 'ambar' : undefined}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Tarjeta
+              titulo="Cumplimiento del SLA"
+              valor={porcentaje(dentroDeSla.length, respondidos.length)}
+              pie={`De los ${respondidos.length} leads ya respondidos`}
+            />
+            <Tarjeta
+              titulo="Leads sin asignar"
+              valor={String(sinAsignar)}
+              pie="Del periodo. Todo lead debe acabar con propietario"
+              acento={sinAsignar > 0 ? 'ambar' : 'verde'}
+            />
+            <Tarjeta
+              titulo="Abiertos sin próxima acción"
+              valor={String(sinProximaAccion)}
+              pie="En todo momento, no solo del periodo"
+              acento={sinProximaAccion > 0 ? 'rojo' : 'verde'}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Tarjeta
+              titulo="1ª respuesta (media)"
+              valor={mediaRespuesta === null ? '—' : `${mediaRespuesta} min`}
+              pie={`Objetivo: ${slaMinutos} min`}
+              acento={
+                mediaRespuesta === null
+                  ? undefined
+                  : mediaRespuesta <= slaMinutos
+                    ? 'verde'
+                    : 'rojo'
+              }
+            />
+            <Tarjeta
+              titulo="No-shows"
+              valor={porcentaje(noShows, citasCerradas.length)}
+              pie={`${noShows} de ${citasCerradas.length} citas cerradas`}
+              acento={noShows > 0 ? 'ambar' : 'verde'}
+            />
+            <Tarjeta
+              titulo="Lead → conversión"
+              valor={mediaDiasConversion === null ? '—' : `${mediaDiasConversion} días`}
+              pie="Media de las validadas del periodo"
+            />
+            <Tarjeta
+              titulo="Ticket medio"
+              valor={euros(ticketMedio)}
+              pie="Primer pago medio de las validadas"
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Seccion titulo="Embudo del periodo">
+              <ul className="flex flex-col gap-2.5">
+                {EMBUDO.map((estado) => {
+                  const numero = porEstado.get(estado) ?? 0;
+                  return (
+                    <li key={estado}>
+                      <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+                        <span>{ETIQUETA_ESTADO[estado].texto}</span>
+                        <span className="text-ink2">
+                          {numero} · {porcentaje(numero, leads.length)}
+                        </span>
+                      </div>
+                      <Barra valor={numero} maximo={maxEmbudo} clases="bg-primary-soft0" />
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-xs text-muted">
+                Cada lead cuenta en su estado actual. Perdidos: {porEstado.get('perdido') ?? 0} · No
+                válidos: {porEstado.get('no_valido') ?? 0} · Derivados:{' '}
+                {porEstado.get('derivado') ?? 0}
+              </p>
+            </Seccion>
+
+            <Seccion titulo="Origen de los leads">
+              <ul className="flex flex-col gap-2.5">
+                {[...porCanal.entries()]
+                  .sort((a, b) => b[1].total - a[1].total)
+                  .map(([canalId, fila]) => (
+                    <li key={canalId}>
+                      <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
+                        <span>{nombreCanal.get(canalId) ?? '—'}</span>
+                        <span className="text-ink2">
+                          {fila.total} · {fila.convertidos} convertido
+                          {fila.convertidos === 1 ? '' : 's'}
+                        </span>
+                      </div>
+                      <Barra
+                        valor={fila.total}
+                        maximo={Math.max(1, ...[...porCanal.values()].map((f) => f.total))}
+                        clases="bg-graf-ec"
+                      />
+                    </li>
+                  ))}
+                {porCanal.size === 0 && (
+                  <li className="text-sm text-muted">Sin leads en el periodo.</li>
                 )}
-                acento={pendientes.length > 0 ? 'ambar' : undefined}
-              />
-            </div>
+              </ul>
+            </Seccion>
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Tarjeta
-                titulo="Cumplimiento del SLA"
-                valor={porcentaje(dentroDeSla.length, respondidos.length)}
-                pie={`De los ${respondidos.length} leads ya respondidos`}
-              />
-              <Tarjeta
-                titulo="Leads sin asignar"
-                valor={String(sinAsignar)}
-                pie="Del periodo. Todo lead debe acabar con propietario"
-                acento={sinAsignar > 0 ? 'ambar' : 'verde'}
-              />
-              <Tarjeta
-                titulo="Abiertos sin próxima acción"
-                valor={String(sinProximaAccion)}
-                pie="En todo momento, no solo del periodo"
-                acento={sinProximaAccion > 0 ? 'rojo' : 'verde'}
-              />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Tarjeta
-                titulo="1ª respuesta (media)"
-                valor={mediaRespuesta === null ? '—' : `${mediaRespuesta} min`}
-                pie={`Objetivo: ${slaMinutos} min`}
-                acento={
-                  mediaRespuesta === null ? undefined : mediaRespuesta <= slaMinutos ? 'verde' : 'rojo'
-                }
-              />
-              <Tarjeta
-                titulo="No-shows"
-                valor={porcentaje(noShows, citasCerradas.length)}
-                pie={`${noShows} de ${citasCerradas.length} citas cerradas`}
-                acento={noShows > 0 ? 'ambar' : 'verde'}
-              />
-              <Tarjeta
-                titulo="Lead → conversión"
-                valor={mediaDiasConversion === null ? '—' : `${mediaDiasConversion} días`}
-                pie="Media de las validadas del periodo"
-              />
-              <Tarjeta
-                titulo="Ticket medio"
-                valor={euros(ticketMedio)}
-                pie="Primer pago medio de las validadas"
-              />
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Seccion titulo="Embudo del periodo">
-                <ul className="flex flex-col gap-2.5">
-                  {EMBUDO.map((estado) => {
-                    const numero = porEstado.get(estado) ?? 0;
-                    return (
-                      <li key={estado}>
-                        <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                          <span>{ETIQUETA_ESTADO[estado].texto}</span>
-                          <span className="text-ink2">
-                            {numero} · {porcentaje(numero, leads.length)}
-                          </span>
-                        </div>
-                        <Barra valor={numero} maximo={maxEmbudo} clases="bg-primary-soft0" />
-                      </li>
-                    );
-                  })}
-                </ul>
-                <p className="mt-3 text-xs text-muted">
-                  Cada lead cuenta en su estado actual. Perdidos: {porEstado.get('perdido') ?? 0} ·
-                  No válidos: {porEstado.get('no_valido') ?? 0} · Derivados:{' '}
-                  {porEstado.get('derivado') ?? 0}
-                </p>
-              </Seccion>
-
-              <Seccion titulo="Origen de los leads">
-                <ul className="flex flex-col gap-2.5">
-                  {[...porCanal.entries()]
+          <Seccion titulo="Por centro">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-left text-sm">
+                <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
+                  <tr>
+                    <th className="py-2 font-medium">Centro</th>
+                    <th className="py-2 font-medium">Leads</th>
+                    <th className="py-2 font-medium">Convertidos</th>
+                    <th className="py-2 font-medium">Tasa</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {[...porCentro.entries()]
                     .sort((a, b) => b[1].total - a[1].total)
-                    .map(([canalId, fila]) => (
-                      <li key={canalId}>
-                        <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                          <span>{nombreCanal.get(canalId) ?? '—'}</span>
-                          <span className="text-ink2">
-                            {fila.total} · {fila.convertidos} convertido
-                            {fila.convertidos === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                        <Barra
-                          valor={fila.total}
-                          maximo={Math.max(1, ...[...porCanal.values()].map((f) => f.total))}
-                          clases="bg-graf-ec"
-                        />
-                      </li>
-                    ))}
-                  {porCanal.size === 0 && (
-                    <li className="text-sm text-muted">Sin leads en el periodo.</li>
-                  )}
-                </ul>
-              </Seccion>
-            </div>
-
-            <Seccion titulo="Por centro">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-left text-sm">
-                  <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
-                    <tr>
-                      <th className="py-2 font-medium">Centro</th>
-                      <th className="py-2 font-medium">Leads</th>
-                      <th className="py-2 font-medium">Convertidos</th>
-                      <th className="py-2 font-medium">Tasa</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {[...porCentro.entries()]
-                      .sort((a, b) => b[1].total - a[1].total)
-                      .map(([centroId, fila]) => (
-                        <tr key={centroId}>
-                          <td className="py-2">{nombreCentro.get(centroId) ?? '—'}</td>
-                          <td className="py-2">{fila.total}</td>
-                          <td className="py-2">{fila.convertidos}</td>
-                          <td className="py-2 text-ink2">
-                            {porcentaje(fila.convertidos, fila.total)}
-                          </td>
-                        </tr>
-                      ))}
-                    {porCentro.size === 0 && (
-                      <tr>
-                        <td colSpan={4} className="py-3 text-muted">
-                          Sin leads en el periodo.
+                    .map(([centroId, fila]) => (
+                      <tr key={centroId}>
+                        <td className="py-2">{nombreCentro.get(centroId) ?? '—'}</td>
+                        <td className="py-2">{fila.total}</td>
+                        <td className="py-2">{fila.convertidos}</td>
+                        <td className="py-2 text-ink2">
+                          {porcentaje(fila.convertidos, fila.total)}
                         </td>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Seccion>
-
-            <Seccion titulo="Equipo comercial y objetivos del mes">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
+                    ))}
+                  {porCentro.size === 0 && (
                     <tr>
-                      <th className="py-2 font-medium">Comercial</th>
-                      <th className="py-2 font-medium">Leads</th>
-                      <th className="py-2 font-medium">Citas</th>
-                      <th className="py-2 font-medium">Conversiones</th>
-                      <th className="py-2 font-medium">Ingresos</th>
+                      <td colSpan={4} className="py-3 text-muted">
+                        Sin leads en el periodo.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {(comerciales ?? []).map((c) => {
-                      const objetivo = objetivoDe.get(c.id);
-                      const citasReales = citasPorComercial.get(c.id) ?? 0;
-                      const conv = conversionesPorComercial.get(c.id) ?? { numero: 0, importe: 0 };
-                      return (
-                        <tr key={c.id}>
-                          <td className="py-2">{c.nombre}</td>
-                          <td className="py-2">{leadsPorComercial.get(c.id) ?? 0}</td>
-                          <td className="py-2">
-                            {citasReales}
-                            {objetivo?.meta_citas ? (
-                              <span className="text-muted"> / {objetivo.meta_citas}</span>
-                            ) : null}
-                          </td>
-                          <td className="py-2">
-                            {conv.numero}
-                            {objetivo?.meta_conversiones ? (
-                              <span className="text-muted"> / {objetivo.meta_conversiones}</span>
-                            ) : null}
-                          </td>
-                          <td className="py-2">
-                            {euros(conv.importe)}
-                            {objetivo?.meta_ingresos ? (
-                              <span className="text-muted">
-                                {' '}
-                                / {euros(Number(objetivo.meta_ingresos))}
-                              </span>
-                            ) : null}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {objetivoDe.size === 0 && (
-                <p className="mt-3 text-xs text-muted">
-                  No hay objetivos definidos para este mes. Se fijarán desde el panel de
-                  administración; mientras tanto, la tabla muestra solo los datos reales.
-                </p>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Seccion>
+
+          <Seccion titulo="Equipo comercial y objetivos del mes">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="border-b border-line text-xs uppercase tracking-wide text-ink2">
+                  <tr>
+                    <th className="py-2 font-medium">Comercial</th>
+                    <th className="py-2 font-medium">Leads</th>
+                    <th className="py-2 font-medium">Citas</th>
+                    <th className="py-2 font-medium">Conversiones</th>
+                    <th className="py-2 font-medium">Ingresos</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {(comerciales ?? []).map((c) => {
+                    const objetivo = objetivoDe.get(c.id);
+                    const citasReales = citasPorComercial.get(c.id) ?? 0;
+                    const conv = conversionesPorComercial.get(c.id) ?? { numero: 0, importe: 0 };
+                    return (
+                      <tr key={c.id}>
+                        <td className="py-2">{c.nombre}</td>
+                        <td className="py-2">{leadsPorComercial.get(c.id) ?? 0}</td>
+                        <td className="py-2">
+                          {citasReales}
+                          {objetivo?.meta_citas ? (
+                            <span className="text-muted"> / {objetivo.meta_citas}</span>
+                          ) : null}
+                        </td>
+                        <td className="py-2">
+                          {conv.numero}
+                          {objetivo?.meta_conversiones ? (
+                            <span className="text-muted"> / {objetivo.meta_conversiones}</span>
+                          ) : null}
+                        </td>
+                        <td className="py-2">
+                          {euros(conv.importe)}
+                          {objetivo?.meta_ingresos ? (
+                            <span className="text-muted">
+                              {' '}
+                              / {euros(Number(objetivo.meta_ingresos))}
+                            </span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {objetivoDe.size === 0 && (
+              <p className="mt-3 text-xs text-muted">
+                No hay objetivos definidos para este mes. Se fijarán desde el panel de
+                administración; mientras tanto, la tabla muestra solo los datos reales.
+              </p>
+            )}
+          </Seccion>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Seccion titulo="Quién contacta">
+              <Lista filas={porQuienContacta} total={leads.length} color="bg-primary" />
+            </Seccion>
+            <Seccion titulo="Modalidad de interés">
+              <Lista filas={porModalidad} total={leads.length} color="bg-graf-bm" />
+            </Seccion>
+            <Seccion titulo="Adicción">
+              <Lista filas={porAdiccion} total={leads.length} color="bg-graf-ec" />
+            </Seccion>
+            <Seccion titulo="Motivos de pérdida">
+              {porMotivoPerdida.length === 0 ? (
+                <p className="text-sm text-muted">Ningún caso perdido en el periodo.</p>
+              ) : (
+                <Lista
+                  filas={porMotivoPerdida}
+                  total={porMotivoPerdida.reduce((a, [, n]) => a + n, 0)}
+                  color="bg-ink2"
+                />
               )}
             </Seccion>
+          </div>
 
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Seccion titulo="Quién contacta">
-                <Lista filas={porQuienContacta} total={leads.length} color="bg-primary" />
-              </Seccion>
-              <Seccion titulo="Modalidad de interés">
-                <Lista filas={porModalidad} total={leads.length} color="bg-graf-bm" />
-              </Seccion>
-              <Seccion titulo="Adicción">
-                <Lista filas={porAdiccion} total={leads.length} color="bg-graf-ec" />
-              </Seccion>
-              <Seccion titulo="Motivos de pérdida">
-                {porMotivoPerdida.length === 0 ? (
-                  <p className="text-sm text-muted">Ningún caso perdido en el periodo.</p>
-                ) : (
-                  <Lista
-                    filas={porMotivoPerdida}
-                    total={porMotivoPerdida.reduce((a, [, n]) => a + n, 0)}
-                    color="bg-ink2"
-                  />
-                )}
-              </Seccion>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Tarjeta
-                titulo="Nacidos en la bandeja de grupo"
-                valor={String(nacidosEnBandeja)}
-                pie="Sobre todo el Instagram de Lolo Drago"
-              />
-              <Tarjeta
-                titulo="Estancados en valoración"
-                valor={String(estancados)}
-                pie="Abiertos ahí desde hace más de 2 semanas"
-                acento={estancados > 0 ? 'ambar' : 'verde'}
-              />
-              <div className="panel p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-ink2">
-                  Derivaciones internas
-                </p>
-                {derivacionesInternas.size === 0 ? (
-                  <p className="mt-1 text-sm text-muted">Ninguna en el periodo.</p>
-                ) : (
-                  <ul className="mt-1 flex flex-col gap-0.5 text-[13px]">
-                    {[...derivacionesInternas.entries()].map(([ruta, n]) => (
-                      <li key={ruta} className="flex justify-between gap-2">
-                        <span className="truncate text-ink2">{ruta}</span>
-                        <span className="num font-semibold">{n}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-
-            {/* ---------- Previsión de ingresos ---------- */}
-            <Seccion titulo="Previsión de ingresos">
-              <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                <div>
-                  <p className="text-xs text-ink2">Sobre la mesa</p>
-                  <p className="num text-xl font-bold">{euros(previsionTotal.importe)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-ink2">Ponderado</p>
-                  <p className="num text-xl font-bold text-primary">
-                    {euros(Math.round(previsionTotal.ponderado))}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-ink2">Presupuestos vivos</p>
-                  <p className="num text-xl font-bold">
-                    {Array.from(previsionPorEstado.values()).reduce((s, v) => s + v.casos, 0)}
-                  </p>
-                </div>
-              </div>
-
-              {previsionPorEstado.size === 0 ? (
-                <p className="text-sm text-muted">No hay presupuestos vivos ahora mismo.</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Tarjeta
+              titulo="Nacidos en la bandeja de grupo"
+              valor={String(nacidosEnBandeja)}
+              pie="Sobre todo el Instagram de Lolo Drago"
+            />
+            <Tarjeta
+              titulo="Estancados en valoración"
+              valor={String(estancados)}
+              pie="Abiertos ahí desde hace más de 2 semanas"
+              acento={estancados > 0 ? 'ambar' : 'verde'}
+            />
+            <div className="panel p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink2">
+                Derivaciones internas
+              </p>
+              {derivacionesInternas.size === 0 ? (
+                <p className="mt-1 text-sm text-muted">Ninguna en el periodo.</p>
               ) : (
-                <ul className="flex flex-col gap-2">
-                  {Array.from(previsionPorEstado.entries())
-                    .sort((a, b) => b[1].ponderado - a[1].ponderado)
-                    .map(([estado, v]) => (
-                      <li key={estado} className="flex items-baseline justify-between gap-2 text-sm">
-                        <span className="truncate">
-                          {ETIQUETA_ESTADO[estado as EstadoLead]?.texto ?? estado}
-                          <span className="ml-1.5 text-xs text-muted">
-                            {v.casos} caso(s) · {probabilidades[estado]}%
-                          </span>
-                        </span>
-                        <span className="num shrink-0">
-                          <b>{euros(Math.round(v.ponderado))}</b>
-                          <span className="text-muted"> de {euros(v.importe)}</span>
-                        </span>
-                      </li>
-                    ))}
+                <ul className="mt-1 flex flex-col gap-0.5 text-[13px]">
+                  {[...derivacionesInternas.entries()].map(([ruta, n]) => (
+                    <li key={ruta} className="flex justify-between gap-2">
+                      <span className="truncate text-ink2">{ruta}</span>
+                      <span className="num font-semibold">{n}</span>
+                    </li>
+                  ))}
                 </ul>
               )}
+            </div>
+          </div>
 
-              <p className="mt-3 text-xs text-muted">
-                Cada presupuesto cuenta por su importe multiplicado por la probabilidad de su
-                etapa. No es una promesa: es lo que hay abierto, ponderado. Las probabilidades se
-                ajustan en Configuración → Parámetros.
-              </p>
-            </Seccion>
-
-            {/* ---------- Coste por lead ---------- */}
-            <Seccion titulo="Coste por lead y por conversión">
-              {costePorCampana.length === 0 ? (
-                <p className="text-sm text-muted">
-                  No hay gasto publicitario anotado en este periodo. Se registra en Configuración →
-                  Integraciones, y se cruza con la <code>utm_campaign</code> de cada lead.
-                </p>
-              ) : (
-                <>
-                  <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-ink2">Invertido</p>
-                      <p className="num text-xl font-bold">{euros(Math.round(gastoTotal))}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ink2">Leads atribuidos</p>
-                      <p className="num text-xl font-bold">{leadsAtribuidos}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-ink2">Coste medio por lead</p>
-                      <p className="num text-xl font-bold text-primary">
-                        {leadsAtribuidos > 0 ? euros(Math.round(gastoTotal / leadsAtribuidos)) : '—'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="tabla">
-                      <thead>
-                        <tr>
-                          <th>Campaña</th>
-                          <th className="text-right">Gasto</th>
-                          <th className="text-right">Leads</th>
-                          <th className="text-right">€/lead</th>
-                          <th className="text-right">Conv.</th>
-                          <th className="text-right">€/conversión</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {costePorCampana
-                          .sort((a, b) => b.importe - a.importe)
-                          .map((c) => (
-                            <tr key={`${c.plataforma}-${c.campana}`}>
-                              <td>
-                                {c.campana}
-                                <span className="ml-1.5 text-xs capitalize text-muted">
-                                  {c.plataforma}
-                                </span>
-                              </td>
-                              <td className="num text-right">{euros(Math.round(c.importe))}</td>
-                              <td className={`num text-right ${c.leads === 0 ? 'text-danger' : ''}`}>
-                                {c.leads}
-                              </td>
-                              <td className="num text-right font-semibold">
-                                {c.porLead === null ? '—' : euros(Math.round(c.porLead))}
-                              </td>
-                              <td className="num text-right">{c.conversiones}</td>
-                              <td className="num text-right font-semibold">
-                                {c.porConversion === null ? '—' : euros(Math.round(c.porConversion))}
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <p className="mt-3 text-xs text-muted">
-                    Una campaña con gasto y cero leads sale en rojo: o no está funcionando, o su
-                    UTM no coincide con el nombre anotado en el gasto.
-                  </p>
-                </>
-              )}
-            </Seccion>
-
-            {(() => {
-              const { claveFila, claveCol, claveMetrica, vista } = resolverCruce(filtros);
-              const dimFila = DIMENSIONES[claveFila];
-              const dimCol = DIMENSIONES[claveCol];
-              const metrica = METRICAS[claveMetrica];
-
-              const { filas, cols, totalPorCol, totalGeneral, maximo, totalDeFila } = cruzar(
-                casosCruce,
-                claveFila,
-                claveCol,
-                claveMetrica,
-              );
-
-              const esDinero = claveMetrica === 'ingresos';
-              const cifra = (n: number) => (esDinero ? euros(n) : String(n));
-
-              /** Enlace que conserva TODO lo puesto y cambia solo lo que se pide. */
-              const enlaceCon = (cambios: Record<string, string>) => {
-                const p = new URLSearchParams();
-                for (const [k, v] of Object.entries({
-                  periodo: filtros.periodo ?? '',
-                  desde: filtros.desde ?? '',
-                  hasta: filtros.hasta ?? '',
-                  centro: filtros.centro ?? '',
-                  cruceFila: claveFila,
-                  cruceCol: claveCol,
-                  cruceMetrica: claveMetrica,
-                  cruceVista: vista,
-                  ...cambios,
-                })) {
-                  if (v) p.set(k, v);
-                }
-                return '/panel?' + p.toString() + '#cruce';
-              };
-
-              return (
-                <section className="panel p-4" id="cruce">
-                  <h2 className="mb-1 text-sm font-semibold">Cruce de datos</h2>
-                  <p className="mb-3 max-w-[72ch] text-xs text-ink2">
-                    Dos dimensiones cualesquiera. Sirve para las preguntas que ninguna tarjeta
-                    responde sola: qué canal funciona en qué centro, quién cierra lo que entra por
-                    recomendación, dónde se atascan los casos urgentes.
-                  </p>
-
-                  <form method="get" action="/panel" className="mb-3 flex flex-wrap items-end gap-2 text-sm">
-                    {/* Los otros filtros viajan escondidos: cruzar no puede tirar el periodo. */}
-                    <input type="hidden" name="periodo" value={filtros.periodo ?? ''} />
-                    <input type="hidden" name="desde" value={filtros.desde ?? ''} />
-                    <input type="hidden" name="hasta" value={filtros.hasta ?? ''} />
-                    <input type="hidden" name="centro" value={filtros.centro ?? ''} />
-                    <input type="hidden" name="cruceVista" value={vista} />
-
-                    <label className="flex flex-col gap-1 text-xs text-ink2">
-                      Filas
-                      <select name="cruceFila" defaultValue={claveFila} className="campo">
-                        {Object.entries(DIMENSIONES).map(([k, d]) => (
-                          <option key={k} value={k}>
-                            {d.texto}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <Link
-                      href={enlaceCon({ cruceFila: claveCol, cruceCol: claveFila })}
-                      title="Intercambiar los ejes"
-                      aria-label="Intercambiar filas y columnas"
-                      className="mb-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-line2 text-ink2 transition hover:border-primary hover:text-primary"
-                    >
-                      ⇄
-                    </Link>
-
-                    <label className="flex flex-col gap-1 text-xs text-ink2">
-                      Columnas
-                      <select name="cruceCol" defaultValue={claveCol} className="campo">
-                        {Object.entries(DIMENSIONES).map(([k, d]) => (
-                          <option key={k} value={k} disabled={k === claveFila}>
-                            {d.texto}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="flex flex-col gap-1 text-xs text-ink2">
-                      Qué se cuenta
-                      <select name="cruceMetrica" defaultValue={claveMetrica} className="campo">
-                        {Object.entries(METRICAS).map(([k, d]) => (
-                          <option key={k} value={k}>
-                            {d.texto}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <button type="submit" className="btn btn-ghost btn-mini mb-0.5">
-                      Cruzar
-                    </button>
-                  </form>
-
-                  {/* Selector de vista: enlaces, no formulario. Cambiar de gráfico
-                      no cambia los datos, así que no tiene por qué enviar nada. */}
-                  <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
-                    {Object.entries(VISTAS).map(([k, texto]) => (
-                      <Link
-                        key={k}
-                        href={enlaceCon({ cruceVista: k })}
-                        className={`rounded-md px-2.5 py-1 text-[12.5px] font-semibold transition ${
-                          vista === k
-                            ? 'bg-surface text-primary shadow-sm'
-                            : 'text-ink2 hover:text-primary'
-                        }`}
-                      >
-                        {texto}
-                      </Link>
-                    ))}
-                  </div>
-
-                  {filas.length === 0 ? (
-                    <p className="text-[13px] text-muted">
-                      Ningún caso en este periodo con los filtros puestos.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="mb-3 text-xs text-muted">
-                        {metrica.texto} por {dimFila.texto.toLowerCase()} y{' '}
-                        {dimCol.texto.toLowerCase()} · <b className="num">{cifra(totalGeneral)}</b>{' '}
-                        en total
-                      </p>
-
-                      {vista === 'tabla' && (
-                        <div className="overflow-x-auto">
-                          <table className="tabla">
-                            <thead>
-                              <tr>
-                                <th>{dimFila.texto}</th>
-                                {cols.map((c) => (
-                                  <th key={c} className="text-right">
-                                    {c}
-                                  </th>
-                                ))}
-                                <th className="text-right">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filas.map(([f, m]) => (
-                                <tr key={f}>
-                                  <td className="font-medium">{f}</td>
-                                  {cols.map((c) => {
-                                    const v = m.get(c) ?? 0;
-                                    return (
-                                      <td key={c} className="num text-right">
-                                        <span
-                                          className="inline-block rounded px-1.5 py-0.5"
-                                          style={
-                                            v > 0
-                                              ? {
-                                                  background: `color-mix(in srgb, var(--color-primary) ${Math.round((v / maximo) * 22)}%, transparent)`,
-                                                }
-                                              : undefined
-                                          }
-                                        >
-                                          {v === 0 ? '—' : cifra(v)}
-                                        </span>
-                                      </td>
-                                    );
-                                  })}
-                                  <td className="num text-right font-semibold">
-                                    {cifra(totalDeFila(m))}
-                                  </td>
-                                </tr>
-                              ))}
-                              {/* Fila de totales: la pregunta «¿y en total?» siempre llega. */}
-                              <tr>
-                                <td className="font-semibold">Total</td>
-                                {cols.map((c, i) => (
-                                  <td key={c} className="num text-right font-semibold">
-                                    {cifra(totalPorCol[i])}
-                                  </td>
-                                ))}
-                                <td className="num text-right font-bold">{cifra(totalGeneral)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {vista === 'apiladas' && (
-                        <BarrasApiladas
-                          columnas={cols}
-                          sufijo={esDinero ? ' €' : ''}
-                          filas={filas.map(([f, m]) => ({
-                            etiqueta: f,
-                            trozos: cols.map((c) => ({ etiqueta: c, valor: m.get(c) ?? 0 })),
-                          }))}
-                        />
-                      )}
-
-                      {vista === 'columnas' && (
-                        <Columnas
-                          series={cols.map((c, i) => ({ etiqueta: c, valor: totalPorCol[i] }))}
-                          sufijo={esDinero ? ' €' : ''}
-                        />
-                      )}
-
-                      {vista === 'anillo' && (
-                        <Anillo
-                          series={filas.map(([f, m]) => ({
-                            etiqueta: f,
-                            valor: totalDeFila(m),
-                          }))}
-                        />
-                      )}
-
-                      {vista !== 'tabla' && vista !== 'apiladas' && (
-                        <p className="mt-3 text-xs text-muted">
-                          Este gráfico resume un solo eje. Para ver de qué está hecha cada barra
-                          —el cruce de verdad— usa «Barras apiladas».
-                        </p>
-                      )}
-                    </>
-                  )}
-                </section>
-              );
-            })()}
-
-            <section className="panel p-4">
-              <h2 className="mb-1 text-sm font-semibold">Reseñas y reactivaciones</h2>
-              <p className="mb-3 max-w-[72ch] text-xs text-ink2">
-                Se cuentan las <b>propuestas</b>, no los envíos: la plataforma nunca escribe sola a
-                un paciente, así que lo único que sabe es cuántas veces propuso hacerlo.
-              </p>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
-                    Reseñas propuestas ({(resenasPeriodo ?? []).length})
-                  </h3>
-                  {resenasPorCentro.size === 0 ? (
-                    <p className="text-[13px] text-muted">
-                      Ninguna en este periodo. Se proponen al validar una conversión, y solo si el
-                      centro tiene su enlace de Google configurado.
-                    </p>
-                  ) : (
-                    [...resenasPorCentro.entries()].map(([centro, n]) => (
-                      <div key={centro} className="flex items-center gap-2 border-b border-line py-1.5 last:border-b-0">
-                        <span className="flex-1 text-[13px]">{centro}</span>
-                        <span className="num text-[13px] font-semibold">{n}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
-                    Reactivaciones ({reactivaciones.length})
-                  </h3>
-                  {reactivaciones.length === 0 ? (
-                    <p className="text-[13px] text-muted">
-                      Ninguna en este periodo. Se proponen sobre los casos perdidos por «no es el
-                      momento» cuando cumplen el plazo configurado.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-[13px]">
-                        <b className="num">{reactivacionesQueFuncionaron}</b> de{' '}
-                        <b className="num">{reactivaciones.length}</b> han vuelto a moverse
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        Un caso «vuelve a moverse» cuando deja de estar perdido. No prueba que la
-                        reactivación fuera la causa, pero es lo más cerca que se puede medir sin
-                        preguntárselo a la persona.
-                      </p>
-                    </>
-                  )}
-                </div>
+          {/* ---------- Previsión de ingresos ---------- */}
+          <Seccion titulo="Previsión de ingresos">
+            <div className="mb-4 grid gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-ink2">Sobre la mesa</p>
+                <p className="num text-xl font-bold">{euros(previsionTotal.importe)}</p>
               </div>
-            </section>
+              <div>
+                <p className="text-xs text-ink2">Ponderado</p>
+                <p className="num text-xl font-bold text-primary">
+                  {euros(Math.round(previsionTotal.ponderado))}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-ink2">Presupuestos vivos</p>
+                <p className="num text-xl font-bold">
+                  {Array.from(previsionPorEstado.values()).reduce((s, v) => s + v.casos, 0)}
+                </p>
+              </div>
+            </div>
 
-            {esDireccion && (
-              <section className="panel p-4">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-semibold">Informes mensuales</h2>
+            {previsionPorEstado.size === 0 ? (
+              <p className="text-sm text-muted">No hay presupuestos vivos ahora mismo.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {Array.from(previsionPorEstado.entries())
+                  .sort((a, b) => b[1].ponderado - a[1].ponderado)
+                  .map(([estado, v]) => (
+                    <li key={estado} className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="truncate">
+                        {ETIQUETA_ESTADO[estado as EstadoLead]?.texto ?? estado}
+                        <span className="ml-1.5 text-xs text-muted">
+                          {v.casos} caso(s) · {probabilidades[estado]}%
+                        </span>
+                      </span>
+                      <span className="num shrink-0">
+                        <b>{euros(Math.round(v.ponderado))}</b>
+                        <span className="text-muted"> de {euros(v.importe)}</span>
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+
+            <p className="mt-3 text-xs text-muted">
+              Cada presupuesto cuenta por su importe multiplicado por la probabilidad de su etapa.
+              No es una promesa: es lo que hay abierto, ponderado. Las probabilidades se ajustan en
+              Configuración → Parámetros.
+            </p>
+          </Seccion>
+
+          {/* ---------- Coste por lead ---------- */}
+          <Seccion titulo="Coste por lead y por conversión">
+            {costePorCampana.length === 0 ? (
+              <p className="text-sm text-muted">
+                No hay gasto publicitario anotado en este periodo. Se registra en Configuración →
+                Integraciones, y se cruza con la <code>utm_campaign</code> de cada lead.
+              </p>
+            ) : (
+              <>
+                <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-ink2">Invertido</p>
+                    <p className="num text-xl font-bold">{euros(Math.round(gastoTotal))}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-ink2">Leads atribuidos</p>
+                    <p className="num text-xl font-bold">{leadsAtribuidos}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-ink2">Coste medio por lead</p>
+                    <p className="num text-xl font-bold text-primary">
+                      {leadsAtribuidos > 0 ? euros(Math.round(gastoTotal / leadsAtribuidos)) : '—'}
+                    </p>
+                  </div>
                 </div>
 
-                <form action={generarInformeAhora.bind(null, undefined)} className="mb-3 rounded-lg bg-ground p-3">
-                  <p className="mb-2 text-xs text-ink2">
-                    Qué secciones lleva. El informe para el asesor y el de la reunión de equipo no
-                    son el mismo documento.
-                  </p>
-                  <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1.5">
-                    {Object.entries(SECCIONES).map(([clave, texto]) => (
-                      <label key={clave} className="flex items-center gap-1.5 text-[12.5px] text-ink2">
-                        <input type="checkbox" name="seccion" value={clave} defaultChecked />
-                        {texto}
-                      </label>
-                    ))}
-                  </div>
-                  <button type="submit" className="btn btn-ghost btn-mini">
-                    Generar el del mes pasado
+                <div className="overflow-x-auto">
+                  <table className="tabla">
+                    <thead>
+                      <tr>
+                        <th>Campaña</th>
+                        <th className="text-right">Gasto</th>
+                        <th className="text-right">Leads</th>
+                        <th className="text-right">€/lead</th>
+                        <th className="text-right">Conv.</th>
+                        <th className="text-right">€/conversión</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {costePorCampana
+                        .sort((a, b) => b.importe - a.importe)
+                        .map((c) => (
+                          <tr key={`${c.plataforma}-${c.campana}`}>
+                            <td>
+                              {c.campana}
+                              <span className="ml-1.5 text-xs capitalize text-muted">
+                                {c.plataforma}
+                              </span>
+                            </td>
+                            <td className="num text-right">{euros(Math.round(c.importe))}</td>
+                            <td className={`num text-right ${c.leads === 0 ? 'text-danger' : ''}`}>
+                              {c.leads}
+                            </td>
+                            <td className="num text-right font-semibold">
+                              {c.porLead === null ? '—' : euros(Math.round(c.porLead))}
+                            </td>
+                            <td className="num text-right">{c.conversiones}</td>
+                            <td className="num text-right font-semibold">
+                              {c.porConversion === null ? '—' : euros(Math.round(c.porConversion))}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="mt-3 text-xs text-muted">
+                  Una campaña con gasto y cero leads sale en rojo: o no está funcionando, o su UTM
+                  no coincide con el nombre anotado en el gasto.
+                </p>
+              </>
+            )}
+          </Seccion>
+
+          {(() => {
+            const { claveFila, claveCol, claveMetrica, vista } = resolverCruce(
+              filtros,
+              esDireccion,
+            );
+            const dimensiones = dimensionesVisibles(esDireccion);
+            const dimFila = DIMENSIONES[claveFila];
+            const dimCol = DIMENSIONES[claveCol];
+            const metrica = METRICAS[claveMetrica];
+
+            const { filas, cols, totalPorCol, totalGeneral, maximo, totalDeFila } = cruzar(
+              casosCruce,
+              claveFila,
+              claveCol,
+              claveMetrica,
+            );
+
+            const esDinero = claveMetrica === 'ingresos';
+            const cifra = (n: number) => (esDinero ? euros(n) : String(n));
+
+            /** Enlace que conserva TODO lo puesto y cambia solo lo que se pide. */
+            const enlaceCon = (cambios: Record<string, string>) => {
+              const p = new URLSearchParams();
+              for (const [k, v] of Object.entries({
+                periodo: filtros.periodo ?? '',
+                desde: filtros.desde ?? '',
+                hasta: filtros.hasta ?? '',
+                centro: filtros.centro ?? '',
+                cruceFila: claveFila,
+                cruceCol: claveCol,
+                cruceMetrica: claveMetrica,
+                cruceVista: vista,
+                ...cambios,
+              })) {
+                if (v) p.set(k, v);
+              }
+              return '/panel?' + p.toString() + '#cruce';
+            };
+
+            return (
+              <section className="panel p-4" id="cruce">
+                <h2 className="mb-1 text-sm font-semibold">Cruce de datos</h2>
+                <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+                  Dos dimensiones cualesquiera. Sirve para las preguntas que ninguna tarjeta
+                  responde sola: qué canal funciona en qué centro, quién cierra lo que entra por
+                  recomendación, dónde se atascan los casos urgentes.
+                </p>
+
+                <form
+                  method="get"
+                  action="/panel"
+                  className="mb-3 flex flex-wrap items-end gap-2 text-sm"
+                >
+                  {/* Los otros filtros viajan escondidos: cruzar no puede tirar el periodo. */}
+                  <input type="hidden" name="periodo" value={filtros.periodo ?? ''} />
+                  <input type="hidden" name="desde" value={filtros.desde ?? ''} />
+                  <input type="hidden" name="hasta" value={filtros.hasta ?? ''} />
+                  <input type="hidden" name="centro" value={filtros.centro ?? ''} />
+                  <input type="hidden" name="cruceVista" value={vista} />
+
+                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                    Filas
+                    <select name="cruceFila" defaultValue={claveFila} className="campo">
+                      {dimensiones.map(([k, d]) => (
+                        <option key={k} value={k}>
+                          {d.texto}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <Link
+                    href={enlaceCon({ cruceFila: claveCol, cruceCol: claveFila })}
+                    title="Intercambiar los ejes"
+                    aria-label="Intercambiar filas y columnas"
+                    className="mb-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-line2 text-ink2 transition hover:border-primary hover:text-primary"
+                  >
+                    ⇄
+                  </Link>
+
+                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                    Columnas
+                    <select name="cruceCol" defaultValue={claveCol} className="campo">
+                      {dimensiones.map(([k, d]) => (
+                        <option key={k} value={k} disabled={k === claveFila}>
+                          {d.texto}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="flex flex-col gap-1 text-xs text-ink2">
+                    Qué se cuenta
+                    <select name="cruceMetrica" defaultValue={claveMetrica} className="campo">
+                      {Object.entries(METRICAS).map(([k, d]) => (
+                        <option key={k} value={k}>
+                          {d.texto}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <button type="submit" className="btn btn-ghost btn-mini mb-0.5">
+                    Cruzar
                   </button>
                 </form>
-                <p className="mb-3 max-w-[72ch] text-xs text-ink2">
-                  Se genera solo el día 1 y se envía a dirección con el PDF adjunto. Aquí quedan
-                  guardados: el enlace de descarga caduca a los cinco minutos, así que no sirve para
-                  reenviarlo — para eso está el correo.
-                </p>
 
-                {(informesGuardados ?? []).length === 0 ? (
+                {/* Selector de vista: enlaces, no formulario. Cambiar de gráfico
+                      no cambia los datos, así que no tiene por qué enviar nada. */}
+                <div className="mb-3 inline-flex gap-1 rounded-lg bg-surface2 p-1">
+                  {Object.entries(VISTAS).map(([k, texto]) => (
+                    <Link
+                      key={k}
+                      href={enlaceCon({ cruceVista: k })}
+                      className={`rounded-md px-2.5 py-1 text-[12.5px] font-semibold transition ${
+                        vista === k
+                          ? 'bg-surface text-primary shadow-sm'
+                          : 'text-ink2 hover:text-primary'
+                      }`}
+                    >
+                      {texto}
+                    </Link>
+                  ))}
+                </div>
+
+                {filas.length === 0 ? (
                   <p className="text-[13px] text-muted">
-                    Todavía no hay ninguno. Pulsa «Generar el del mes pasado» para tener el primero
-                    sin esperar al día 1.
+                    Ningún caso en este periodo con los filtros puestos.
                   </p>
                 ) : (
-                  <div className="flex flex-col">
-                    {(informesGuardados ?? []).map((inf) => {
-                      const r = (inf.resumen ?? {}) as {
-                        leads?: number;
-                        conversiones?: number;
-                        ingresos?: number;
-                      };
-                      return (
-                        <form
-                          key={inf.mes}
-                          action={descargarInforme.bind(null, inf.ruta_fichero)}
-                          className="flex flex-wrap items-center gap-2 border-b border-line py-2 last:border-b-0"
-                        >
-                          <b className="min-w-28 text-[13px]">{inf.mes.slice(0, 7)}</b>
-                          <span className="text-xs text-muted">
-                            {r.leads ?? 0} casos · {r.conversiones ?? 0} conversiones ·{' '}
-                            {euros(Number(r.ingresos ?? 0))}
-                          </span>
-                          {inf.enviado_at ? (
-                            <span className="chip chip-ok">Enviado</span>
-                          ) : (
-                            <span className="chip chip-mut">No enviado</span>
-                          )}
-                          <button type="submit" className="ml-auto btn btn-ghost btn-mini">
-                            Descargar PDF
-                          </button>
-                        </form>
-                      );
-                    })}
-                  </div>
+                  <>
+                    <p className="mb-3 text-xs text-muted">
+                      {metrica.texto} por {dimFila.texto.toLowerCase()} y{' '}
+                      {dimCol.texto.toLowerCase()} · <b className="num">{cifra(totalGeneral)}</b> en
+                      total
+                    </p>
+
+                    {vista === 'tabla' && (
+                      <div className="overflow-x-auto">
+                        <table className="tabla">
+                          <thead>
+                            <tr>
+                              <th>{dimFila.texto}</th>
+                              {cols.map((c) => (
+                                <th key={c} className="text-right">
+                                  {c}
+                                </th>
+                              ))}
+                              <th className="text-right">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filas.map(([f, m]) => (
+                              <tr key={f}>
+                                <td className="font-medium">{f}</td>
+                                {cols.map((c) => {
+                                  const v = m.get(c) ?? 0;
+                                  return (
+                                    <td key={c} className="num text-right">
+                                      <span
+                                        className="inline-block rounded px-1.5 py-0.5"
+                                        style={
+                                          v > 0
+                                            ? {
+                                                background: `color-mix(in srgb, var(--color-primary) ${Math.round((v / maximo) * 22)}%, transparent)`,
+                                              }
+                                            : undefined
+                                        }
+                                      >
+                                        {v === 0 ? '—' : cifra(v)}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                                <td className="num text-right font-semibold">
+                                  {cifra(totalDeFila(m))}
+                                </td>
+                              </tr>
+                            ))}
+                            {/* Fila de totales: la pregunta «¿y en total?» siempre llega. */}
+                            <tr>
+                              <td className="font-semibold">Total</td>
+                              {cols.map((c, i) => (
+                                <td key={c} className="num text-right font-semibold">
+                                  {cifra(totalPorCol[i])}
+                                </td>
+                              ))}
+                              <td className="num text-right font-bold">{cifra(totalGeneral)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {vista === 'apiladas' && (
+                      <BarrasApiladas
+                        columnas={cols}
+                        sufijo={esDinero ? ' €' : ''}
+                        filas={filas.map(([f, m]) => ({
+                          etiqueta: f,
+                          trozos: cols.map((c) => ({ etiqueta: c, valor: m.get(c) ?? 0 })),
+                        }))}
+                      />
+                    )}
+
+                    {vista === 'columnas' && (
+                      <Columnas
+                        series={cols.map((c, i) => ({ etiqueta: c, valor: totalPorCol[i] }))}
+                        sufijo={esDinero ? ' €' : ''}
+                      />
+                    )}
+
+                    {vista === 'anillo' && (
+                      <Anillo
+                        series={filas.map(([f, m]) => ({
+                          etiqueta: f,
+                          valor: totalDeFila(m),
+                        }))}
+                      />
+                    )}
+
+                    {vista !== 'tabla' && vista !== 'apiladas' && (
+                      <p className="mt-3 text-xs text-muted">
+                        Este gráfico resume un solo eje. Para ver de qué está hecha cada barra —el
+                        cruce de verdad— usa «Barras apiladas».
+                      </p>
+                    )}
+                  </>
                 )}
               </section>
-            )}
+            );
+          })()}
 
-            {!esDireccion && (
-              <p className="text-xs text-muted">
-                Ves únicamente los datos de los centros que tienes asignados.
+          <section className="panel p-4">
+            <h2 className="mb-1 text-sm font-semibold">Reseñas y reactivaciones</h2>
+            <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+              Se cuentan las <b>propuestas</b>, no los envíos: la plataforma nunca escribe sola a un
+              paciente, así que lo único que sabe es cuántas veces propuso hacerlo.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
+                  Reseñas propuestas ({(resenasPeriodo ?? []).length})
+                </h3>
+                {resenasPorCentro.size === 0 ? (
+                  <p className="text-[13px] text-muted">
+                    Ninguna en este periodo. Se proponen al validar una conversión, y solo si el
+                    centro tiene su enlace de Google configurado.
+                  </p>
+                ) : (
+                  [...resenasPorCentro.entries()].map(([centro, n]) => (
+                    <div
+                      key={centro}
+                      className="flex items-center gap-2 border-b border-line py-1.5 last:border-b-0"
+                    >
+                      <span className="flex-1 text-[13px]">{centro}</span>
+                      <span className="num text-[13px] font-semibold">{n}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-1.5 text-[11px] uppercase tracking-[0.1em] text-muted">
+                  Reactivaciones ({reactivaciones.length})
+                </h3>
+                {reactivaciones.length === 0 ? (
+                  <p className="text-[13px] text-muted">
+                    Ninguna en este periodo. Se proponen sobre los casos perdidos por «no es el
+                    momento» cuando cumplen el plazo configurado.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-[13px]">
+                      <b className="num">{reactivacionesQueFuncionaron}</b> de{' '}
+                      <b className="num">{reactivaciones.length}</b> han vuelto a moverse
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      Un caso «vuelve a moverse» cuando deja de estar perdido. No prueba que la
+                      reactivación fuera la causa, pero es lo más cerca que se puede medir sin
+                      preguntárselo a la persona.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {esDireccion && (
+            <section className="panel p-4">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <h2 className="text-sm font-semibold">Informes mensuales</h2>
+              </div>
+
+              <form
+                action={generarInformeAhora.bind(null, undefined)}
+                className="mb-3 rounded-lg bg-ground p-3"
+              >
+                <p className="mb-2 text-xs text-ink2">
+                  Qué secciones lleva. El informe para el asesor y el de la reunión de equipo no son
+                  el mismo documento.
+                </p>
+                <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {Object.entries(SECCIONES).map(([clave, texto]) => (
+                    <label
+                      key={clave}
+                      className="flex items-center gap-1.5 text-[12.5px] text-ink2"
+                    >
+                      <input type="checkbox" name="seccion" value={clave} defaultChecked />
+                      {texto}
+                    </label>
+                  ))}
+                </div>
+                <button type="submit" className="btn btn-ghost btn-mini">
+                  Generar el del mes pasado
+                </button>
+              </form>
+              <p className="mb-3 max-w-[72ch] text-xs text-ink2">
+                Se genera solo el día 1 y se envía a dirección con el PDF adjunto. Aquí quedan
+                guardados: el enlace de descarga caduca a los cinco minutos, así que no sirve para
+                reenviarlo — para eso está el correo.
               </p>
-            )}
-          </div>
-        )}
-      </AppShell>
+
+              {(informesGuardados ?? []).length === 0 ? (
+                <p className="text-[13px] text-muted">
+                  Todavía no hay ninguno. Pulsa «Generar el del mes pasado» para tener el primero
+                  sin esperar al día 1.
+                </p>
+              ) : (
+                <div className="flex flex-col">
+                  {(informesGuardados ?? []).map((inf) => {
+                    const r = (inf.resumen ?? {}) as {
+                      leads?: number;
+                      conversiones?: number;
+                      ingresos?: number;
+                    };
+                    return (
+                      <form
+                        key={inf.mes}
+                        action={descargarInforme.bind(null, inf.ruta_fichero)}
+                        className="flex flex-wrap items-center gap-2 border-b border-line py-2 last:border-b-0"
+                      >
+                        <b className="min-w-28 text-[13px]">{inf.mes.slice(0, 7)}</b>
+                        <span className="text-xs text-muted">
+                          {r.leads ?? 0} casos · {r.conversiones ?? 0} conversiones ·{' '}
+                          {euros(Number(r.ingresos ?? 0))}
+                        </span>
+                        {inf.enviado_at ? (
+                          <span className="chip chip-ok">Enviado</span>
+                        ) : (
+                          <span className="chip chip-mut">No enviado</span>
+                        )}
+                        <button type="submit" className="ml-auto btn btn-ghost btn-mini">
+                          Descargar PDF
+                        </button>
+                      </form>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {!esDireccion && (
+            <p className="text-xs text-muted">
+              Ves únicamente los datos de los centros que tienes asignados.
+            </p>
+          )}
+        </div>
+      )}
+    </AppShell>
   );
 }
