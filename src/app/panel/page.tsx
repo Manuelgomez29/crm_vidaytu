@@ -7,7 +7,6 @@ import { desdeDatetimeLocal } from '@/lib/fechas';
 import {
   euros,
   mesDelPeriodo,
-  minutosEntre,
   periodoAnterior,
   periodoDesdeFiltros,
   porcentaje,
@@ -17,6 +16,7 @@ import { generarInformeAhora, descargarInforme } from './informes';
 import { SECCIONES } from '@/lib/pdf/secciones';
 import { Anillo, BarrasApiladas, Columnas } from '@/components/graficos';
 import { estadoDelMotor } from '@/lib/salud-motor';
+import { horarioDe, minutosDeAtencion } from '@/lib/horarios';
 import {
   DIMENSIONES,
   METRICAS,
@@ -285,7 +285,11 @@ export default async function Panel({
     consultaLeads,
     consultaConversiones,
     consultaCitas,
-    supabase.from('centros').select('id, nombre').eq('activo', true).order('nombre'),
+    supabase
+      .from('centros')
+      .select('id, nombre, horario_atencion')
+      .eq('activo', true)
+      .order('nombre'),
     supabase.from('canales').select('id, nombre').eq('activo', true),
     supabase.from('adicciones').select('id, nombre'),
     supabase.from('modalidades').select('id, nombre'),
@@ -412,11 +416,26 @@ export default async function Panel({
   const tasaActual = leads.length > 0 ? (validadas.length / leads.length) * 100 : 0;
   const tasaPrevia = totalPrevio > 0 ? (validadasPrevias / totalPrevio) * 100 : 0;
 
-  // --- SLA de primera respuesta -------------------------------------------
-  const respondidos = leads.filter((l) => l.primera_respuesta_at !== null);
-  const dentroDeSla = respondidos.filter(
-    (l) => minutosEntre(l.created_at, l.primera_respuesta_at!) <= slaMinutos,
+  /*
+   * SLA DE PRIMERA RESPUESTA, en horario del centro (regla 9).
+   *
+   * Se contaba a reloj. Con las landings de Meta entrando de madrugada, eso
+   * convertia este indicador en un objetivo IMPOSIBLE: los casos de las dos de
+   * la manana incumplian siempre, hiciera el equipo lo que hiciera. Un numero
+   * que no se puede mover no mide nada y acaba ignorandose.
+   */
+  const horarioPorCentro = new Map(
+    (centros ?? []).map((c) => [c.id, horarioDe(c.horario_atencion)]),
   );
+  const minutosDeRespuestaDe = (l: LeadMetrica) =>
+    minutosDeAtencion(
+      horarioPorCentro.get(l.centro_id) ?? { siempre: true },
+      l.created_at,
+      l.primera_respuesta_at!,
+    );
+
+  const respondidos = leads.filter((l) => l.primera_respuesta_at !== null);
+  const dentroDeSla = respondidos.filter((l) => minutosDeRespuestaDe(l) <= slaMinutos);
   const sinResponder = leads.length - respondidos.length;
 
   const sinAsignar = leads.filter((l) => l.propietario_id === null).length;
@@ -530,10 +549,9 @@ export default async function Panel({
     '',
   ).filter(([texto]) => texto !== '');
 
-  // Tiempo medio de primera respuesta (solo los ya respondidos).
-  const minutosRespuesta = respondidos.map((l) =>
-    minutosEntre(l.created_at, l.primera_respuesta_at!),
-  );
+  // Tiempo medio de primera respuesta, tambien en horario de atencion: si no,
+  // la media saldria inflada por las noches y los fines de semana.
+  const minutosRespuesta = respondidos.map(minutosDeRespuestaDe);
   const mediaRespuesta =
     minutosRespuesta.length > 0
       ? Math.round(minutosRespuesta.reduce((a, b) => a + b, 0) / minutosRespuesta.length)

@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { Json } from '@/lib/database.types';
 import type { Database } from '@/lib/database.types';
 import { AREAS, AREAS_FIJAS, CLAVE_CONFIG as CLAVE_AREAS, type Area } from '@/lib/areas';
+import { DIAS as DIAS_SEMANA } from '@/lib/horarios';
 
 type Rol = Database['public']['Enums']['rol_usuario'];
 
@@ -87,6 +88,33 @@ async function exigirMandoSobrePerfil(perfilId: string, seccion = 'equipo') {
  * usuarios se centraliza a proposito. Si algun dia se quiere delegar, la mitad
  * de abajo ya esta hecha y solo hay que abrir la de arriba.
  */
+
+/**
+ * Discrecion (regla 12): ningun texto que salga al paciente o a su familia
+ * puede delatar el motivo de consulta. Vale para el recordatorio de cita y para
+ * el mensaje de seguimiento, que es por donde se cuela con mas facilidad: se
+ * escribe deprisa, entre llamada y llamada.
+ */
+const TERMINOS_INDISCRETOS = [
+  'adicc',
+  'droga',
+  'alcohol',
+  'cocaín',
+  'cocain',
+  'ludopat',
+  'desintox',
+  'terapia',
+  'tratamiento',
+];
+
+function exigirDiscrecion(texto: string, queEs: string): void {
+  const encontrada = TERMINOS_INDISCRETOS.find((p) => texto.toLowerCase().includes(p));
+  if (encontrada) {
+    volver('parametros', {
+      error: `${queEs} no puede mencionar el motivo de consulta (contiene «${encontrada}»): se lee en la pantalla de bloqueo de un móvil.`,
+    });
+  }
+}
 
 function volver(seccion: string, aviso?: { error?: string; aviso?: string }): never {
   const q = aviso?.error
@@ -678,10 +706,46 @@ export async function editarCentro(centroId: string, formData: FormData) {
   const urlResena = String(formData.get('url_resena') ?? '').trim() || null;
   if (!nombre) volver('centros', { error: 'El centro necesita un nombre.' });
 
+  /*
+   * El horario de atencion es el reloj del SLA (regla 9). Se guarda como
+   * `{ siempre: true }` o como los dias con su franja; un dia sin horas es un
+   * dia cerrado. Ver `src/lib/horarios.ts`.
+   */
+  let horario: { siempre: true } | { dias: Record<string, [string, string] | null> };
+  if (formData.get('siempre_abierto') === 'on') {
+    horario = { siempre: true };
+  } else {
+    const dias: Record<string, [string, string] | null> = {};
+    for (let d = 0; d <= 6; d++) {
+      const abre = String(formData.get(`abre_${d}`) ?? '').trim();
+      const cierra = String(formData.get(`cierra_${d}`) ?? '').trim();
+      // Media franja es un despiste, no una intencion: se avisa en vez de
+      // guardar un dia que abre y no cierra.
+      if ((abre && !cierra) || (!abre && cierra)) {
+        volver('centros', {
+          error: `${nombre}: el ${DIAS_SEMANA[d]} tiene solo una de las dos horas. Pon las dos, o déjalo en blanco para cerrado.`,
+        });
+      }
+      if (abre && cierra && cierra <= abre) {
+        volver('centros', {
+          error: `${nombre}: el ${DIAS_SEMANA[d]} cierra antes de abrir.`,
+        });
+      }
+      dias[String(d)] = abre && cierra ? [abre, cierra] : null;
+    }
+    horario = { dias };
+  }
+
   const admin = createAdminClient();
   const { error } = await admin
     .from('centros')
-    .update({ nombre, ciudad, activo, url_resena_google: urlResena })
+    .update({
+      nombre,
+      ciudad,
+      activo,
+      url_resena_google: urlResena,
+      horario_atencion: horario,
+    })
     .eq('id', centroId);
   if (error) volver('centros', { error: `No se pudo guardar: ${error.message}` });
   volver('centros');
@@ -928,33 +992,36 @@ export async function guardarParametros(formData: FormData) {
     });
   }
 
-  // Discreción (regla 12): la plantilla no puede delatar el motivo de consulta.
-  const prohibidas = [
-    'adicc',
-    'droga',
-    'alcohol',
-    'cocaín',
-    'cocain',
-    'ludopat',
-    'desintox',
-    'terapia',
-    'tratamiento',
-  ];
-  const enMinusculas = plantilla.toLowerCase();
-  const encontrada = prohibidas.find((p) => enMinusculas.includes(p));
-  if (encontrada) {
-    volver('parametros', {
-      error: `El recordatorio no puede mencionar el motivo de consulta (contiene «${encontrada}»). Debe ser discreto.`,
-    });
-  }
+  exigirDiscrecion(plantilla, 'El recordatorio de cita');
   if (!plantilla)
     volver('parametros', { error: 'La plantilla del recordatorio no puede quedar vacía.' });
+
+  /*
+   * El mensaje de seguimiento de WhatsApp estaba ESCRITO EN EL CODIGO, dentro
+   * de `registrar-llamada.ts`. Es el texto que mas veces se envia al dia —cada
+   * «no contesta» lo ofrece— y no se podia cambiar sin desplegar, mientras que
+   * el recordatorio de cita, que sale menos, si era editable. Dos textos que
+   * llegan al paciente, uno configurable y otro no (regla 13).
+   *
+   * Pasa por la MISMA comprobacion de discrecion: llega al movil de alguien y
+   * se lee en la pantalla de bloqueo (regla 12).
+   */
+  const plantillaWhatsapp = String(formData.get('plantilla_whatsapp_seguimiento') ?? '').trim();
+  if (formData.has('plantilla_whatsapp_seguimiento')) {
+    exigirDiscrecion(plantillaWhatsapp, 'El mensaje de seguimiento');
+    if (!plantillaWhatsapp) {
+      volver('parametros', { error: 'El mensaje de seguimiento no puede quedar vacío.' });
+    }
+  }
 
   const filas: { clave: string; valor: Json }[] = [
     { clave: 'sla_primera_respuesta_minutos', valor: sla },
     { clave: 'alerta_presupuesto_dias', valor: alerta },
     { clave: 'cadencia_dias', valor: cadencia },
     { clave: 'plantilla_recordatorio_cita', valor: plantilla },
+    ...(formData.has('plantilla_whatsapp_seguimiento')
+      ? [{ clave: 'plantilla_whatsapp_seguimiento', valor: plantillaWhatsapp as Json }]
+      : []),
   ];
 
   /**
@@ -1042,13 +1109,35 @@ export async function guardarParametros(formData: FormData) {
     }
   }
 
+  /*
+   * `update` y, si no existia, `insert`.
+   *
+   * Antes era solo `update`. Un `update` que no encuentra su fila no es un
+   * error: afecta a cero filas y devuelve exito. Asi que cualquier ajuste NUEVO
+   * —uno que todavia no estuviera en la tabla— se descartaba en silencio y la
+   * pantalla contestaba «Parametros guardados». Lo descubri anadiendo la
+   * plantilla de WhatsApp: la guardaba, decia que si, y la ficha seguia usando
+   * el texto de siempre.
+   *
+   * No se usa `upsert` porque reemplaza la fila entera y se llevaria por
+   * delante la `descripcion` de las que ya existen.
+   */
   for (const fila of filas) {
-    const { error } = await admin
+    const { data: tocadas, error } = await admin
       .from('configuracion')
       .update({ valor: fila.valor })
-      .eq('clave', fila.clave);
+      .eq('clave', fila.clave)
+      .select('clave');
     if (error)
       volver('parametros', { error: `No se pudo guardar ${fila.clave}: ${error.message}` });
+
+    if ((tocadas ?? []).length === 0) {
+      const { error: errorAlta } = await admin
+        .from('configuracion')
+        .insert({ clave: fila.clave, valor: fila.valor });
+      if (errorAlta)
+        volver('parametros', { error: `No se pudo crear ${fila.clave}: ${errorAlta.message}` });
+    }
   }
 
   volver('parametros', {

@@ -136,9 +136,28 @@ export async function registrarLlamada(
      * Plantilla de seguimiento. Nunca menciona el motivo de consulta (regla 12):
      * quien lea el móvil de esa persona por encima del hombro no puede deducir
      * nada. Por eso no dice ni el centro.
+     *
+     * Sale de `configuracion` y no del código. Es el texto que más veces se
+     * envía al día y cada comercial escribe distinto: uno que no sientes tuyo
+     * acabas reescribiéndolo a mano cada vez, o no enviándolo. Se edita en
+     * Parámetros, donde pasa la misma revisión de discreción que el
+     * recordatorio de cita.
+     *
+     * El de siempre queda como valor por defecto: si nadie lo ha tocado, la
+     * plataforma se comporta igual que antes.
      */
+    const { data: filaPlantilla } = await supabase
+      .from('configuracion')
+      .select('valor')
+      .eq('clave', 'plantilla_whatsapp_seguimiento')
+      .maybeSingle();
+
     const nombrePila = (lead.nombre ?? '').trim().split(/\s+/)[0] ?? '';
-    const texto = `Hola ${nombrePila}, te he llamado y no he podido localizarte. Cuando puedas, dime qué momento te viene bien y hablamos. Un saludo.`;
+    const plantilla =
+      typeof filaPlantilla?.valor === 'string' && filaPlantilla.valor.trim()
+        ? filaPlantilla.valor
+        : 'Hola {nombre}, te he llamado y no he podido localizarte. Cuando puedas, dime qué momento te viene bien y hablamos. Un saludo.';
+    const texto = plantilla.replaceAll('{nombre}', nombrePila);
     const telefono = (lead.telefono ?? '').replace('+', '');
 
     revalidatePath('/leads');

@@ -8,6 +8,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { horarioDe, minutosDeAtencion } from '@/lib/horarios';
 import { ZONA } from '@/lib/fechas';
 import { cuerpoResumenDiario, emailConfigurado, enviarCorreo } from '@/lib/email';
 
@@ -102,17 +103,40 @@ export async function ejecutarAlertas(admin: Cliente): Promise<ResultadoAlertas>
   // ---------------------------------------------------------------------
   // 1. SLA de primera respuesta incumplido
   // ---------------------------------------------------------------------
+  /*
+   * El plazo corre en HORARIO DEL CENTRO (regla 9), no a reloj.
+   *
+   * Antes se filtraba por `created_at < ahora - 60 min` y ya esta. Con dos
+   * landings de Meta eso significaba que un caso de las 02:00 salia fuera de
+   * plazo a las 03:00 y el equipo abria a las nueve con la pantalla en rojo por
+   * algo que nadie podia contestar. Y peor: «cumplimiento del SLA» era un
+   * objetivo imposible, porque los casos de madrugada lo incumplian siempre.
+   *
+   * El filtro de la consulta se deja por reloj —trae de mas, nunca de menos, y
+   * evita leer todos los casos abiertos— y la decision de verdad se toma
+   * despues, con el horario de cada centro.
+   */
+  const { data: centrosConHorario } = await admin.from('centros').select('id, horario_atencion');
+  const horarioPorCentro = new Map(
+    (centrosConHorario ?? []).map((c) => [c.id, horarioDe(c.horario_atencion)]),
+  );
+
   const limiteSla = new Date(ahora.getTime() - config.slaMinutos * 60_000).toISOString();
-  const { data: sinResponder } = await admin
+  const { data: candidatosSla } = await admin
     .from('leads')
-    .select('id, nombre, propietario_id, created_at')
+    .select('id, nombre, propietario_id, created_at, centro_id')
     .is('primera_respuesta_at', null)
     .lt('created_at', limiteSla)
     .not('estado', 'in', '(perdido,no_valido,convertido,derivado)');
 
+  const sinResponder = (candidatosSla ?? []).filter((lead) => {
+    const horario = horarioPorCentro.get(lead.centro_id) ?? { siempre: true };
+    return minutosDeAtencion(horario, lead.created_at, ahora) > config.slaMinutos;
+  });
+
   resultado.sla = await avisar(
     admin,
-    (sinResponder ?? []).flatMap((lead) =>
+    sinResponder.flatMap((lead) =>
       paraQuien(lead.propietario_id).map((usuario_id) => ({
         usuario_id,
         tipo: 'lead_sin_atender' as TipoNotificacion,

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { estadoDelMotor } from '@/lib/salud-motor';
 import { hoyMadrid } from '@/lib/fechas';
+import { esVeinticuatroSiete, horarioDe } from '@/lib/horarios';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -69,7 +70,9 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
     { data: direcciones },
     { count: profesionalesConHorario },
   ] = await Promise.all([
-    admin.from('centros').select('id, nombre, url_resena_google, es_bandeja_grupo, activo'),
+    admin
+      .from('centros')
+      .select('id, nombre, url_resena_google, es_bandeja_grupo, activo, horario_atencion'),
     admin.from('fuentes_captacion').select('id', { count: 'exact', head: true }).eq('activa', true),
     admin.from('configuracion').select('clave, valor').in('clave', ['ia_activa']),
     estadoDelMotor(supabase),
@@ -101,6 +104,15 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
   );
 
   const urlApp = (process.env.NEXT_PUBLIC_URL_APP ?? '').trim();
+
+  /*
+   * Un centro sin horario cuenta el SLA 24 horas al dia. Para Bellamar eso es
+   * correcto —admisiones 24/7— pero para los demas significa que un caso que
+   * entra de madrugada sale fuera de plazo antes de que nadie pueda leerlo.
+   */
+  const sinHorario = (centros ?? []).filter(
+    (c) => c.activo && !c.es_bandeja_grupo && esVeinticuatroSiete(horarioDe(c.horario_atencion)),
+  );
 
   const puntos: Punto[] = [
     {
@@ -193,6 +205,19 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
         ? 'claves VAPID presentes'
         : 'faltan VAPID_PRIVATE_KEY y/o NEXT_PUBLIC_VAPID_PUBLIC_KEY',
       gravedad: 'conviene',
+    },
+    {
+      clave: 'horarios',
+      titulo: 'Cada centro tiene su horario de atención',
+      porQue:
+        'Es el reloj del SLA: los 60 minutos de primera respuesta se cuentan solo mientras el centro está abierto (regla 9). Sin horario se cuentan 24 h al día, así que un caso que entre de madrugada sale fuera de plazo antes de que nadie pueda leerlo — y «cumplimiento del SLA» pasa a ser un objetivo imposible.',
+      hecho: sinHorario.length === 0,
+      detalle:
+        sinHorario.length === 0
+          ? 'todos los centros lo tienen puesto'
+          : 'cuentan 24/7: ' + sinHorario.map((c) => c.nombre).join(', '),
+      gravedad: 'conviene',
+      donde: { texto: 'Centros', href: '/admin/centros' },
     },
     {
       clave: 'resenas',
