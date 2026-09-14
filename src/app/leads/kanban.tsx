@@ -295,6 +295,27 @@ export default function Kanban({
   const [arrastre, setArrastre] = useState<Arrastre | null>(null);
   const arrastreRef = useRef<Arrastre | null>(null);
   const [columnaDestino, setColumnaDestino] = useState<string | null>(null);
+
+  /*
+   * Cuantas tarjetas se pintan por columna antes de plegar el resto.
+   *
+   * No es una decision estetica: cada tarjeta trae DOS desplegables —urgencia y
+   * propietario— y cada desplegable, sus opciones. Con 128 casos abiertos el
+   * tablero salia con 261 `<select>`, 1.306 `<option>` y 3.500 nodos; al tope
+   * de 300 casos que trae la consulta serian unos 600 desplegables. Y todo eso
+   * para algo que se MIRA: nadie lee la tarjeta numero cuarenta de una columna
+   * sin filtrar antes.
+   *
+   * Con el tope, el peso del tablero deja de depender de cuantos casos haya.
+   * No se pierde informacion: el recuento de la cabecera sigue siendo el de
+   * verdad, y el boton de abajo dice cuantas faltan y las trae.
+   *
+   * Doce porque en una pantalla normal caben unas diez por columna antes de
+   * tener que bajar: plegar a partir de ahi no esconde nada que estuvieras
+   * viendo.
+   */
+  const TOPE_POR_COLUMNA = 12;
+  const [ampliadas, setAmpliadas] = useState<Set<string>>(new Set());
   const columnasRef = useRef(new Map<string, HTMLElement>());
 
   /*
@@ -586,25 +607,39 @@ export default function Kanban({
                     caso.
                   </p>
                 )}
-                {deEtapa.map((lead) => (
-                  <Tarjeta
-                    key={lead.id}
-                    lead={lead}
-                    umbrales={umbrales}
-                    puedeAutoasignarse={puedeAutoasignarse}
-                    onAsignarme={asignarme}
-                    onEmpezarArrastre={empezarArrastre}
-                    atenuada={
-                      moviendoId === lead.id ||
-                      (arrastre?.activo === true && arrastre.leadId === lead.id)
-                    }
-                    onMoverConTeclado={moverConTeclado}
-                    comerciales={comerciales}
-                    etapaAnterior={etapas[etapas.findIndex((x) => x.id === etapa.id) - 1]?.nombre}
-                    etapaSiguiente={etapas[etapas.findIndex((x) => x.id === etapa.id) + 1]?.nombre}
-                    posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
-                  />
-                ))}
+                {(ampliadas.has(etapa.id) ? deEtapa : deEtapa.slice(0, TOPE_POR_COLUMNA)).map(
+                  (lead) => (
+                    <Tarjeta
+                      key={lead.id}
+                      lead={lead}
+                      umbrales={umbrales}
+                      puedeAutoasignarse={puedeAutoasignarse}
+                      onAsignarme={asignarme}
+                      onEmpezarArrastre={empezarArrastre}
+                      atenuada={
+                        moviendoId === lead.id ||
+                        (arrastre?.activo === true && arrastre.leadId === lead.id)
+                      }
+                      onMoverConTeclado={moverConTeclado}
+                      comerciales={comerciales}
+                      etapaAnterior={etapas[etapas.findIndex((x) => x.id === etapa.id) - 1]?.nombre}
+                      etapaSiguiente={
+                        etapas[etapas.findIndex((x) => x.id === etapa.id) + 1]?.nombre
+                      }
+                      posicion={`etapa ${etapas.findIndex((x) => x.id === etapa.id) + 1} de ${etapas.length}`}
+                    />
+                  ),
+                )}
+
+                {!ampliadas.has(etapa.id) && deEtapa.length > TOPE_POR_COLUMNA && (
+                  <button
+                    type="button"
+                    onClick={() => setAmpliadas((antes) => new Set(antes).add(etapa.id))}
+                    className="mx-2 mb-2 rounded-lg border border-dashed border-line2 px-3 py-2 text-[12.5px] font-medium text-ink2 transition hover:border-primary hover:text-primary"
+                  >
+                    Ver las otras {deEtapa.length - TOPE_POR_COLUMNA} de «{etapa.nombre}»
+                  </button>
+                )}
               </div>
             </section>
           );
