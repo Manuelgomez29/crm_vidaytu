@@ -75,9 +75,9 @@ export default async function AdminParametros({
           <h2 className="text-sm font-semibold">Qué áreas están en marcha</h2>
           <p className="mt-1 max-w-[76ch] text-[13px] text-ink2">
             La plataforma se entrega por partes. Lo que esté apagado se sigue viendo en el menú, en
-            gris y con su fase, y su dirección queda bloqueada también para quien la escriba a mano
-            o la tenga guardada. <b>No se borra nada</b>: al encender un área aparece con todo
-            dentro.
+            gris y marcado como «próximamente», y su dirección queda bloqueada también para quien la
+            escriba o la tenga guardada. <b>No se borra nada</b>: al encender un área aparece con
+            todo dentro.
           </p>
         </div>
 
@@ -101,8 +101,8 @@ export default async function AdminParametros({
                 />
                 <span className="min-w-0">
                   <b>{AREAS[clave].texto}</b>
-                  {AREAS[clave].fase && (
-                    <span className="ml-1.5 chip chip-mut">{AREAS[clave].fase}</span>
+                  {AREAS[clave].etiqueta && (
+                    <span className="ml-1.5 chip chip-mut">{AREAS[clave].etiqueta}</span>
                   )}
                   <span className="mt-0.5 block text-xs text-ink2">
                     {fija

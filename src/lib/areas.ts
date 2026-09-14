@@ -15,16 +15,31 @@ import type { Database } from '@/lib/database.types';
  * desplegar (regla 13). Nada se borra — los datos siguen donde estaban y el
  * área aparece con todo dentro.
  *
- * Apagada NO quiere decir escondida: se sigue viendo en el menú, en gris y con
- * su fase. Que el equipo sepa que la plataforma va a crecer vale más que un
- * menú un poco más corto, y evita la pregunta de si eso existe o no.
+ * Apagada NO quiere decir escondida: se sigue viendo en el menú, en gris y
+ * marcada como «próximamente». Que el equipo sepa que la plataforma va a
+ * crecer vale más que un menú un poco más corto, y evita la pregunta de si eso
+ * existe o no.
  */
+/**
+ * Lo que se lee en la etiqueta de un area apagada.
+ *
+ * Antes cada una llevaba su fase —«Fase 2», «Fase 3», «Fase 4»—, que es como
+ * estan numeradas en el plan de trabajo. Pero eso solo significa algo para
+ * quien conoce el plan: a un comercial, «Fase 4» no le dice si eso llega en
+ * marzo o nunca, y numerarlas invita a preguntar por que la 4 va despues de la
+ * 3 cuando a lo mejor se decide al reves.
+ *
+ * «Próximamente» dice lo unico que hay que saber y lo unico que se puede
+ * prometer.
+ */
+export const ETIQUETA_APAGADA = 'Próximamente';
+
 export const AREAS = {
-  comercial: { texto: 'Área comercial', fase: null },
-  administracion: { texto: 'Administración', fase: null },
-  marketing: { texto: 'Área de marketing', fase: 'Fase 2' },
-  clinica: { texto: 'Área clínica', fase: 'Fase 3' },
-  facturacion: { texto: 'Facturación', fase: 'Fase 4' },
+  comercial: { texto: 'Área comercial', etiqueta: null },
+  administracion: { texto: 'Administración', etiqueta: null },
+  marketing: { texto: 'Área de marketing', etiqueta: ETIQUETA_APAGADA },
+  clinica: { texto: 'Área clínica', etiqueta: ETIQUETA_APAGADA },
+  facturacion: { texto: 'Facturación', etiqueta: ETIQUETA_APAGADA },
 } as const;
 
 export type Area = keyof typeof AREAS;

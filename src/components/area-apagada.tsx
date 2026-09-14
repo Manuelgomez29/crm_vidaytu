@@ -14,12 +14,12 @@ import { AREAS, type Area } from '@/lib/areas';
  * todavía no le toca. Por eso dice cuándo y quién puede encenderlo.
  */
 export async function AreaApagada({ area }: { area: Area }) {
-  const { texto, fase } = AREAS[area];
+  const { texto, etiqueta } = AREAS[area];
 
   return (
     <AppShell seccion="mi-dia" titulo={texto} descripcion="Todavía no está en marcha">
       <div className="panel max-w-[60ch] p-6">
-        {fase && <span className="chip chip-mut">{fase}</span>}
+        {etiqueta && <span className="chip chip-mut">{etiqueta}</span>}
         <h2 className="mt-3 text-[17px] font-bold">Esta parte llega más adelante</h2>
         <p className="mt-2 text-sm text-ink2">
           La plataforma se está poniendo en marcha por partes, empezando por el área comercial.{' '}

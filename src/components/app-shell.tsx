@@ -260,15 +260,25 @@ function Navegacion({
                 <div
                   key={e.clave}
                   title={`${AREAS[e.area!].texto}: todavía no está en marcha`}
-                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-[#7F8CA8]"
+                  className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-[#7F8CA8]"
                 >
-                  <span className="w-[18px] text-center opacity-60">{e.icono}</span>
-                  <span className="line-through decoration-[#7F8CA8]/50">{e.texto}</span>
-                  {AREAS[e.area!].fase && (
-                    <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#7F8CA8] ring-1 ring-white/15">
-                      {AREAS[e.area!].fase}
-                    </span>
-                  )}
+                  <span className="w-[18px] shrink-0 text-center opacity-60">{e.icono}</span>
+                  {/*
+                    La etiqueta va DEBAJO, no al lado.
+                    «Chat interno» y «PRÓXIMAMENTE» no caben juntos en el ancho
+                    de la barra: al lado, o se salia la etiqueta o el nombre
+                    quedaba en «Chat in…». Y de las dos cosas, la que no puede
+                    perderse es el nombre del area — la etiqueta se entiende
+                    igual una linea mas abajo.
+                  */}
+                  <span className="min-w-0">
+                    <span className="block line-through decoration-[#7F8CA8]/50">{e.texto}</span>
+                    {AREAS[e.area!].etiqueta && (
+                      <span className="mt-0.5 block text-[9.5px] font-semibold uppercase tracking-[0.08em] text-[#6C7894]">
+                        {AREAS[e.area!].etiqueta}
+                      </span>
+                    )}
+                  </span>
                 </div>
               );
             }
