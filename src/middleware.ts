@@ -116,6 +116,19 @@ export async function middleware(request: NextRequest) {
     const ruta = request.nextUrl.pathname;
     const esVerificacion = ruta.startsWith('/login/2fa');
     const esAltaSegundoFactor = ruta.startsWith('/seguridad');
+    /*
+     * ELEGIR CONTRASEÑA VA ANTES QUE EL SEGUNDO FACTOR.
+     *
+     * Y esta ruta tiene que estar exenta o no se llega nunca. Un invitado
+     * abre su enlace, entra con sesion y SIN contraseña, y la regla de abajo
+     * —«quien no tenga segundo factor, a darlo de alta»— se lo llevaba a
+     * `/seguridad` desde cualquier sitio, incluida esta pantalla. Resultado:
+     * entraba esa vez y no podia poner contraseña; al cerrar sesion se
+     * quedaba fuera de su propia cuenta, y no hay «he olvidado mi contraseña».
+     *
+     * Le paso a la primera persona a la que invitamos de verdad.
+     */
+    const esElegirClave = ruta.startsWith('/establecer-clave');
 
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
     const tieneSegundoFactor = aal?.nextLevel === 'aal2';
@@ -124,7 +137,7 @@ export async function middleware(request: NextRequest) {
     if (tieneSegundoFactor && !yaVerificado && !esVerificacion) {
       return redirigirA('/login/2fa');
     }
-    if (!tieneSegundoFactor && !esAltaSegundoFactor) {
+    if (!tieneSegundoFactor && !esAltaSegundoFactor && !esElegirClave) {
       return redirigirA('/seguridad');
     }
     if (esLogin && !esVerificacion) return redirigirA('/leads');
