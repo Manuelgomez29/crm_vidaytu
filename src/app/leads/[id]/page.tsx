@@ -2,7 +2,13 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
-import { ESTADOS_CERRADOS, etiquetaEstado, type EstadoLead } from '@/lib/estados';
+import { CabeceraCaso } from './cabecera-caso';
+import {
+  ESTADOS_CERRADOS,
+  ESTADOS_SIN_ACCION_PENDIENTE,
+  etiquetaEstado,
+  type EstadoLead,
+} from '@/lib/estados';
 import { fecha } from '@/lib/fechas';
 import {
   anadirContacto,
@@ -58,12 +64,60 @@ const botonClase =
 const botonSecundario =
   'rounded-lg border border-line2 bg-surface px-3 py-1.5 text-sm font-medium text-ink transition hover:bg-surface2';
 
-function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+/**
+ * Una seccion de la ficha, plegable cuando no tiene nada dentro.
+ *
+ * `plegable` no significa «escondida»: significa que si la seccion esta VACIA
+ * —ningun adjunto, ningun presupuesto, ninguna conversion— se muestra cerrada,
+ * porque lo unico que contiene es un formulario que se usa una vez cada quince
+ * casos. En cuanto tiene contenido se abre sola y se comporta como siempre.
+ *
+ * La regla es esa y no «cerrar las de abajo»: una seccion con datos dentro no
+ * se esconde nunca, porque entonces habria que acordarse de mirarla.
+ *
+ * Va con `<details>` nativo a proposito. Funciona sin JavaScript, el navegador
+ * lo hace accesible solo, y el buscador del navegador (Ctrl+F) encuentra
+ * tambien lo que hay dentro de uno cerrado.
+ */
+function Seccion({
+  titulo,
+  children,
+  plegable = false,
+  conContenido = true,
+  pista,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+  plegable?: boolean;
+  /** Si trae datos, se abre sola. */
+  conContenido?: boolean;
+  /** Que se lee en la cabecera cuando esta cerrada: «Sin presupuestos». */
+  pista?: string;
+}) {
+  const cabecera = 'text-sm font-semibold uppercase tracking-wide text-ink2';
+
+  if (!plegable) {
+    return (
+      <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
+        <h3 className={`mb-3 ${cabecera}`}>{titulo}</h3>
+        {children}
+      </section>
+    );
+  }
+
   return (
-    <section className="rounded-xl bg-surface p-4 ring-1 ring-line">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink2">{titulo}</h3>
-      {children}
-    </section>
+    <details open={conContenido} className="group rounded-xl bg-surface p-4 ring-1 ring-line">
+      <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+        <span aria-hidden className="text-[11px] text-muted transition group-open:rotate-90">
+          ▶
+        </span>
+        <h3 className={cabecera}>{titulo}</h3>
+        {!conContenido && pista && (
+          <span className="ml-auto text-xs font-normal normal-case text-muted">{pista}</span>
+        )}
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
   );
 }
 
@@ -209,6 +263,9 @@ export default async function FichaLead({
 
   const estado = etiquetaEstado(lead.estado);
   const cerrado = ESTADOS_CERRADOS.includes(lead.estado as EstadoLead);
+  // Cerrado (se puede reabrir) NO es lo mismo que no tener nada pendiente: un
+  // caso convertido o derivado tampoco necesita proxima accion. Ver `estados.ts`.
+  const sinAccionPendiente = ESTADOS_SIN_ACCION_PENDIENTE.includes(lead.estado);
   const tareasPendientes = (tareas ?? []).filter((t) => t.completada_at === null);
 
   // El resumen se lee de su fila, no de la URL: lleva nombres y situaciones.
@@ -299,7 +356,33 @@ export default async function FichaLead({
         </form>
       )}
 
-      {!cerrado && tareasPendientes.length === 0 && (
+      {/*
+        A quien se llama y con que boton: lo primero, porque en el movil la
+        columna lateral —donde vivia el telefono— cae por debajo de otras siete
+        secciones. Ver `cabecera-caso.tsx`.
+      */}
+      <CabeceraCaso
+        leadId={lead.id}
+        telefono={lead.telefono}
+        quienContacta={TIPO_CONTACTO[lead.quien_contacta ?? ''] ?? '—'}
+        relacion={lead.relacion_con_afectado}
+        afectado={lead.nombre_afectado}
+        principal={(() => {
+          const p = (contactosCaso ?? []).find((c) => c.es_principal);
+          if (!p?.contacto) return null;
+          return {
+            id: p.contacto.id,
+            nombre: p.contacto.nombre,
+            telefono: p.contacto.telefono,
+            tipo: p.tipo,
+            relacion: p.relacion,
+          };
+        })()}
+        motivos={motivos ?? []}
+        cerrado={cerrado}
+      />
+
+      {!sinAccionPendiente && tareasPendientes.length === 0 && (
         <p className="mt-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
           ⚠ Este caso no tiene próxima acción con fecha. Crea una tarea.
         </p>
@@ -574,7 +657,12 @@ export default async function FichaLead({
             </ul>
           </Seccion>
 
-          <Seccion titulo="Adjuntos del caso">
+          <Seccion
+            titulo="Adjuntos del caso"
+            plegable
+            conContenido={(adjuntos ?? []).length > 0}
+            pista="Ninguno"
+          >
             <form action={subirAdjunto.bind(null, lead.id)} className="flex flex-wrap gap-2">
               <input
                 type="file"
@@ -626,7 +714,12 @@ export default async function FichaLead({
             </ul>
           </Seccion>
 
-          <Seccion titulo="Presupuestos (historial)">
+          <Seccion
+            titulo="Presupuestos (historial)"
+            plegable
+            conContenido={(presupuestos ?? []).length > 0}
+            pista="Ninguno"
+          >
             <FormularioSeguro
               accion={crearPresupuesto.bind(null, lead.id)}
               borrador={`presupuesto:${lead.id}`}
@@ -680,7 +773,7 @@ export default async function FichaLead({
             </ul>
           </Seccion>
 
-          <Seccion titulo="Conversión">
+          <Seccion titulo="Conversión" plegable conContenido={!!conversion} pista="Sin registrar">
             {conversion ? (
               <div className="flex flex-wrap items-center gap-3 text-sm">
                 <span

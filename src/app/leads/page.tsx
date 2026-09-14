@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
-import { ESTADOS_CERRADOS, type EstadoLead } from '@/lib/estados';
+import { ESTADOS_CERRADOS, ESTADOS_SIN_ACCION_PENDIENTE, type EstadoLead } from '@/lib/estados';
 import { hace, hoyMadrid } from '@/lib/fechas';
 import Kanban, { type TarjetaLead } from './kanban';
 import { DrawerCaso } from './drawer-caso';
@@ -16,9 +16,6 @@ import { misVistas } from './vistas';
 
 /** Casos que se traen de una vez al tablero o a la tabla. */
 const TOPE_TABLERO = 300;
-
-/** Estados exentos del aviso "sin próxima acción": cerrados o ya resueltos. */
-const ESTADOS_SIN_AVISO_ACCION: string[] = [...ESTADOS_CERRADOS, 'convertido', 'derivado'];
 
 type FilaKanban = {
   id: string;
@@ -235,7 +232,8 @@ export default async function LeadsPage({
     subcanal: fila.subcanal,
     propietarioNombre: fila.propietario?.nombre ?? null,
     propietarioAusente: fila.propietario_id !== null && ausentes.has(fila.propietario_id),
-    sinProximaAccion: !ESTADOS_SIN_AVISO_ACCION.includes(fila.estado) && fila.tareas.length === 0,
+    sinProximaAccion:
+      !ESTADOS_SIN_ACCION_PENDIENTE.includes(fila.estado) && fila.tareas.length === 0,
     importe:
       fila.conversiones?.importe_primer_pago ??
       (fila.presupuestos.length > 0

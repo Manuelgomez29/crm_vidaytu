@@ -16,7 +16,27 @@ export const ETIQUETA_ESTADO: Record<EstadoLead, { texto: string; clases: string
 };
 
 // Estados en los que el caso se considera cerrado a efectos de trabajo comercial.
+// Son los dos que se pueden REABRIR: el caso no salio adelante, o no era valido.
 export const ESTADOS_CERRADOS: EstadoLead[] = ['perdido', 'no_valido'];
+
+/**
+ * Casos que no necesitan «proxima accion» (regla 9).
+ *
+ * No es lo mismo que estar cerrado, y por eso son dos listas. Un caso
+ * CONVERTIDO no se reabre —ya salio bien— pero tampoco hay que perseguirlo; un
+ * DERIVADO lo lleva ahora otro centro. En los dos, reclamar una proxima accion
+ * comercial es ruido, y el ruido enseña a ignorar los avisos de verdad.
+ *
+ * Esto vivia solo en el kanban. La ficha usaba `ESTADOS_CERRADOS` para lo
+ * mismo, asi que a un caso ya convertido le seguia saliendo «no tiene proxima
+ * accion con fecha»: la misma regla escrita dos veces y diciendo cosas
+ * distintas segun por donde entraras.
+ */
+export const ESTADOS_SIN_ACCION_PENDIENTE: string[] = [
+  ...ESTADOS_CERRADOS,
+  'convertido',
+  'derivado',
+];
 
 export function etiquetaEstado(estado: string) {
   return (
