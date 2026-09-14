@@ -293,6 +293,45 @@ export async function editarUsuario(perfilId: string, formData: FormData) {
 }
 
 /**
+ * Vuelve a mandarle a alguien el enlace para poner su contraseña.
+ *
+ * Faltaba, y se noto el primer dia: la aplicacion NO tiene «he olvidado mi
+ * contraseña». Quien se queda sin poder entrar —porque nunca llego a ponerla,
+ * porque se le olvido, o porque el enlace de invitacion caduco— no tiene forma
+ * de volver por su cuenta. Con cuatro o cinco personas eso pasa seguro, y la
+ * alternativa era entrar al panel de Supabase.
+ *
+ * Manda un enlace de recuperacion, que aterriza en `/auth/confirmar` y de ahi a
+ * elegir contraseña. No se fija ninguna contraseña desde aqui a proposito: una
+ * que haya tecleado otra persona y viaje por WhatsApp no es de quien la usa.
+ */
+export async function reenviarEnlaceDeAcceso(perfilId: string) {
+  await exigirMandoSobrePerfil(perfilId);
+  const admin = createAdminClient();
+
+  const { data: perfil } = await admin
+    .from('perfiles')
+    .select('email, nombre')
+    .eq('id', perfilId)
+    .maybeSingle();
+  if (!perfil?.email) volver('equipo', { error: 'Ese usuario no tiene email.' });
+
+  const base = (process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/+$/, '');
+  const { error } = await admin.auth.resetPasswordForEmail(perfil.email, {
+    redirectTo: `${base}/establecer-clave`,
+  });
+
+  if (error) {
+    volver('equipo', {
+      error: `No se pudo enviar: ${error.message}. Sin SMTP propio, Supabase limita mucho los envíos.`,
+    });
+  }
+  volver('equipo', {
+    aviso: `Enlace enviado a ${perfil.email}. Al abrirlo elegirá contraseña y después activará la verificación en dos pasos. Caduca en una hora.`,
+  });
+}
+
+/**
  * Retira el segundo factor de un usuario: la vía cuando alguien pierde o
  * cambia de móvil. En el siguiente acceso tendrá que darlo de alta otra vez,
  * porque sin él no se entra.

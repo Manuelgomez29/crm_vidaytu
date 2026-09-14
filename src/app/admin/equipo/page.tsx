@@ -10,6 +10,7 @@ import {
   guardarDisponibilidad,
   guardarObjetivos,
   reasignarEnBloque,
+  reenviarEnlaceDeAcceso,
   retirarSegundoFactor,
   traspasarTodo,
 } from '../actions';
@@ -405,6 +406,21 @@ export default async function AdminEquipo({
                 </div>
                 <button type="submit" className={`${botonAdminSecundario} self-start`}>
                   Guardar usuario
+                </button>
+              </form>
+
+              {/*
+                Sin esto, quien se queda fuera de su cuenta no tiene vuelta: la
+                aplicacion no tiene «he olvidado mi contraseña» y el enlace de
+                invitacion caduca. La alternativa era el panel de Supabase.
+              */}
+              <form action={reenviarEnlaceDeAcceso.bind(null, p.id)} className="mt-2">
+                <button
+                  type="submit"
+                  className="text-xs text-primary hover:underline"
+                  title="Le llega un correo para elegir contraseña. Sirve si nunca llegó a ponerla, si la ha olvidado o si su invitación caducó"
+                >
+                  Enviarle un enlace para elegir contraseña
                 </button>
               </form>
 
