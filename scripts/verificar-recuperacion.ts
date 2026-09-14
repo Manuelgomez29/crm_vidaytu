@@ -160,11 +160,21 @@ async function main() {
     'si apuntara a la pantalla directamente, llegaría sin sesión y al login',
   );
   comprobar('y de ahí a elegir contraseña', /next=\/establecer-clave/.test(plantilla));
+  /*
+   * `site_url` es lo que Supabase pone delante del enlace del correo, asi que
+   * si apunta a `localhost` el enlace no sirve para nadie que no sea quien
+   * programa. Lo que NO se puede comprobar desde aqui es si coincide con la
+   * direccion real de la aplicacion: `NEXT_PUBLIC_URL_APP` se lee del fichero
+   * de este ordenador —que apunta a localhost— y la de verdad vive en Vercel.
+   * Comparar las dos daba un fallo que no lo era, que es peor que no mirar.
+   */
+  const sitio = String(auth.site_url ?? '').replace(/\/+$/, '');
+  const local = (process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/+$/, '');
+  const esLocal = /^https?:\/\/(localhost|127\.)/.test(sitio);
   comprobar(
-    'la dirección del sitio es la de este entorno',
-    String(auth.site_url ?? '').replace(/\/+$/, '') ===
-      (process.env.NEXT_PUBLIC_URL_APP ?? '').replace(/\/+$/, ''),
-    `site_url = ${auth.site_url}`,
+    'el enlace del correo sale con una dirección que se puede abrir',
+    sitio.length > 0 && (!esLocal || /^https?:\/\/(localhost|127\.)/.test(local)),
+    esLocal ? `${sitio} — entorno de desarrollo` : sitio,
   );
 
   // ---------------------------------------------------------------------------
