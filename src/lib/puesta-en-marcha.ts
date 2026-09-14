@@ -2,7 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { estadoDelMotor } from '@/lib/salud-motor';
 import { hoyMadrid } from '@/lib/fechas';
-import { esVeinticuatroSiete, horarioDe } from '@/lib/horarios';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -106,12 +105,18 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
   const urlApp = (process.env.NEXT_PUBLIC_URL_APP ?? '').trim();
 
   /*
-   * Un centro sin horario cuenta el SLA 24 horas al dia. Para Bellamar eso es
-   * correcto —admisiones 24/7— pero para los demas significa que un caso que
-   * entra de madrugada sale fuera de plazo antes de que nadie pueda leerlo.
+   * SIN DECIDIR no es lo mismo que 24/7.
+   *
+   * Las dos cuentan el SLA 24 horas al dia, pero una es un olvido y la otra es
+   * una decision: Bellamar tiene admisiones 24/7/365 y esta puesto asi a
+   * proposito. La primera version miraba `esVeinticuatroSiete()`, que dice que
+   * si en los dos casos, y por eso reclamaba a Bellamar un horario que ya
+   * tenia. Una lista que pide algo que esta bien se deja de mirar entera.
+   *
+   * Lo que falta de verdad es lo que nadie ha tocado: `horario_atencion` nulo.
    */
-  const sinHorario = (centros ?? []).filter(
-    (c) => c.activo && !c.es_bandeja_grupo && esVeinticuatroSiete(horarioDe(c.horario_atencion)),
+  const sinDecidir = (centros ?? []).filter(
+    (c) => c.activo && !c.es_bandeja_grupo && c.horario_atencion === null,
   );
 
   const puntos: Punto[] = [
@@ -211,11 +216,11 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
       titulo: 'Cada centro tiene su horario de atención',
       porQue:
         'Es el reloj del SLA: los 60 minutos de primera respuesta se cuentan solo mientras el centro está abierto (regla 9). Sin horario se cuentan 24 h al día, así que un caso que entre de madrugada sale fuera de plazo antes de que nadie pueda leerlo — y «cumplimiento del SLA» pasa a ser un objetivo imposible.',
-      hecho: sinHorario.length === 0,
+      hecho: sinDecidir.length === 0,
       detalle:
-        sinHorario.length === 0
-          ? 'todos los centros lo tienen puesto'
-          : 'cuentan 24/7: ' + sinHorario.map((c) => c.nombre).join(', '),
+        sinDecidir.length === 0
+          ? 'los tres lo tienen decidido (Bellamar, 24/7 a propósito)'
+          : 'sin decidir, cuentan 24/7 por defecto: ' + sinDecidir.map((c) => c.nombre).join(', '),
       gravedad: 'conviene',
       donde: { texto: 'Centros', href: '/admin/centros' },
     },
