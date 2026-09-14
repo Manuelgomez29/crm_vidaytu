@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 import { iniciarSesion } from './actions';
 
 import { LimpiarBorradores } from './limpiar-borradores';
@@ -67,6 +69,20 @@ export default async function LoginPage({
               Entrar
             </button>
           </form>
+
+          {/*
+            Sin esto, quien olvida su contraseña depende de que otra persona con
+            mando se la reenvíe desde Administración. Con una sola dirección de
+            grupo, esa persona no tiene a quien pedírselo.
+          */}
+          <p className="mt-5 text-center text-[12.5px] text-muted">
+            <Link
+              href="/clave-olvidada"
+              className="underline underline-offset-2 hover:text-ink2"
+            >
+              ¿Has olvidado tu contraseña?
+            </Link>
+          </p>
         </div>
       </div>
     </main>

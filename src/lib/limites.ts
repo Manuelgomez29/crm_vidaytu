@@ -20,6 +20,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const POR_DEFECTO: Record<string, { maximo: number; ventana: number }> = {
   login_por_cuenta: { maximo: 10, ventana: 900 },
   login_por_ip: { maximo: 30, ventana: 900 },
+  // Cada intento manda un correo: más apretado que el login, y por otro motivo.
+  recuperar_por_cuenta: { maximo: 3, ventana: 3600 },
+  recuperar_por_ip: { maximo: 10, ventana: 3600 },
   formularios: { maximo: 60, ventana: 60 },
   whatsapp: { maximo: 300, ventana: 60 },
   cron: { maximo: 20, ventana: 60 },

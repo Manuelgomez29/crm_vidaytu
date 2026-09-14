@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { establecerClave } from './actions';
 
-/** Donde el usuario invitado fija su contraseña por primera vez. */
+/** Donde se fija la contraseña: la primera vez, y cada vez que se recupera. */
 export default async function EstablecerClave({
   searchParams,
 }: {
@@ -16,6 +17,9 @@ export default async function EstablecerClave({
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
+  // La deja `/auth/confirmar` con el tipo de enlace que se ha abierto.
+  const recuperando = (await cookies()).get('vd-elegir-clave')?.value === 'recuperacion';
+
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -24,11 +28,20 @@ export default async function EstablecerClave({
             Vidaitu <span className="text-coral">DATA</span>
           </h1>
           <p className="mt-1 text-center text-[11px] uppercase tracking-[0.14em] text-muted">
-            Elige tu contraseña
+            {recuperando ? 'Contraseña nueva' : 'Elige tu contraseña'}
           </p>
           <p className="mt-4 text-sm text-ink2">
-            Bienvenido, <b className="text-ink">{user.email}</b>. Elige una contraseña y, en el paso
-            siguiente, activa la verificación en dos pasos.
+            {recuperando ? (
+              <>
+                Estás cambiando la contraseña de <b className="text-ink">{user.email}</b>. La
+                anterior deja de servir en cuanto guardes.
+              </>
+            ) : (
+              <>
+                Bienvenido, <b className="text-ink">{user.email}</b>. Elige una contraseña y, en el
+                paso siguiente, activa la verificación en dos pasos.
+              </>
+            )}
           </p>
 
           {error && (

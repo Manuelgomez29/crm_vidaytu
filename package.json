@@ -61,6 +61,7 @@
     "staging:verificar:horarios": "tsx --env-file=.env.staging scripts/verificar-horarios.ts",
     "staging:verificar:areas": "tsx --env-file=.env.staging scripts/verificar-areas.ts",
     "staging:verificar:ausencias": "tsx --env-file=.env.staging scripts/verificar-ausencias.ts",
+    "staging:verificar:recuperacion": "tsx --env-file=.env.staging scripts/verificar-recuperacion.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",
     "staging:verificar:etiquetado": "tsx --env-file=.env.staging scripts/verificar-etiquetado.ts",
     "puesta-en-marcha": "tsx --env-file=.env.local scripts/puesta-en-marcha.ts",

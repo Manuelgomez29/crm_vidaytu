@@ -50,12 +50,19 @@ const ETIQUETA_ETAPA: Record<string, { hecho: string; fallo: string }> = {
   clave: { hecho: 'Entró', fallo: 'Contraseña incorrecta' },
   '2fa': { hecho: 'Pasó el segundo factor', fallo: 'Código de 2FA incorrecto' },
   salida: { hecho: 'Cerró sesión', fallo: 'Cerró sesión' },
+  recuperacion: {
+    hecho: 'Pidió recuperar su contraseña',
+    fallo: 'Pidió recuperar su contraseña, no se le mandó',
+  },
 };
 
 const ETIQUETA_MOTIVO: Record<string, string> = {
   credenciales: 'usuario o contraseña incorrectos',
   demasiados: 'bloqueado por demasiados intentos',
   codigo: 'código incorrecto o caducado',
+  desconocida: 'ese correo no es de ninguna cuenta',
+  inactiva: 'esa cuenta está dada de baja',
+  envio: 'falló el envío del correo',
 };
 
 export default async function AdminAccesos({

@@ -18,7 +18,7 @@ import type { Database } from '@/lib/database.types';
 
 type Cliente = SupabaseClient<Database>;
 
-export type Etapa = 'clave' | '2fa' | 'salida';
+export type Etapa = 'clave' | '2fa' | 'salida' | 'recuperacion';
 
 const RETENCION_POR_DEFECTO = 90;
 const PRESENCIA_POR_DEFECTO = 5;

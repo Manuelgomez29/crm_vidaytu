@@ -72,10 +72,12 @@ export async function middleware(request: NextRequest) {
 
   /**
    * Rutas públicas sin sesión. Las abre gente que no tiene cuenta (el enlace
-   * de baja de una campaña) o que aún no la ha terminado de crear (el enlace
-   * de invitación): mandarlas al login las dejaría sin salida.
+   * de baja de una campaña), que aún no la ha terminado de crear (el enlace
+   * de invitación) o que no puede entrar y viene a pedir uno nuevo: mandarlas
+   * al login las dejaría sin salida — y a la última, en un bucle, porque el
+   * login es justo de donde viene.
    */
-  const PUBLICAS = ['/baja', '/auth/confirmar'];
+  const PUBLICAS = ['/baja', '/auth/confirmar', '/clave-olvidada'];
   const esPublica = PUBLICAS.some((ruta) => request.nextUrl.pathname.startsWith(ruta));
   if (esPublica) return supabaseResponse;
 

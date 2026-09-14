@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { Verificar2FA } from './verificar';
 import { SalirDeLaPuerta } from '@/components/salir-de-la-puerta';
@@ -14,6 +15,13 @@ export default async function Login2FA() {
 
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (aal?.currentLevel === 'aal2') redirect('/mi-dia');
+
+  /*
+   * Si venia de un enlace de recuperacion, este no es el final del camino:
+   * todavia tiene que elegir la contraseña. Lo dejo apuntado `/auth/confirmar`.
+   */
+  const vieneAElegirClave = (await cookies()).get('vd-elegir-clave');
+  const siguiente = vieneAElegirClave ? '/establecer-clave' : '/mi-dia';
 
   const { data: factores } = await supabase.auth.mfa.listFactors();
   const verificados = (factores?.totp ?? []).filter((f) => f.status === 'verified');
@@ -36,6 +44,7 @@ export default async function Login2FA() {
             «incorrecto» sin que nada explicara por que.
           */}
           <Verificar2FA
+            siguiente={siguiente}
             factores={verificados.map((f, i) => ({
               id: f.id,
               nombre: f.friendly_name || `App de autenticación ${i + 1}`,

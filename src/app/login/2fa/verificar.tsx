@@ -1,12 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { anotarSegundoFactor } from './actions';
 
-export function Verificar2FA({ factores }: { factores: { id: string; nombre: string }[] }) {
-  const router = useRouter();
+export function Verificar2FA({
+  factores,
+  siguiente = '/mi-dia',
+}: {
+  factores: { id: string; nombre: string }[];
+  /** Normalmente el tablero; si venía de un enlace, a terminar lo que venía a hacer. */
+  siguiente?: string;
+}) {
   const [factorId, setFactorId] = useState(factores[0].id);
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +48,20 @@ export function Verificar2FA({ factores }: { factores: { id: string; nombre: str
       return;
     }
     void anotarSegundoFactor(true);
-    router.push('/mi-dia');
-    router.refresh();
+    /*
+     * Navegacion completa, no `router.push` + `refresh`.
+     *
+     * Acaba de cambiar la sesion —del primer factor al segundo— y con ella lo
+     * que el servidor va a contestar en TODAS las rutas. Las dos llamadas del
+     * router corren a la vez: el refresco puede pedir todavia la ruta vieja,
+     * que ahora redirige a otro sitio, y dejarte en una pantalla que no habias
+     * pedido. Con el destino de siempre no se notaba, porque casualmente era
+     * el mismo; al mandar a alguien a elegir contraseña, si.
+     *
+     * Esto pasa una vez por acceso: una carga entera no le cuesta nada a nadie
+     * y hace que el servidor pinte desde cero con la sesion nueva.
+     */
+    window.location.assign(siguiente);
   }
 
   return (
