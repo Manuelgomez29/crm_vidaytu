@@ -324,6 +324,31 @@ export default async function FichaLead({
           {lead.centro?.nombre}
           {lead.centro?.es_bandeja_grupo && ' (bandeja de grupo)'}
         </span>
+
+        {/*
+          De donde vino, arriba y no al fondo.
+          El rastro de la derivacion ya estaba en la ficha, pero dentro del
+          bloque de «Acciones» —o sea, en el formulario que sirve para DERIVAR,
+          no donde uno se entera de que le han derivado algo—. Quien abre en
+          Bellamar un caso que llego de Eclipse veia «Bellamar» y nada mas, y
+          sobre todo no veia que el ingreso se le va a apuntar a Eclipse. Ese
+          dato es justo el que sostiene el acuerdo entre los dos centros: si no
+          se ve, no se cree.
+        */}
+        {(derivaciones ?? []).length > 0 && (
+          <span
+            className="chip chip-warn"
+            title={`Un caso derivado no cambia de dueño en las métricas: el ingreso se le apunta a ${(derivaciones ?? []).at(-1)?.origen?.nombre} (regla 3)`}
+          >
+            {/*
+              `at(-1)` y no `[0]`: la consulta viene ordenada de MAS RECIENTE a
+              mas antigua, y la atribucion es de la PRIMERA derivacion. Con un
+              solo salto da igual; con dos —Eclipse manda a Bellamar y Bellamar
+              a Horizonte— `[0]` diria Bellamar mientras el dinero va a Eclipse.
+            */}
+            ↩ Derivado desde {(derivaciones ?? []).at(-1)?.origen?.nombre} · el ingreso es suyo
+          </span>
+        )}
         {lead.propietario ? (
           <span className="text-sm text-ink2">Propietario: {lead.propietario.nombre}</span>
         ) : (
