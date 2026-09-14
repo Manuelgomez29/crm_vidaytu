@@ -290,12 +290,18 @@ export default async function Panel({
     supabase.from('adicciones').select('id, nombre'),
     supabase.from('modalidades').select('id, nombre'),
     supabase.from('motivos_perdida').select('id, nombre'),
-    // Derivaciones y citas del periodo, para no-shows y movimientos internos.
+    /*
+     * TODAS las derivaciones, no solo las del periodo, y con `lead_id`.
+     *
+     * Se usan para dos cosas distintas: la lista de movimientos internos —que
+     * si es del periodo, y se filtra abajo— y la ATRIBUCION, que no puede
+     * serlo: un caso derivado en marzo que convierte en junio se le sigue
+     * atribuyendo a quien lo trabajo. Son pocas filas, un puñado al mes.
+     */
     supabase
       .from('derivaciones')
-      .select('centro_origen_id, centro_destino_id')
-      .gte('created_at', desdeIso)
-      .lt('created_at', hastaIso),
+      .select('lead_id, centro_origen_id, centro_destino_id, created_at')
+      .order('created_at'),
     supabase
       .from('perfiles')
       .select('id, nombre, rol')
@@ -430,12 +436,37 @@ export default async function Panel({
     porCanal.set(l.canal_id, fila);
   }
 
-  const porCentro = new Map<string, { total: number; convertidos: number }>();
+  /*
+   * ATRIBUCION POR CENTRO (regla 3).
+   *
+   * Un caso derivado —lo tipico, Eclipse manda a Bellamar un ingreso
+   * residencial— cambia de `centro_id`, asi que agrupando por el se le apuntaba
+   * a BELLAMAR. Pero la fila de la conversion guarda el centro de ORIGEN, que
+   * es lo que hace `centroDeAtribucion`. O sea que la misma pantalla daba dos
+   * respuestas: el ingreso para Eclipse y el convertido para Bellamar.
+   *
+   * La regla no deja lugar a dudas —«atribucion al centro de origen»— y es lo
+   * que sostiene el acuerdo entre centros: si el ingreso se le apuntara a quien
+   * da el tratamiento, Eclipse dejaria de derivar. Aqui se alinea con la
+   * conversion.
+   *
+   * Lo que NO cambia es el resto del panel: el embudo, el cruce y los filtros
+   * siguen hablando de donde ESTA el caso, que es otra pregunta igual de
+   * legitima —cuanto trabajo lleva cada centro— y por eso la tabla lo dice.
+   */
+  const origenPorCaso = new Map<string, string>();
+  for (const d of derivaciones ?? []) {
+    if (!origenPorCaso.has(d.lead_id)) origenPorCaso.set(d.lead_id, d.centro_origen_id);
+  }
+
+  const porCentro = new Map<string, { total: number; convertidos: number; derivados: number }>();
   for (const l of leads) {
-    const fila = porCentro.get(l.centro_id) ?? { total: 0, convertidos: 0 };
+    const atribuido = origenPorCaso.get(l.id) ?? l.centro_id;
+    const fila = porCentro.get(atribuido) ?? { total: 0, convertidos: 0, derivados: 0 };
     fila.total++;
     if (l.estado === 'convertido') fila.convertidos++;
-    porCentro.set(l.centro_id, fila);
+    if (origenPorCaso.has(l.id)) fila.derivados++;
+    porCentro.set(atribuido, fila);
   }
 
   // --- Por comercial, contra objetivos del mes -----------------------------
@@ -543,7 +574,10 @@ export default async function Panel({
   const bandeja = (centros ?? []).find((c) => nombreCentro.get(c.id)?.includes('Bandeja'));
   const nacidosEnBandeja = leads.filter((l) => l.centro_id === bandeja?.id).length;
   const derivacionesInternas = new Map<string, number>();
-  for (const d of derivaciones ?? []) {
+  // Del periodo: la consulta las trae todas porque la atribucion las necesita.
+  for (const d of (derivaciones ?? []).filter(
+    (x) => x.created_at >= desdeIso && x.created_at < hastaIso,
+  )) {
     const clave = `${nombreCentro.get(d.centro_origen_id) ?? '—'} → ${nombreCentro.get(d.centro_destino_id) ?? '—'}`;
     derivacionesInternas.set(clave, (derivacionesInternas.get(clave) ?? 0) + 1);
   }
@@ -921,7 +955,15 @@ export default async function Panel({
                     .sort((a, b) => b[1].total - a[1].total)
                     .map(([centroId, fila]) => (
                       <tr key={centroId}>
-                        <td className="py-2">{nombreCentro.get(centroId) ?? '—'}</td>
+                        <td className="py-2">
+                          {nombreCentro.get(centroId) ?? '—'}
+                          {/* Cuantos de los suyos se los trabajo el y los mando a otro sitio. */}
+                          {fila.derivados > 0 && (
+                            <span className="ml-1.5 text-xs text-muted">
+                              ({fila.derivados} derivado{fila.derivados === 1 ? '' : 's'})
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2">{fila.total}</td>
                         <td className="py-2">{fila.convertidos}</td>
                         <td className="py-2 text-ink2">
@@ -939,6 +981,12 @@ export default async function Panel({
                 </tbody>
               </table>
             </div>
+            <p className="mt-3 max-w-[70ch] text-xs text-muted">
+              Un caso <b>derivado</b> cuenta para el centro que lo trabajó, no para el que da el
+              tratamiento (regla 3): es lo mismo que hace la conversión, y es lo que sostiene el
+              acuerdo entre centros. El resto del panel —el embudo, el cruce y el filtro de arriba—
+              habla de dónde está el caso <i>ahora</i>, que es otra pregunta.
+            </p>
           </Seccion>
 
           <Seccion titulo="Equipo comercial y objetivos del mes">
