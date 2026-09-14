@@ -31,6 +31,15 @@ export default async function AdminParametros({
     typeof valor.get('plantilla_recordatorio_cita') === 'string'
       ? (valor.get('plantilla_recordatorio_cita') as string)
       : '';
+  // El de siempre, para que quien abra esto por primera vez vea lo que la
+  // plataforma esta enviando de verdad y no un campo en blanco.
+  const SEGUIMIENTO_POR_DEFECTO =
+    'Hola {nombre}, te he llamado y no he podido localizarte. Cuando puedas, dime qué momento te viene bien y hablamos. Un saludo.';
+  const plantillaWhatsapp =
+    typeof valor.get('plantilla_whatsapp_seguimiento') === 'string' &&
+    (valor.get('plantilla_whatsapp_seguimiento') as string).trim()
+      ? (valor.get('plantilla_whatsapp_seguimiento') as string)
+      : SEGUIMIENTO_POR_DEFECTO;
 
   const cadena = (clave: string) =>
     typeof valor.get(clave) === 'string' ? (valor.get(clave) as string) : '';
@@ -175,6 +184,25 @@ export default async function AdminParametros({
             Discreción obligatoria: el mensaje va a un teléfono que puede leer cualquiera de la
             familia. No puede mencionar adicciones ni motivos clínicos — la plataforma rechaza la
             plantilla si lo hace.
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1 text-sm font-medium text-ink">
+          Mensaje de WhatsApp cuando no contestan
+          <textarea
+            name="plantilla_whatsapp_seguimiento"
+            rows={3}
+            defaultValue={plantillaWhatsapp}
+            className={inputAdmin}
+          />
+          <span className="text-xs font-normal text-ink2">
+            Es el que ofrece la ficha al registrar «no contesta» — el que más veces se envía al día.
+            Marcador disponible: <code>{'{nombre}'}</code>, que se sustituye por el nombre de pila.
+          </span>
+          <span className="text-xs font-normal text-warn">
+            Misma discreción que el recordatorio: no puede mencionar adicciones ni motivos clínicos.
+            Y no menciona el centro a propósito — el nombre de un centro de tratamiento en la
+            pantalla de bloqueo dice lo mismo que la palabra prohibida.
           </span>
         </label>
 

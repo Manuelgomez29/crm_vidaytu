@@ -57,6 +57,8 @@
     "staging:verificar:marketing-centro": "tsx --env-file=.env.staging scripts/verificar-marketing-centro.ts",
     "verificar:fuentes": "tsx --env-file=.env.local scripts/verificar-fuentes.ts",
     "staging:verificar:fuentes": "tsx --env-file=.env.staging scripts/verificar-fuentes.ts",
+    "verificar:horarios": "tsx scripts/verificar-horarios.ts",
+    "staging:verificar:horarios": "tsx --env-file=.env.staging scripts/verificar-horarios.ts",
     "staging:verificar:areas": "tsx --env-file=.env.staging scripts/verificar-areas.ts",
     "staging:verificar:ausencias": "tsx --env-file=.env.staging scripts/verificar-ausencias.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",

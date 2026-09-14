@@ -2,6 +2,7 @@ import { AppShell } from '@/components/app-shell';
 import { exigirDireccion } from '../guard';
 import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { crearCentro, editarCentro } from '../actions';
+import { DIAS, horarioDe, esVeinticuatroSiete, resumenHorario } from '@/lib/horarios';
 
 export default async function AdminCentros({
   searchParams,
@@ -14,7 +15,9 @@ export default async function AdminCentros({
   const [{ data: centros }, { data: leads }] = await Promise.all([
     supabase
       .from('centros')
-      .select('id, nombre, slug, ciudad, activo, es_bandeja_grupo, url_resena_google')
+      .select(
+        'id, nombre, slug, ciudad, activo, es_bandeja_grupo, url_resena_google, horario_atencion',
+      )
       .order('es_bandeja_grupo')
       .order('nombre'),
     supabase.from('leads').select('centro_id'),
@@ -101,6 +104,59 @@ export default async function AdminCentros({
               <button type="submit" className={botonAdminSecundario}>
                 Guardar
               </button>
+
+              {/* ---------------- Horario de atención ---------------- */}
+              {(() => {
+                const h = horarioDe(c.horario_atencion);
+                const abierto247 = esVeinticuatroSiete(h);
+                return (
+                  <details className="w-full rounded-lg bg-surface2 p-3">
+                    <summary className="cursor-pointer list-none text-[13px] font-medium [&::-webkit-details-marker]:hidden">
+                      Horario de atención{' '}
+                      <span className="font-normal text-ink2">· {resumenHorario(h)}</span>
+                    </summary>
+
+                    <p className="mt-2 max-w-[76ch] text-xs text-ink2">
+                      Es el reloj del <b>SLA de primera respuesta</b>: los 60 minutos se cuentan
+                      solo mientras el centro está abierto. Sin horario cuenta 24 horas al día, y
+                      entonces un caso que entra de madrugada sale fuera de plazo antes de que nadie
+                      pueda leerlo.
+                    </p>
+
+                    <label className="mt-2 flex items-center gap-1.5 text-[13px] text-ink2">
+                      <input type="checkbox" name="siempre_abierto" defaultChecked={abierto247} />
+                      Abierto siempre (24/7), como admisiones de Bellamar
+                    </label>
+
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      {[1, 2, 3, 4, 5, 6, 0].map((d) => {
+                        const franja = h.dias?.[String(d)] ?? null;
+                        return (
+                          <div key={d} className="flex flex-wrap items-center gap-2 text-[13px]">
+                            <span className="w-24 text-ink2">{DIAS[d]}</span>
+                            <input
+                              type="time"
+                              name={`abre_${d}`}
+                              defaultValue={franja?.[0] ?? ''}
+                              className={inputAdmin}
+                            />
+                            <span className="text-muted">a</span>
+                            <input
+                              type="time"
+                              name={`cierra_${d}`}
+                              defaultValue={franja?.[1] ?? ''}
+                              className={inputAdmin}
+                            />
+                            <span className="text-xs text-muted">
+                              {franja ? '' : 'en blanco = cerrado'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                );
+              })()}
             </form>
           </article>
         ))}
