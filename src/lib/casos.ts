@@ -133,12 +133,34 @@ export function venceSegunSla(minutos: number): string {
 }
 
 /**
- * Propietario que debe hacerse cargo de un caso reabierto: el anterior si
- * sigue activo; si no, el administrador general (dirección más antigua).
+ * Quién se hace cargo de un caso reabierto (regla 4).
+ *
+ * Primero, quien lo llevaba: es quien conoce la historia, y volver a empezar
+ * de cero con otra persona es justo lo que la regla quiere evitar. Se le
+ * devuelve aunque esté de vacaciones —la regla 10 lo marca como «propietario
+ * ausente», no se lo quita—; solo se busca a otro si ya no está en el equipo.
+ *
+ * Y si hay que buscar a otro, ese otro tiene que PODER VERLO. Esta función es
+ * anterior al alcance por centro: cogía la dirección activa más antigua sin
+ * mirar nada más. Con direcciones de centro eso abre una trampa silenciosa —si
+ * la más antigua fuera la de Horizonte, un caso de Bellamar reabierto le caería
+ * a alguien que no puede abrirlo—. El caso saldría con propietario y su
+ * propietario no lo vería nunca. Hoy no muerde porque la única dirección es de
+ * grupo, pero muerde el día que eso cambie, que es el peor momento para
+ * enterarse.
+ *
+ * El orden de preferencia es, entonces:
+ *
+ *   1. dirección de GRUPO, que es el «administrador general» de la regla;
+ *   2. dirección del centro del caso, si no hay ninguna de grupo;
+ *   3. entre las que valen, la que NO esté ausente hoy (regla 10);
+ *   4. y si todas lo están, una ausente igualmente: un caso sin propietario es
+ *      peor que un caso cuyo propietario vuelve el lunes (regla 8).
  */
 export async function propietarioParaReapertura(
   admin: Cliente,
   propietarioAnterior: string | null,
+  centroDelCaso?: string | null,
 ): Promise<string | null> {
   if (propietarioAnterior) {
     const { data: perfil } = await admin
@@ -148,15 +170,44 @@ export async function propietarioParaReapertura(
       .maybeSingle();
     if (perfil?.activo) return propietarioAnterior;
   }
-  const { data: adminGeneral } = await admin
-    .from('perfiles')
-    .select('id')
-    .eq('rol', 'direccion')
-    .eq('activo', true)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle();
-  return adminGeneral?.id ?? null;
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const [{ data: direcciones }, { data: susCentros }, { data: ausenciasHoy }] = await Promise.all([
+    admin
+      .from('perfiles')
+      .select('id, alcance')
+      .eq('rol', 'direccion')
+      .eq('activo', true)
+      .order('created_at'),
+    admin.from('perfil_centros').select('perfil_id, centro_id'),
+    admin.from('ausencias').select('perfil_id').lte('desde', hoy).gte('hasta', hoy),
+  ]);
+
+  const ausentes = new Set((ausenciasHoy ?? []).map((a) => a.perfil_id));
+  const centrosDe = new Map<string, Set<string>>();
+  for (const c of susCentros ?? []) {
+    const suyos = centrosDe.get(c.perfil_id) ?? new Set<string>();
+    suyos.add(c.centro_id);
+    centrosDe.set(c.perfil_id, suyos);
+  }
+
+  const puedeVerlo = (p: { id: string; alcance: string | null }) =>
+    p.alcance === 'grupo' || !centroDelCaso || (centrosDe.get(p.id)?.has(centroDelCaso) ?? false);
+
+  const candidatas = (direcciones ?? []).filter(puedeVerlo);
+  // Ya vienen de la más antigua a la más nueva; solo hay que preferir grupo y
+  // a quien esté hoy.
+  const orden = [
+    (p: { alcance: string | null; id: string }) => p.alcance === 'grupo' && !ausentes.has(p.id),
+    (p: { alcance: string | null; id: string }) => p.alcance === 'grupo',
+    (p: { alcance: string | null; id: string }) => !ausentes.has(p.id),
+    () => true,
+  ];
+  for (const criterio of orden) {
+    const elegida = candidatas.find(criterio);
+    if (elegida) return elegida.id;
+  }
+  return null;
 }
 
 /**
@@ -174,33 +225,31 @@ export async function reabrirCaso(
   },
 ): Promise<void> {
   const { caso, motivo, notaExtra, usuarioId } = opciones;
-  const propietarioId = await propietarioParaReapertura(admin, caso.propietarioId);
+  const propietarioId = await propietarioParaReapertura(admin, caso.propietarioId, caso.centroId);
 
   await admin
     .from('leads')
     .update({ estado: 'reabierto', motivo_perdida_id: null, propietario_id: propietarioId })
     .eq('id', caso.leadId);
 
-  await admin
-    .from('actividades')
-    .insert([
-      {
-        lead_id: caso.leadId,
-        tipo: 'reapertura',
-        contenido: motivo,
-        usuario_id: usuarioId ?? null,
-      },
-      ...(notaExtra
-        ? [
-            {
-              lead_id: caso.leadId,
-              tipo: 'nota' as const,
-              contenido: notaExtra,
-              usuario_id: usuarioId ?? null,
-            },
-          ]
-        : []),
-    ]);
+  await admin.from('actividades').insert([
+    {
+      lead_id: caso.leadId,
+      tipo: 'reapertura',
+      contenido: motivo,
+      usuario_id: usuarioId ?? null,
+    },
+    ...(notaExtra
+      ? [
+          {
+            lead_id: caso.leadId,
+            tipo: 'nota' as const,
+            contenido: notaExtra,
+            usuario_id: usuarioId ?? null,
+          },
+        ]
+      : []),
+  ]);
 
   await admin.from('tareas').insert({
     lead_id: caso.leadId,

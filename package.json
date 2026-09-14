@@ -57,6 +57,7 @@
     "staging:verificar:marketing-centro": "tsx --env-file=.env.staging scripts/verificar-marketing-centro.ts",
     "verificar:fuentes": "tsx --env-file=.env.local scripts/verificar-fuentes.ts",
     "staging:verificar:fuentes": "tsx --env-file=.env.staging scripts/verificar-fuentes.ts",
+    "staging:verificar:ausencias": "tsx --env-file=.env.staging scripts/verificar-ausencias.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",
     "staging:verificar:etiquetado": "tsx --env-file=.env.staging scripts/verificar-etiquetado.ts",
     "puesta-en-marcha": "tsx --env-file=.env.local scripts/puesta-en-marcha.ts",
