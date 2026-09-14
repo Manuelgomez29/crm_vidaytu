@@ -6,6 +6,7 @@ import { COLORES_ETIQUETA, clasesEtiqueta } from '@/lib/colores';
 import {
   borrarEtiqueta,
   borrarRegla,
+  retirarEtiquetasDeRegla,
   cambiarEstadoRegla,
   crearEtiqueta,
   crearRegla,
@@ -42,7 +43,7 @@ export default async function GestionEtiquetas({
       .select('id, nombre, color, activa, created_by')
       .order('activa', { ascending: false })
       .order('nombre'),
-    supabase.from('contacto_etiquetas').select('etiqueta_id'),
+    supabase.from('contacto_etiquetas').select('etiqueta_id, regla_id'),
     supabase
       .from('reglas_etiquetado')
       .select('id, nombre, condicion, activa, etiqueta:etiquetas (nombre, color)')
@@ -52,6 +53,13 @@ export default async function GestionEtiquetas({
   const recuento = new Map<string, number>();
   for (const u of usos ?? []) {
     recuento.set(u.etiqueta_id, (recuento.get(u.etiqueta_id) ?? 0) + 1);
+  }
+
+  // Cuanta gente ha etiquetado cada regla. Es el numero que hay que ver ANTES
+  // de borrarla: no es lo mismo deshacer tres que cuatrocientas.
+  const puestasPorRegla = new Map<string, number>();
+  for (const u of usos ?? []) {
+    if (u.regla_id) puestasPorRegla.set(u.regla_id, (puestasPorRegla.get(u.regla_id) ?? 0) + 1);
   }
 
   return (
@@ -182,9 +190,11 @@ export default async function GestionEtiquetas({
           Reglas de etiquetado automático
         </h3>
         <p className="mb-3 mt-0.5 text-xs text-ink2">
-          Aquí se definen: «si el canal es Instagram, etiqueta Lolo Drago». El motor que las aplica
-          llega en la fase 2; mientras tanto quedan registradas y las etiquetas puestas a mano
-          siguen funcionando igual.
+          Aquí se definen: «si el canal es Instagram, etiqueta Lolo Drago». El motor las aplica solo
+          con el resto de automatismos, cada quince minutos, así que una regla nueva tarda un rato
+          en verse. Solo <b>añade</b>: no retira una etiqueta aunque el caso deje de cumplir la
+          condición, porque quien llegó una vez por Instagram llegó por Instagram. Para deshacer lo
+          que puso una regla está su botón: desactivarla no basta.
         </p>
 
         <form action={crearRegla} className="mb-4 flex flex-wrap gap-2">
@@ -234,6 +244,17 @@ export default async function GestionEtiquetas({
                 </p>
               </div>
               <div className="flex items-center gap-3">
+                {/*
+                  Cuanta gente lleva puesta por esta regla. Va delante de los
+                  botones a proposito: apagar una regla NO retira lo que ya
+                  puso, y sin este numero eso se descubre tarde.
+                */}
+                <span className="num text-xs text-muted">
+                  {(puestasPorRegla.get(r.id) ?? 0) === 1
+                    ? '1 persona'
+                    : `${puestasPorRegla.get(r.id) ?? 0} personas`}
+                </span>
+
                 <form action={cambiarEstadoRegla.bind(null, r.id, !r.activa)}>
                   <button
                     type="submit"
@@ -242,10 +263,28 @@ export default async function GestionEtiquetas({
                     {r.activa ? 'Desactivar' : 'Activar'}
                   </button>
                 </form>
+
+                {(puestasPorRegla.get(r.id) ?? 0) > 0 && (
+                  <form action={retirarEtiquetasDeRegla.bind(null, r.id)}>
+                    <button
+                      type="submit"
+                      className="text-xs text-muted hover:text-warn hover:underline"
+                      title="Quita la etiqueta a quien se la puso esta regla, sin borrar la regla"
+                    >
+                      Retirar lo que puso
+                    </button>
+                  </form>
+                )}
+
                 <form action={borrarRegla.bind(null, r.id)}>
                   <button
                     type="submit"
                     className="text-xs text-muted hover:text-danger hover:underline"
+                    title={
+                      (puestasPorRegla.get(r.id) ?? 0) > 0
+                        ? `Borra la regla y retira las ${puestasPorRegla.get(r.id)} etiquetas que puso`
+                        : 'Borra la regla'
+                    }
                   >
                     Borrar
                   </button>
