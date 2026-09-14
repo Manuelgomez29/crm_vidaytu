@@ -3,7 +3,8 @@ import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
 import { exigirDireccion } from '../guard';
 import { Avisos, botonAdmin, inputAdmin } from '../nav';
-import { guardarParametros } from '../actions';
+import { guardarAreas, guardarParametros } from '../actions';
+import { AREAS, AREAS_FIJAS, areasActivas, type Area } from '@/lib/areas';
 
 export default async function AdminParametros({
   searchParams,
@@ -12,6 +13,7 @@ export default async function AdminParametros({
 }) {
   const { error: errorMsg, aviso } = await searchParams;
   const { supabase } = await exigirDireccion();
+  const activas = await areasActivas(supabase);
 
   const { data: filas } = await supabase
     .from('configuracion')
@@ -54,6 +56,62 @@ export default async function AdminParametros({
         Estos valores no están escritos en el código: la plataforma los lee de aquí cada vez que los
         necesita, así que cualquier cambio se aplica de inmediato.
       </p>
+
+      {/* ---------------- Qué áreas están en marcha ---------------- */}
+      <form
+        action={guardarAreas}
+        className="mb-5 flex flex-col gap-3 rounded-xl bg-surface p-5 ring-1 ring-line"
+      >
+        <div>
+          <h2 className="text-sm font-semibold">Qué áreas están en marcha</h2>
+          <p className="mt-1 max-w-[76ch] text-[13px] text-ink2">
+            La plataforma se entrega por partes. Lo que esté apagado se sigue viendo en el menú, en
+            gris y con su fase, y su dirección queda bloqueada también para quien la escriba a mano
+            o la tenga guardada. <b>No se borra nada</b>: al encender un área aparece con todo
+            dentro.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {(Object.keys(AREAS) as Area[]).map((clave) => {
+            const fija = AREAS_FIJAS.includes(clave);
+            return (
+              <label
+                key={clave}
+                className={`flex items-start gap-2.5 rounded-lg p-3 text-[13.5px] ring-1 ${
+                  activas.has(clave) ? 'ring-line' : 'bg-surface2 ring-line'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="areas"
+                  value={clave}
+                  defaultChecked={activas.has(clave)}
+                  disabled={fija}
+                  className="mt-0.5"
+                />
+                <span className="min-w-0">
+                  <b>{AREAS[clave].texto}</b>
+                  {AREAS[clave].fase && (
+                    <span className="ml-1.5 chip chip-mut">{AREAS[clave].fase}</span>
+                  )}
+                  <span className="mt-0.5 block text-xs text-ink2">
+                    {fija
+                      ? 'No se puede apagar: sin ella no hay plataforma, ni forma de volver a encender el resto.'
+                      : activas.has(clave)
+                        ? 'En marcha.'
+                        : 'Apagada. Se ve en el menú pero no se entra.'}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+
+        <button type="submit" className={`${botonAdmin} self-start`}>
+          Guardar áreas
+        </button>
+      </form>
 
       <form
         action={guardarParametros}

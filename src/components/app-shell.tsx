@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
+import { AREAS, areasActivas, type Area } from '@/lib/areas';
 import { fechaCorta } from '@/lib/fechas';
 import { IconoCampana, IconoMenu, IconoSalir } from './iconos';
 import { CajaBuscar, LupaMovil } from './caja-buscar';
@@ -24,10 +25,19 @@ export type Seccion =
   | 'facturacion'
   | 'admin';
 
-type Entrada = { clave: Seccion; texto: string; href: string; icono: string };
+type Entrada = {
+  clave: Seccion;
+  texto: string;
+  href: string;
+  icono: string;
+  /** A qué área pertenece. Si esa área está apagada, la entrada no es enlace. */
+  area?: Area;
+};
 type Bloque = { titulo: string; entradas: Entrada[] };
 
 export type PerfilNav = {
+  /** Las áreas encendidas ahora mismo. Ver `lib/areas.ts`. */
+  areas: Set<Area>;
   rol: string | undefined;
   accesoClinico: boolean;
   /** 'grupo' manda en todo; 'centros', solo en los suyos. */
@@ -51,12 +61,18 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
     salida.push({
       titulo: 'Área comercial',
       entradas: [
-        { clave: 'mi-dia', texto: 'Mi día', href: '/mi-dia', icono: '☀' },
-        { clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
-        { clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
-        { clave: 'contactos', texto: 'Contactos', href: '/contactos', icono: '◉' },
-        { clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
-        { clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
+        { area: 'comercial', clave: 'mi-dia', texto: 'Mi día', href: '/mi-dia', icono: '☀' },
+        { area: 'comercial', clave: 'leads', texto: 'Kanban', href: '/leads', icono: '▦' },
+        { area: 'comercial', clave: 'tareas', texto: 'Mis tareas', href: '/tareas', icono: '☑' },
+        {
+          area: 'comercial',
+          clave: 'contactos',
+          texto: 'Contactos',
+          href: '/contactos',
+          icono: '◉',
+        },
+        { area: 'comercial', clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
+        { area: 'comercial', clave: 'panel', texto: 'Dashboard', href: '/panel', icono: '◔' },
       ],
     });
   }
@@ -71,7 +87,15 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
   if (rol === 'direccion') {
     salida.push({
       titulo: 'Área de marketing',
-      entradas: [{ clave: 'marketing', texto: 'Campañas', href: '/marketing', icono: '✉' }],
+      entradas: [
+        {
+          area: 'marketing',
+          clave: 'marketing',
+          texto: 'Campañas',
+          href: '/marketing',
+          icono: '✉',
+        },
+      ],
     });
   }
 
@@ -79,10 +103,24 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
     salida.push({
       titulo: 'Área clínica',
       entradas: [
-        { clave: 'clinica', texto: 'Pacientes', href: '/clinica', icono: '✚' },
-        { clave: 'chat', texto: 'Chat interno', href: '/clinica/chat', icono: '💬' },
+        { area: 'clinica', clave: 'clinica', texto: 'Pacientes', href: '/clinica', icono: '✚' },
+        {
+          area: 'clinica',
+          clave: 'chat',
+          texto: 'Chat interno',
+          href: '/clinica/chat',
+          icono: '💬',
+        },
         ...(rol === 'terapeuta' && !esComercial
-          ? [{ clave: 'agenda' as const, texto: 'Agenda', href: '/agenda', icono: '▤' }]
+          ? [
+              {
+                area: 'comercial' as const,
+                clave: 'agenda' as const,
+                texto: 'Agenda',
+                href: '/agenda',
+                icono: '▤',
+              },
+            ]
           : []),
       ],
     });
@@ -92,9 +130,23 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
     salida.push({
       titulo: 'Administración',
       entradas: [
-        { clave: 'facturacion', texto: 'Facturación', href: '/facturacion', icono: '€' },
+        {
+          area: 'facturacion',
+          clave: 'facturacion',
+          texto: 'Facturación',
+          href: '/facturacion',
+          icono: '€',
+        },
         ...(rol === 'direccion'
-          ? [{ clave: 'admin' as const, texto: 'Configuración', href: '/admin', icono: '⚙' }]
+          ? [
+              {
+                area: 'administracion' as const,
+                clave: 'admin' as const,
+                texto: 'Configuración',
+                href: '/admin',
+                icono: '⚙',
+              },
+            ]
           : []),
       ],
     });
@@ -104,7 +156,9 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
   if (salida.length === 0) {
     salida.push({
       titulo: 'Mi trabajo',
-      entradas: [{ clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' }],
+      entradas: [
+        { area: 'comercial', clave: 'agenda', texto: 'Agenda', href: '/agenda', icono: '▤' },
+      ],
     });
   }
 
@@ -193,6 +247,32 @@ function Navegacion({
             const hijos = SUBSECCIONES[e.clave]?.filter(
               (h) => !h.soloGrupo || perfil.alcance === 'grupo',
             );
+
+            /*
+             * Un area apagada se ve, pero no se toca. Va como <span> y no como
+             * <Link> a proposito: un enlace que lleva a «todavia no» es una
+             * promesa incumplida cada vez que alguien lo pulsa, y ademas el
+             * teclado se pararia en el.
+             */
+            const apagada = !!e.area && !perfil.areas.has(e.area);
+            if (apagada) {
+              return (
+                <div
+                  key={e.clave}
+                  title={`${AREAS[e.area!].texto}: todavía no está en marcha`}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium text-[#7F8CA8]"
+                >
+                  <span className="w-[18px] text-center opacity-60">{e.icono}</span>
+                  <span className="line-through decoration-[#7F8CA8]/50">{e.texto}</span>
+                  {AREAS[e.area!].fase && (
+                    <span className="ml-auto rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#7F8CA8] ring-1 ring-white/15">
+                      {AREAS[e.area!].fase}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <div key={e.clave}>
                 <Link
@@ -317,7 +397,7 @@ export async function AppShell({
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [{ data: notificaciones }, { data: perfil }] = await Promise.all([
+  const [{ data: notificaciones }, { data: perfil }, areas] = await Promise.all([
     supabase
       .from('notificaciones')
       .select('id, mensaje, lead_id, leida_at, created_at')
@@ -328,14 +408,22 @@ export async function AppShell({
       .select('nombre, rol, acceso_clinico, alcance, tema')
       .eq('id', user.id)
       .maybeSingle(),
+    areasActivas(supabase),
   ]);
 
   const sinLeer = (notificaciones ?? []).filter((n) => n.leida_at === null).length;
   const esComercial = perfil?.rol === 'direccion' || perfil?.rol === 'admisiones';
+  /*
+   * A donde lleva el logotipo. Se mira que el area de destino este encendida:
+   * el inicio de quien lleva la administracion economica es facturacion, y
+   * mandarle cada vez a una puerta cerrada es peor que no tener atajo.
+   */
   const inicio =
     perfil?.rol === 'terapeuta'
-      ? '/agenda'
-      : perfil?.rol === 'administracion'
+      ? // La agenda es del area comercial, que nunca se apaga: un terapeuta
+        // siempre tiene a donde ir.
+        '/agenda'
+      : perfil?.rol === 'administracion' && areas.has('facturacion')
         ? '/facturacion'
         : '/mi-dia';
   const nombre = perfil?.nombre ?? user.email ?? '';
@@ -367,6 +455,7 @@ export async function AppShell({
             rol: perfil?.rol,
             accesoClinico: perfil?.acceso_clinico ?? false,
             alcance: perfil?.alcance,
+            areas,
           }}
         />
       </div>

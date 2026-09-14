@@ -207,9 +207,6 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nA quién vuelve un caso reabierto:');
 
-  const deGrupo = (perfiles ?? []).find(
-    (p) => p.rol === 'direccion' && p.alcance === 'grupo' && p.activo,
-  );
   const deCentro = (perfiles ?? []).find(
     (p) => p.rol === 'direccion' && p.alcance === 'centros' && p.activo,
   );
@@ -221,10 +218,25 @@ async function main() {
     'la regla 4 manda: quien conoce el caso lo retoma',
   );
 
+  /*
+   * Se comprueba que cae en UNA direccion de grupo, no en una concreta.
+   *
+   * La primera version comparaba contra `deGrupo`, que era la primera que
+   * devolvia una consulta SIN ORDENAR. En staging hay dos direcciones de grupo,
+   * asi que el test pasaba o fallaba segun lo que le apeteciera a Postgres ese
+   * dia — y un test inestable acaba ignorandose, que es peor que no tenerlo.
+   * Lo que la regla promete es el «administrador general», no una persona.
+   */
+  const idsDeGrupo = new Set(
+    (perfiles ?? [])
+      .filter((p) => p.rol === 'direccion' && p.alcance === 'grupo' && p.activo)
+      .map((p) => p.id),
+  );
   const sinAnterior = await propietarioParaReapertura(admin, null, horizonte.id);
   comprobar(
-    'si no queda nadie, va a la dirección de grupo',
-    !!deGrupo && sinAnterior === deGrupo.id,
+    'si no queda nadie, va a una dirección de grupo',
+    !!sinAnterior && idsDeGrupo.has(sinAnterior),
+    `${idsDeGrupo.size} dirección(es) de grupo activas`,
   );
 
   /*

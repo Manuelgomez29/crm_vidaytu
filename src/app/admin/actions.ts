@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Json } from '@/lib/database.types';
 import type { Database } from '@/lib/database.types';
+import { AREAS, AREAS_FIJAS, CLAVE_CONFIG as CLAVE_AREAS, type Area } from '@/lib/areas';
 
 type Rol = Database['public']['Enums']['rol_usuario'];
 
@@ -870,6 +871,36 @@ export async function borrarEtapa(etapaId: string) {
 // ---------------------------------------------------------------------------
 // Parámetros (tabla configuracion)
 // ---------------------------------------------------------------------------
+
+/**
+ * Enciende y apaga areas de la plataforma.
+ *
+ * Es lo que permite entregarla por partes sin desplegar nada: hoy solo el area
+ * comercial, y marketing el dia que haya proveedor de correo. Ver
+ * `src/lib/areas.ts`.
+ *
+ * Las fijas se anaden SIEMPRE, aunque no vengan marcadas en el formulario.
+ * Apagar administracion seria apagar el interruptor desde dentro de la
+ * habitacion del interruptor: nadie podria volver a encender nada.
+ */
+export async function guardarAreas(formData: FormData) {
+  await exigirDireccionDeGrupo('parametros', 'Qué áreas están en marcha');
+
+  const marcadas = formData.getAll('areas').map(String);
+  const validas = marcadas.filter((a): a is Area => a in AREAS);
+  const activas = [...new Set<Area>([...AREAS_FIJAS, ...validas])];
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('configuracion')
+    .update({ valor: activas })
+    .eq('clave', CLAVE_AREAS);
+  if (error) volver('parametros', { error: `No se pudo guardar: ${error.message}` });
+
+  volver('parametros', {
+    aviso: `En marcha: ${activas.map((a) => AREAS[a].texto).join(', ')}.`,
+  });
+}
 
 export async function guardarParametros(formData: FormData) {
   await exigirDireccionDeGrupo('parametros', 'El SLA, la cadencia y la plantilla del recordatorio');
