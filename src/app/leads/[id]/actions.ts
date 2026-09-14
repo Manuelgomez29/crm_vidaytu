@@ -587,3 +587,131 @@ export async function pedirSugerenciaReactivacion(leadId: string) {
   revalidatePath(`/leads/${leadId}`);
   redirect(`/leads/${leadId}?sugerencia=${r.consultaId}`);
 }
+
+/**
+ * Borrar un caso. De verdad, sin vuelta atrás.
+ *
+ * La regla 11 lo deja claro: lo NORMAL es marcar «no válido» y dejar que la
+ * anonimización haga su trabajo al vencer el plazo. Eso conserva lo que hay
+ * que conservar —que hubo un caso, de qué centro, cuánto costó— sin conservar
+ * a la persona. Borrar es la excepción: una prueba, un duplicado que no se
+ * pudo fundir, un envío de un formulario que nunca fue nadie.
+ *
+ * Y sin embargo tiene que existir, porque hasta hoy no existía: las pruebas de
+ * las landings hubo que sacarlas de la base de datos a mano, y eso no se le
+ * puede pedir a nadie el día que yo no esté delante.
+ *
+ * TRES CANDADOS:
+ *
+ *   · Solo DIRECCIÓN DE GRUPO. La política de la base deja borrar a cualquier
+ *     dirección en sus centros; aquí se aprieta más, porque «cuenta máster» es
+ *     lo que dice la regla y porque el daño no se reparte por centros.
+ *   · Motivo obligatorio. No por burocracia: es lo único que quedará escrito
+ *     dentro de un año, cuando nadie recuerde por qué faltaba ese caso.
+ *   · El borrado lo hace la SESIÓN de quien pulsa, no la clave de servicio. Si
+ *     RLS dijera que no, tiene que fallar aquí también.
+ *
+ * La auditoría la escribe el disparador de la tabla, con la fila entera; esta
+ * función añade la fila del PORQUÉ, que es lo que el disparador no puede saber.
+ */
+export async function borrarCaso(leadId: string, formData: FormData) {
+  const motivo = String(formData.get('motivo') ?? '').trim();
+  const confirmado = formData.get('confirmo') === 'on';
+  const limpiarPersonas = formData.get('personas') === 'on';
+
+  if (!confirmado) volver(leadId, { error: 'Marca la casilla: el borrado no se puede deshacer.' });
+  if (motivo.length < 5) {
+    volver(leadId, { error: 'Escribe por qué se borra. Es lo único que quedará escrito.' });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) volver(leadId, { error: 'Sesión caducada.' });
+
+  const { data: mandaEnGrupo } = await supabase.rpc('manda_en_grupo');
+  if (!mandaEnGrupo) {
+    volver(leadId, {
+      error:
+        'Solo la dirección de grupo puede borrar un caso. Si sobra, márcalo como no válido: se deja de contar y la anonimización lo limpia al vencer el plazo.',
+    });
+  }
+
+  const { data: lead } = await supabase
+    .from('leads')
+    .select('id, nombre, telefono, estado, created_at, centro:centros (nombre)')
+    .eq('id', leadId)
+    .maybeSingle();
+  if (!lead) volver(leadId, { error: 'Ese caso ya no está.' });
+
+  // Las personas, ANTES de borrar: al irse el caso se van sus vínculos.
+  const { data: vinculos } = await supabase
+    .from('lead_contactos')
+    .select('contacto_id')
+    .eq('lead_id', leadId);
+  const personas = (vinculos ?? []).map((v) => v.contacto_id);
+
+  /*
+   * El porqué se escribe ANTES. Si se escribiera después y algo fallara en
+   * medio, quedaría el caso borrado sin explicación, que es el peor de los dos
+   * mundos. La auditoría es append-only: sobra una fila, nunca falta.
+   */
+  const centro = Array.isArray(lead.centro) ? lead.centro[0] : lead.centro;
+  await createAdminClient()
+    .from('auditoria')
+    .insert({
+      tabla: 'leads',
+      registro_id: leadId,
+      accion: 'BORRADO_MANUAL',
+      usuario_id: user.id,
+      datos_nuevos: {
+        motivo,
+        caso: lead.nombre,
+        centro: centro?.nombre ?? null,
+        estado: lead.estado,
+        creado: lead.created_at,
+        tambien_personas: limpiarPersonas,
+      },
+    });
+
+  const { data: borrados, error } = await supabase
+    .from('leads')
+    .delete()
+    .eq('id', leadId)
+    .select('id');
+  if (error) volver(leadId, { error: `No se pudo borrar: ${error.message}` });
+  if ((borrados ?? []).length === 0) {
+    volver(leadId, { error: 'No se pudo borrar: tu usuario no tiene permiso sobre ese caso.' });
+  }
+
+  /*
+   * La persona es GLOBAL (regla 5): no se va con el caso. Solo se ofrece
+   * quitarla si no le queda NINGÚN otro, que es lo que pasa con una prueba —y
+   * lo contrario de lo que pasa con una madre que ya consultó por otro hijo.
+   */
+  let personasBorradas = 0;
+  if (limpiarPersonas) {
+    for (const contactoId of personas) {
+      const { count } = await supabase
+        .from('lead_contactos')
+        .select('id', { count: 'exact', head: true })
+        .eq('contacto_id', contactoId);
+      if ((count ?? 0) > 0) continue;
+      const { data: fuera } = await supabase
+        .from('contactos')
+        .delete()
+        .eq('id', contactoId)
+        .select('id');
+      personasBorradas += (fuera ?? []).length;
+    }
+  }
+
+  revalidatePath('/leads');
+  revalidatePath('/contactos');
+  redirect(
+    `/leads?aviso=${encodeURIComponent(
+      `Borrado «${lead.nombre}»${personasBorradas ? ` y ${personasBorradas} persona(s) que se quedaban sin ningún caso` : ''}. Queda registrado en la auditoría.`,
+    )}`,
+  );
+}

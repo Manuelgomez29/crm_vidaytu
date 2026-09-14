@@ -8,6 +8,7 @@ import { fecha } from '@/lib/fechas';
 import {
   anadirAListaEstatica,
   anadirEtiqueta,
+  borrarContacto,
   cambiarConsentimiento,
   guardarContacto,
   quitarDeLista,
@@ -55,10 +56,12 @@ export default async function FichaContacto({
 
   const { data: perfilRol } = await supabase
     .from('perfiles')
-    .select('rol')
+    .select('rol, alcance')
     .eq('id', user.id)
     .maybeSingle();
   if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
+  // Borrar es de la cuenta máster (regla 11), no de cualquier dirección.
+  const esDireccionDeGrupo = perfilRol?.rol === 'direccion' && perfilRol?.alcance === 'grupo';
 
   const { data: contacto } = await supabase
     .from('contactos')
@@ -355,6 +358,43 @@ export default async function FichaContacto({
             )}
           </ul>
         </Seccion>
+
+        {/*
+          Plegado y al final: lo normal para una persona que pide que la
+          olviden es la anonimización, no esto.
+        */}
+        {esDireccionDeGrupo && (
+          <details className="panel p-4">
+            <summary className="cursor-pointer text-sm font-medium text-danger">
+              Borrar a esta persona del directorio
+            </summary>
+            <form action={borrarContacto.bind(null, contacto.id)} className="mt-3 flex flex-col gap-2">
+              <p className="text-xs text-ink2">
+                Solo se puede si no le queda ningún caso, incluidos los de centros que no ves. Se
+                van con ella sus etiquetas, sus listas y su consentimiento de marketing, y no se
+                puede deshacer.
+              </p>
+              <input
+                type="text"
+                name="motivo"
+                required
+                minLength={5}
+                placeholder="Por qué se borra (queda en la auditoría)"
+                className="campo"
+              />
+              <label className="flex items-start gap-2 text-xs text-ink2">
+                <input type="checkbox" name="confirmo" required className="mt-0.5" />
+                Entiendo que esto no se puede deshacer
+              </label>
+              <button
+                type="submit"
+                className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger-soft"
+              >
+                Borrar a esta persona
+              </button>
+            </form>
+          </details>
+        )}
       </div>
     </AppShell>
   );

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useAviso } from '@/components/avisos';
 import { nivelDeCalor, type Umbrales } from '@/lib/scoring';
+import { clasesCentro } from '@/lib/colores';
 import { asignarmeLead, moverLeadDeEtapa } from './actions';
 import { CampoRapido } from './campo-rapido';
 
@@ -51,18 +52,6 @@ type Arrastre = {
   activo: boolean;
 };
 
-/** Código de color del grupo: cada centro tiene el suyo en chips y borde. */
-const CLASES_CENTRO: Record<string, { borde: string; chip: string }> = {
-  horizonte: { borde: 'borde-hz', chip: 'chip-hz' },
-  eclipse: { borde: 'borde-ec', chip: 'chip-ec' },
-  bellamar: { borde: 'borde-bm', chip: 'chip-bm' },
-  'bandeja-grupo': { borde: 'borde-gr', chip: 'chip-gr' },
-};
-
-function colorCentro(slug: string) {
-  return CLASES_CENTRO[slug] ?? { borde: '', chip: 'chip-mut' };
-}
-
 function Tarjeta({
   lead,
   umbrales,
@@ -90,7 +79,7 @@ function Tarjeta({
   posicion?: string;
   comerciales?: { id: string; nombre: string }[];
 }) {
-  const centro = colorCentro(lead.centroSlug);
+  const centro = clasesCentro(lead.centroSlug);
   const iniciales = (lead.propietarioNombre ?? '')
     .split(/\s+/)
     .map((p) => p[0] ?? '')

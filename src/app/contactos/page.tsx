@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { BarraVistas } from '@/app/leads/barra-vistas';
 import { misVistas, type Vista } from '@/app/leads/vistas';
-import { clasesEtiqueta } from '@/lib/colores';
+import { clasesEtiqueta, clasesCentro } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
 
@@ -18,8 +18,35 @@ type FilaContacto = {
   zona: string | null;
   consentimiento_marketing: boolean;
   contacto_etiquetas: { etiqueta: { id: string; nombre: string; color: string | null } | null }[];
-  lead_contactos: { lead_id: string }[];
+  lead_contactos: {
+    lead_id: string;
+    lead: { centro: { nombre: string; slug: string } | null } | null;
+  }[];
 };
+
+/**
+ * Los centros de los que viene una persona, sin repetir.
+ *
+ * Se deduce de sus casos en vez de guardarse como etiqueta, y es a propósito.
+ * Una etiqueta «Bellamar» se escribe una vez y se queda ahí para siempre: el
+ * día que ese caso se derive de Eclipse a Bellamar —que es el camino normal de
+ * un ingreso— la etiqueta diría una cosa y el caso otra. Esto se lee del caso
+ * cada vez, así que no puede desfasarse.
+ *
+ * Y sale lo que deja ver RLS: quien no tiene Bellamar no verá aquí Bellamar,
+ * igual que no ve esos casos. La lista vacía es información: significa que esa
+ * persona tiene casos en centros ajenos, o que todavía no tiene ninguno.
+ */
+function centrosDe(c: FilaContacto): { nombre: string; slug: string }[] {
+  const vistos = new Map<string, { nombre: string; slug: string }>();
+  for (const v of c.lead_contactos ?? []) {
+    // PostgREST devuelve la relación como objeto o como lista según el caso.
+    const lead = Array.isArray(v.lead) ? v.lead[0] : v.lead;
+    const centro = Array.isArray(lead?.centro) ? lead?.centro[0] : lead?.centro;
+    if (centro?.slug) vistos.set(centro.slug, centro);
+  }
+  return [...vistos.values()];
+}
 
 export default async function DirectorioContactos({
   searchParams,
@@ -30,6 +57,7 @@ export default async function DirectorioContactos({
     lista?: string;
     consent?: string;
     vista?: string;
+    aviso?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -116,7 +144,7 @@ export default async function DirectorioContactos({
     .select(
       `id, nombre, telefono, email, zona, consentimiento_marketing,
        contacto_etiquetas (etiqueta:etiquetas (id, nombre, color)),
-       lead_contactos (lead_id)`,
+       lead_contactos (lead_id, lead:leads (centro:centros (nombre, slug)))`,
     )
     .order('nombre')
     .limit(LIMITE);
@@ -186,7 +214,14 @@ function Pagina({
   listas: { id: string; nombre: string; tipo: string }[];
   recuentos: Map<string, number>;
   total: number;
-  filtros: { q?: string; etiqueta?: string; lista?: string; consent?: string; vista?: string };
+  filtros: {
+    q?: string;
+    etiqueta?: string;
+    lista?: string;
+    consent?: string;
+    vista?: string;
+    aviso?: string;
+  };
   contactos: FilaContacto[];
   error?: string;
   vistas: Vista[];
@@ -201,6 +236,12 @@ function Pagina({
       titulo="Contactos"
       descripcion={`${total} personas · deduplicadas por teléfono y email`}
     >
+      {filtros.aviso && (
+        <p className="mb-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
+          {filtros.aviso}
+        </p>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[230px_1fr]">
         {/* Panel de vistas: listas fijas y segmentos que se recalculan solos. */}
         <aside className="panel p-2.5">
@@ -310,6 +351,7 @@ function Pagina({
                   <thead>
                     <tr>
                       <th>Nombre</th>
+                      <th>Centro</th>
                       <th>Teléfono</th>
                       <th>Email</th>
                       <th>Zona</th>
@@ -328,6 +370,16 @@ function Pagina({
                           >
                             {c.nombre}
                           </Link>
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            {centrosDe(c).map((centro) => (
+                              <span key={centro.slug} className={`chip ${clasesCentro(centro.slug).chip}`}>
+                                {centro.nombre}
+                              </span>
+                            ))}
+                            {centrosDe(c).length === 0 && <span className="text-muted">—</span>}
+                          </div>
                         </td>
                         <td className="num text-ink2">{c.telefono}</td>
                         <td className="num text-ink2">{c.email ?? '—'}</td>

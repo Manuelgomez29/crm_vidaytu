@@ -50,6 +50,7 @@ export default async function LeadsPage({
     modo?: string;
     calientes?: string;
     orden?: string;
+    aviso?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -257,6 +258,14 @@ export default async function LeadsPage({
       titulo="Kanban comercial"
       descripcion={`Proceso: ${procesosVisibles.find((p) => p.id === pipelineId)?.nombre ?? '—'} · ${tarjetas.length} casos abiertos`}
     >
+      {/* Lo que acaba de pasar en otra pantalla —un caso borrado, por ejemplo—
+          se cuenta aquí, que es a donde se vuelve. */}
+      {filtros.aviso && (
+        <p className="mb-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
+          {filtros.aviso}
+        </p>
+      )}
+
       <div className="mb-2">
         <Presencia
           canal="tablero-leads"

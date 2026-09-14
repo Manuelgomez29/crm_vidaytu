@@ -22,6 +22,7 @@ import {
   crearTarea,
   derivarLead,
   marcarNoValido,
+  borrarCaso,
   marcarPerdido,
   reabrirLead,
   registrarActividad,
@@ -145,11 +146,13 @@ export default async function FichaLead({
 
   const { data: perfil } = await supabase
     .from('perfiles')
-    .select('rol, nombre')
+    .select('rol, nombre, alcance')
     .eq('id', user.id)
     .single();
   if (perfil?.rol === 'terapeuta') redirect('/agenda');
   const esDireccion = perfil?.rol === 'direccion';
+  // Borrar es de la cuenta máster (regla 11), no de cualquier dirección.
+  const esDireccionDeGrupo = esDireccion && perfil?.alcance === 'grupo';
 
   const { data: lead } = await supabase
     .from('leads')
@@ -1161,6 +1164,50 @@ export default async function FichaLead({
                     </button>
                   </form>
                 </div>
+              )}
+
+              {/*
+                Borrar va PLEGADO y el último, detrás de un resumen que dice lo
+                que hace. En una pantalla que se usa con el móvil en una mano,
+                un botón rojo suelto acaba pulsándose sin querer; y lo normal no
+                es borrar, es «no válido», que está justo encima.
+              */}
+              {esDireccionDeGrupo && (
+                <details className="mt-4 border-t border-line pt-3">
+                  <summary className="cursor-pointer text-sm font-medium text-danger">
+                    Borrar este caso definitivamente
+                  </summary>
+                  <form action={borrarCaso.bind(null, lead.id)} className="mt-3 flex flex-col gap-2">
+                    <p className="text-xs text-ink2">
+                      Se van con él su historial, sus tareas, sus citas y sus presupuestos, y no se
+                      puede deshacer. Lo normal es «no válido»: deja de contar en las métricas y la
+                      anonimización lo limpia al vencer el plazo. Borra solo lo que nunca fue un
+                      caso —una prueba, un duplicado, un formulario vacío—.
+                    </p>
+                    <input
+                      type="text"
+                      name="motivo"
+                      required
+                      minLength={5}
+                      placeholder="Por qué se borra (queda en la auditoría)"
+                      className={inputClase}
+                    />
+                    <label className="flex items-start gap-2 text-xs text-ink2">
+                      <input type="checkbox" name="personas" className="mt-0.5" />
+                      Borrar también a las personas de este caso que no tengan ningún otro
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-ink2">
+                      <input type="checkbox" name="confirmo" required className="mt-0.5" />
+                      Entiendo que esto no se puede deshacer
+                    </label>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-sm font-medium text-danger transition hover:bg-danger-soft"
+                    >
+                      Borrar el caso
+                    </button>
+                  </form>
+                </details>
               )}
             </div>
           </Seccion>

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
 import type { FiltroSegmento } from '@/lib/segmentos';
 import { CAMPOS_REGLA, type CampoRegla } from '@/lib/reglas';
@@ -404,4 +405,90 @@ export async function borrarLista(listaId: string) {
   }
   revalidatePath('/contactos/listas');
   redirect('/contactos/listas');
+}
+
+/**
+ * Borrar a una persona del directorio.
+ *
+ * Se le pide MÁS que a un caso, no menos, y por dos razones: la persona es
+ * global (regla 5) —puede estar en varios casos, también en centros que quien
+ * pulsa no ve— y su ficha es la que arrastra consentimientos, etiquetas y
+ * listas de marketing.
+ *
+ * Por eso NO se borra en cascada nada suyo: si le queda algún caso, se para y
+ * lo dice. Borrar aquí un caso ajeno de rebote —uno de Bellamar que este
+ * usuario ni siquiera puede ver— sería un agujero con forma de atajo.
+ *
+ * Lo normal para una persona que pide que la olviden NO es esto: es la
+ * anonimización, que conserva que hubo un caso sin conservar quién era. Esto
+ * es para lo que nunca fue nadie.
+ */
+export async function borrarContacto(contactoId: string, formData: FormData) {
+  const motivo = String(formData.get('motivo') ?? '').trim();
+  if (formData.get('confirmo') !== 'on') {
+    volver(contactoId, { error: 'Marca la casilla: el borrado no se puede deshacer.' });
+  }
+  if (motivo.length < 5) {
+    volver(contactoId, { error: 'Escribe por qué se borra. Es lo único que quedará escrito.' });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) volver(contactoId, { error: 'Sesión caducada.' });
+
+  const { data: mandaEnGrupo } = await supabase.rpc('manda_en_grupo');
+  if (!mandaEnGrupo) {
+    volver(contactoId, { error: 'Solo la dirección de grupo puede borrar a una persona.' });
+  }
+
+  /*
+   * Se cuenta con la clave de servicio A PROPÓSITO. Con la sesión de quien
+   * pulsa, un caso en un centro que no ve devolvería cero y la comprobación
+   * diría «no le queda ninguno» justo cuando más importa que diga lo
+   * contrario. Aquí no se enseña nada de ese caso: solo si lo hay.
+   */
+  const admin = createAdminClient();
+  const { count: casos } = await admin
+    .from('lead_contactos')
+    .select('id', { count: 'exact', head: true })
+    .eq('contacto_id', contactoId);
+
+  if ((casos ?? 0) > 0) {
+    volver(contactoId, {
+      error: `No se puede: esta persona sigue en ${casos} caso(s). Borra o cierra antes esos casos. Si alguno no te aparece, es de un centro que tu usuario no ve.`,
+    });
+  }
+
+  const { data: persona } = await supabase
+    .from('contactos')
+    .select('nombre, telefono')
+    .eq('id', contactoId)
+    .maybeSingle();
+
+  await admin.from('auditoria').insert({
+    tabla: 'contactos',
+    registro_id: contactoId,
+    accion: 'BORRADO_MANUAL',
+    usuario_id: user.id,
+    datos_nuevos: { motivo, persona: persona?.nombre ?? null },
+  });
+
+  const { data: fuera, error } = await supabase
+    .from('contactos')
+    .delete()
+    .eq('id', contactoId)
+    .select('id');
+  if (error) volver(contactoId, { error: `No se pudo borrar: ${error.message}` });
+  if ((fuera ?? []).length === 0) {
+    volver(contactoId, { error: 'No se pudo borrar: tu usuario no tiene permiso.' });
+  }
+
+  revalidatePath('/contactos');
+  redirect(
+    `/contactos?aviso=${encodeURIComponent(
+      `Borrada «${persona?.nombre ?? 'la persona'}». Queda registrado en la auditoría.`,
+    )}`,
+  );
 }
