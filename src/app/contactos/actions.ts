@@ -193,8 +193,50 @@ export async function cambiarEstadoRegla(reglaId: string, activa: boolean) {
   volverAEtiquetas();
 }
 
+/**
+ * Retira las etiquetas que puso una regla, sin tocar la regla.
+ *
+ * Es la vuelta atras que faltaba. El motor solo AÑADE —a proposito: quien
+ * llego una vez por Instagram llego por Instagram, y borrarlo reescribiria la
+ * historia— pero eso significa que una regla mal escrita deja rastro
+ * permanente. Si etiqueto a cuatrocientas personas y estaba mal, apagarla no
+ * arregla nada: las cuatrocientas siguen etiquetadas.
+ *
+ * Esto no rompe el principio de que retirar una etiqueta es una decision
+ * humana: la decision humana es este boton. Lo que hace es que una persona
+ * pueda deshacer de una vez lo que una regla hizo de una vez.
+ *
+ * Solo se lleva lo que puso ESA regla (`regla_id`). Lo que alguien puso a mano
+ * —`regla_id` nulo— no se toca.
+ */
+export async function retirarEtiquetasDeRegla(reglaId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('contacto_etiquetas').delete().eq('regla_id', reglaId);
+  if (error) volverAEtiquetas(`No se pudieron retirar: ${error.message}`);
+  volverAEtiquetas();
+}
+
+/**
+ * Borra la regla Y lo que puso.
+ *
+ * Antes solo borraba la regla. Como `contacto_etiquetas.regla_id` es
+ * `on delete set null`, sus etiquetas no solo sobrevivian: PERDIAN EL RASTRO.
+ * A partir de ese momento eran indistinguibles de las puestas a mano, asi que
+ * ya no habia forma de deshacerlas en bloque ni de saber de donde salieron.
+ *
+ * Se retiran primero, mientras todavia se sabe cuales son.
+ */
 export async function borrarRegla(reglaId: string) {
   const supabase = await createClient();
+
+  const { error: errorEtiquetas } = await supabase
+    .from('contacto_etiquetas')
+    .delete()
+    .eq('regla_id', reglaId);
+  if (errorEtiquetas) {
+    volverAEtiquetas(`No se pudieron retirar sus etiquetas: ${errorEtiquetas.message}`);
+  }
+
   const { error } = await supabase.from('reglas_etiquetado').delete().eq('id', reglaId);
   if (error) volverAEtiquetas(`No se pudo borrar: ${error.message}`);
   volverAEtiquetas();

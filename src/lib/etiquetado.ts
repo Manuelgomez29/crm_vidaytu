@@ -39,6 +39,7 @@ type CasoParaReglas = {
   estado: string;
   centro_id: string;
   canal_id: string;
+  modalidad_interes_id: string | null;
   motivo_perdida_id: string | null;
 };
 
@@ -49,6 +50,7 @@ function valoresDelCaso(
   nombres: {
     canales: Map<string, string[]>;
     centros: Map<string, string[]>;
+    modalidades: Map<string, string[]>;
     motivos: Map<string, string[]>;
   },
 ): string[] {
@@ -59,6 +61,10 @@ function valoresDelCaso(
       return nombres.canales.get(caso.canal_id) ?? [];
     case 'centro':
       return nombres.centros.get(caso.centro_id) ?? [];
+    case 'modalidad':
+      return caso.modalidad_interes_id
+        ? (nombres.modalidades.get(caso.modalidad_interes_id) ?? [])
+        : [];
     case 'motivo_perdida':
       return caso.motivo_perdida_id ? (nombres.motivos.get(caso.motivo_perdida_id) ?? []) : [];
     default:
@@ -76,11 +82,13 @@ export async function ejecutarEtiquetado(admin: Cliente): Promise<ResultadoEtiqu
 
   // Catálogos: cada id admite varios textos (nombre y slug), para que una
   // regla escrita como "Instagram" case igual que una escrita como "instagram".
-  const [{ data: canales }, { data: centros }, { data: motivos }] = await Promise.all([
-    admin.from('canales').select('id, nombre, slug'),
-    admin.from('centros').select('id, nombre, slug'),
-    admin.from('motivos_perdida').select('id, nombre, slug'),
-  ]);
+  const [{ data: canales }, { data: centros }, { data: modalidades }, { data: motivos }] =
+    await Promise.all([
+      admin.from('canales').select('id, nombre, slug'),
+      admin.from('centros').select('id, nombre, slug'),
+      admin.from('modalidades').select('id, nombre, slug'),
+      admin.from('motivos_perdida').select('id, nombre, slug'),
+    ]);
 
   const indexar = (filas: { id: string; nombre: string; slug: string }[] | null) =>
     new Map((filas ?? []).map((f) => [f.id, [normalizar(f.nombre), normalizar(f.slug)]]));
@@ -88,20 +96,23 @@ export async function ejecutarEtiquetado(admin: Cliente): Promise<ResultadoEtiqu
   const nombres = {
     canales: indexar(canales),
     centros: indexar(centros),
+    modalidades: indexar(modalidades),
     motivos: indexar(motivos),
   };
 
   const { data: casos } = await admin
     .from('leads')
-    .select('id, estado, centro_id, canal_id, motivo_perdida_id');
+    .select('id, estado, centro_id, canal_id, modalidad_interes_id, motivo_perdida_id');
   if (!casos || casos.length === 0) return { reglas: reglas.length, etiquetasAplicadas: 0 };
 
   // Contactos de cada caso, en una sola consulta.
-  const { data: vinculos } = await admin.from('lead_contactos').select('lead_id, contacto_id');
-  const contactosPorCaso = new Map<string, string[]>();
+  const { data: vinculos } = await admin
+    .from('lead_contactos')
+    .select('lead_id, contacto_id, tipo');
+  const contactosPorCaso = new Map<string, { id: string; tipo: string }[]>();
   for (const v of vinculos ?? []) {
     const lista = contactosPorCaso.get(v.lead_id) ?? [];
-    lista.push(v.contacto_id);
+    lista.push({ id: v.contacto_id, tipo: v.tipo });
     contactosPorCaso.set(v.lead_id, lista);
   }
 
@@ -118,10 +129,24 @@ export async function ejecutarEtiquetado(admin: Cliente): Promise<ResultadoEtiqu
     if (!condicion?.campo || !condicion?.valor) continue;
     const buscado = normalizar(condicion.valor);
 
-    for (const caso of casos as CasoParaReglas[]) {
-      if (!valoresDelCaso(caso, condicion.campo, nombres).includes(buscado)) continue;
+    /*
+     * `tipo_contacto` no mira al caso sino a cada persona dentro de el, asi que
+     * el filtro no puede aplicarse antes del bucle: en un caso donde estan la
+     * madre y el hijo, la regla «afectado» tiene que coger al hijo y dejar a la
+     * madre fuera. Los demas campos si son del caso y valen para todos sus
+     * contactos por igual.
+     */
+    const porContacto = condicion.campo === 'tipo_contacto';
 
-      for (const contactoId of contactosPorCaso.get(caso.id) ?? []) {
+    for (const caso of casos as CasoParaReglas[]) {
+      if (!porContacto && !valoresDelCaso(caso, condicion.campo, nombres).includes(buscado)) {
+        continue;
+      }
+
+      for (const vinculo of contactosPorCaso.get(caso.id) ?? []) {
+        if (porContacto && normalizar(vinculo.tipo) !== buscado) continue;
+
+        const contactoId = vinculo.id;
         const clave = `${contactoId}:${regla.etiqueta_id}`;
         if (yaVisto.has(clave)) continue;
         yaVisto.add(clave);
