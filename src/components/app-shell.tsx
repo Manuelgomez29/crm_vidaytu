@@ -506,7 +506,9 @@ export async function AppShell({
           <details className="relative lg:hidden">
             <summary
               aria-label="Abrir el menú de navegación"
-              className="flex cursor-pointer list-none items-center rounded-lg p-2 text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden"
+              /* 44x44: es el único camino a todas las secciones en el móvil, y
+                 se pulsa con el pulgar mientras se anda. A 34 se falla. */
+              className="flex min-h-11 min-w-11 cursor-pointer list-none items-center justify-center rounded-lg text-ink2 transition hover:bg-ground [&::-webkit-details-marker]:hidden sm:min-h-0 sm:min-w-0 sm:p-2"
             >
               <IconoMenu />
             </summary>
@@ -515,6 +517,19 @@ export async function AppShell({
               style={{ background: 'linear-gradient(180deg,#2C3C5C 0%,#384B71 100%)' }}
             >
               {lateral}
+              {/*
+                El tema vive arriba en el ordenador y AQUÍ en el móvil.
+                Sus tres botones ocupan 84 px de una barra que a 360 px —media
+                gama Android— ya desbordaba: la página entera se movía en
+                horizontal en todas las pantallas. Se cambia dos veces al año;
+                el menú es su sitio.
+              */}
+              <div className="border-t border-white/10 px-3 py-3">
+                <p className="pb-1.5 text-[10.5px] uppercase tracking-[0.1em] text-white/50">
+                  Tema
+                </p>
+                <SelectorTema actual={perfil?.tema ?? 'sistema'} />
+              </div>
             </div>
           </details>
 
@@ -527,8 +542,10 @@ export async function AppShell({
 
           <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
             {/* El tema se cambia desde arriba: abajo, pegado al nombre, no lo
-                buscaba nadie. */}
-            <SelectorTema actual={perfil?.tema ?? 'sistema'} />
+                buscaba nadie. En el móvil no cabe y baja al menú. */}
+            <span className="hidden sm:contents">
+              <SelectorTema actual={perfil?.tema ?? 'sistema'} />
+            </span>
 
             {/*
               La accion de la pagina se esconde en el movil.

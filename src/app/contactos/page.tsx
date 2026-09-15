@@ -346,7 +346,7 @@ function Pagina({
                 {contactos.length} contacto{contactos.length === 1 ? '' : 's'}
                 {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
               </p>
-              <div className="panel overflow-x-auto">
+              <div className="panel hidden overflow-x-auto sm:block">
                 <table className="tabla min-w-[720px]">
                   <thead>
                     <tr>
@@ -417,6 +417,61 @@ function Pagina({
                   </tbody>
                 </table>
               </div>
+              {/*
+                EN EL MÓVIL, FICHAS. La tabla mide 878 px dentro de 341: había
+                que arrastrarla de lado para leer un teléfono. Y esta pantalla se
+                abre sobre todo con el móvil en la mano y una llamada entrando —
+                «¿quién es este número?»—, así que el teléfono va grande, primero
+                y se marca tocándolo.
+              */}
+              <ul className="flex flex-col gap-2 sm:hidden">
+                {contactos.map((c) => {
+                  const centros = centrosDe(c);
+                  return (
+                    <li key={c.id} className="panel p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <Link
+                          href={`/contactos/${c.id}`}
+                          className="font-semibold hover:text-primary hover:underline"
+                        >
+                          {c.nombre}
+                        </Link>
+                        <span className="num shrink-0 text-xs text-muted">
+                          {c.lead_contactos.length} caso{c.lead_contactos.length === 1 ? '' : 's'}
+                        </span>
+                      </div>
+
+                      <a
+                        href={`tel:${c.telefono}`}
+                        className="num mt-1 block text-[15px] font-semibold text-primary"
+                      >
+                        {c.telefono}
+                      </a>
+                      {c.email && <p className="num text-xs text-ink2">{c.email}</p>}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-1">
+                        {centros.map((centro) => (
+                          <span key={centro.slug} className={`chip ${clasesCentro(centro.slug).chip}`}>
+                            {centro.nombre}
+                          </span>
+                        ))}
+                        {c.contacto_etiquetas.map(
+                          (ce) =>
+                            ce.etiqueta && (
+                              <span
+                                key={ce.etiqueta.id}
+                                className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(ce.etiqueta.color)}`}
+                              >
+                                {ce.etiqueta.nombre}
+                              </span>
+                            ),
+                        )}
+                        {c.zona && <span className="text-[11px] text-muted">{c.zona}</span>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
             </>
           )}
         </div>

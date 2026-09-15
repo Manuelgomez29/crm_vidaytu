@@ -46,12 +46,15 @@ function FilaCaso({
   nombre,
   pie,
   slug,
+  centro,
   alerta,
 }: {
   id: string;
   nombre: string;
   pie: string;
   slug?: string;
+  /** Nombre del centro: el chip de color solo, sin decir de qué es, no informa. */
+  centro?: string;
   alerta?: string;
 }) {
   return (
@@ -61,10 +64,28 @@ function FilaCaso({
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13.5px] font-medium">{nombre}</span>
-        <span className="block truncate text-xs text-muted">{pie}</span>
+        {/*
+          Dos líneas, no una cortada. En el móvil «Eclipse · entró hace 10 días»
+          se quedaba en «Eclipse · entró ha…»: se perdía justo el dato por el
+          que esta fila está en la lista.
+        */}
+        <span className="block text-xs text-muted [overflow-wrap:anywhere]">{pie}</span>
       </span>
       {alerta && <span className="chip chip-danger shrink-0">{alerta}</span>}
-      {slug && <span className={`chip ${CHIP_CENTRO[slug] ?? 'chip-mut'} shrink-0`}>&nbsp;</span>}
+      {/*
+        El chip del centro llevaba un espacio en blanco: un óvalo de color y
+        nada más. Quien no distinga esos colores —o no se los sepa— no lee nada,
+        y en el móvil parecía un elemento roto. Lleva su nombre; el color
+        acompaña, no sustituye.
+      */}
+      {slug && (
+        <span
+          className={`chip ${CHIP_CENTRO[slug] ?? 'chip-mut'} hidden shrink-0 sm:inline-flex`}
+          title={centro}
+        >
+          {centro ?? '—'}
+        </span>
+      )}
     </Link>
   );
 }
@@ -256,6 +277,7 @@ export default async function MiDia() {
                 nombre={l.nombre}
                 pie={`${l.centro?.nombre ?? '—'} · entró ${hace(l.created_at)}`}
                 slug={l.centro?.slug}
+                centro={l.centro?.nombre}
                 alerta="Fuera de plazo"
               />
             ))}

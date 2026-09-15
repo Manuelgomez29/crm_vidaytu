@@ -105,7 +105,7 @@ export default async function GestionEtiquetas({
                 <input
                   name="nombre"
                   defaultValue={e.nombre}
-                  className={`${inputClase} min-w-0 flex-1`}
+                  className={`${inputClase} grow basis-48`}
                   aria-label="Nombre de la etiqueta"
                 />
                 <select

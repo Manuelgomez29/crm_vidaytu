@@ -257,7 +257,7 @@ export default async function FichaContacto({
               <input
                 name="nueva"
                 placeholder="…o crear una nueva"
-                className={`${inputClase} min-w-0 flex-1`}
+                className={`${inputClase} grow basis-48`}
               />
               <button type="submit" className={botonSecundario}>
                 Añadir

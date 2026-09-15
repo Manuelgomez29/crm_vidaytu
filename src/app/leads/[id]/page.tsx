@@ -60,6 +60,23 @@ const TIPO_CONTACTO: Record<string, string> = {
 // opcion mas larga y desborda la pantalla del movil. Ver la nota en `.campo`.
 const inputClase =
   'max-w-full min-w-0 rounded-lg border border-line2 bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/25';
+/*
+ * UN CAMPO DE TEXTO QUE CRECE, EN UNA FILA QUE ENVUELVE.
+ *
+ * `flex-1` pone la base en cero: el campo acepta quedarse en lo que sobre
+ * después de sus vecinos. En un ordenador sobra sitio y no se nota; en un móvil
+ * de 375 px, «Próxima acción» se quedaba en 43 px y «Notas» en 32. Sitios donde
+ * no cabe una palabra, en los dos campos que más se escriben.
+ *
+ * `basis-48` le da una talla de partida de 12 rem. El reparto en filas se
+ * decide con esa talla, así que cuando no cabe se BAJA A SU PROPIA LÍNEA en vez
+ * de encogerse; y `grow` hace que ahí ocupe todo el ancho. En pantalla grande
+ * se comporta exactamente igual que antes.
+ *
+ * El `min-w-0` de arriba se queda: es lo que impide que un <select> herede el
+ * ancho de su opción más larga y desborde el móvil. Son problemas distintos.
+ */
+const campoQueCrece = `${inputClase} grow basis-48`;
 const botonClase =
   'rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-white transition hover:bg-primary-hover';
 const botonSecundario =
@@ -488,7 +505,7 @@ export default async function FichaLead({
                   <option value="email">Email</option>
                   <option value="nota">Nota</option>
                 </select>
-                <CampoNota leadId={lead.id} className={`${inputClase} min-w-0 flex-1`} />
+                <CampoNota leadId={lead.id} className={campoQueCrece} />
                 <button type="submit" className={botonClase}>
                   Guardar
                 </button>
@@ -522,7 +539,7 @@ export default async function FichaLead({
               <input
                 name="titulo"
                 placeholder="Próxima acción…"
-                className={`${inputClase} min-w-0 flex-1`}
+                className={campoQueCrece}
               />
               <input name="vence" type="datetime-local" className={inputClase} />
               <button type="submit" className={botonClase}>
@@ -624,7 +641,7 @@ export default async function FichaLead({
                 <input
                   name="notas"
                   placeholder="Notas"
-                  className={`${inputClase} min-w-0 flex-1`}
+                  className={campoQueCrece}
                 />
                 <button type="submit" className={botonClase}>
                   Agendar
@@ -772,7 +789,7 @@ export default async function FichaLead({
               <input
                 name="descripcion"
                 placeholder="Descripción"
-                className={`${inputClase} min-w-0 flex-1`}
+                className={campoQueCrece}
               />
               <button type="submit" className={botonClase}>
                 Añadir
@@ -941,11 +958,11 @@ export default async function FichaLead({
               action={anadirContacto.bind(null, lead.id)}
               className="mt-3 flex flex-col gap-2 border-t border-line pt-3"
             >
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <input
                   name="nombre"
                   placeholder="Nombre"
-                  className={`${inputClase} min-w-0 flex-1`}
+                  className={campoQueCrece}
                 />
                 <input name="telefono" placeholder="+34…" className={`${inputClase} w-36`} />
               </div>
@@ -960,7 +977,7 @@ export default async function FichaLead({
                 <input
                   name="relacion"
                   placeholder="Relación (madre…)"
-                  className={`${inputClase} min-w-0 flex-1`}
+                  className={campoQueCrece}
                 />
                 <label className="flex items-center gap-1.5 text-sm text-ink2">
                   <input type="checkbox" name="principal" /> Principal
