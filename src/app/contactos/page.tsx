@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { BarraVistas } from '@/app/leads/barra-vistas';
+import { FiltrosPlegables } from '@/app/leads/filtros-plegables';
 import { misVistas, type Vista } from '@/app/leads/vistas';
 import { clasesEtiqueta, clasesCentro } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
@@ -308,7 +309,7 @@ function Pagina({
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[230px_1fr]">
         {/* Panel de vistas: listas fijas y segmentos que se recalculan solos. */}
-        <aside className="panel p-2.5">
+        <aside className="panel order-last p-2.5 lg:order-none">
           <p className="px-2.5 pb-1 pt-2 text-[10.5px] uppercase tracking-[0.1em] text-muted">
             Vistas
           </p>
@@ -365,12 +366,18 @@ function Pagina({
             vistaActiva={filtros.vista}
           />
 
-          <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
+          <FiltrosPlegables
+            puestos={
+              [filtros.q, filtros.servicio, filtros.origen, filtros.etiqueta, filtros.consent]
+                .filter(Boolean).length
+            }
+          >
+            <form method="get" className="mb-4 flex flex-wrap items-end gap-2 text-sm">
             <input
               name="q"
               defaultValue={filtros.q ?? ''}
               placeholder="Nombre, teléfono o email…"
-              className="campo min-w-56 flex-1"
+              className="campo min-w-48 flex-1"
             />
             {/*
               Los dos ejes, cada uno con su desplegable. El de servicio mezcla
@@ -379,7 +386,11 @@ function Pagina({
               o «los de HOME». El prefijo distingue las dos consultas por
               detrás, donde sí son distintas.
             */}
-            <select name="servicio" defaultValue={filtros.servicio ?? ''} className="campo">
+            <select
+              name="servicio"
+              defaultValue={filtros.servicio ?? ''}
+              className="campo w-44 shrink-0"
+            >
               <option value="">Cualquier servicio</option>
               {centros.map((c) => (
                 <option key={c.slug} value={`centro:${c.slug}`}>
@@ -393,7 +404,11 @@ function Pagina({
               ))}
             </select>
 
-            <select name="origen" defaultValue={filtros.origen ?? ''} className="campo">
+            <select
+              name="origen"
+              defaultValue={filtros.origen ?? ''}
+              className="campo w-40 shrink-0"
+            >
               <option value="">Cualquier origen</option>
               {Object.entries(ROTULO_ORIGEN).map(([clave, texto]) => (
                 <option key={clave} value={clave}>
@@ -402,29 +417,54 @@ function Pagina({
               ))}
             </select>
 
-            <select name="etiqueta" defaultValue={filtros.etiqueta ?? ''} className="campo">
-              <option value="">Cualquier etiqueta</option>
-              {etiquetas.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
             <input type="hidden" name="lista" value={filtros.lista ?? ''} />
-            <select name="consent" defaultValue={filtros.consent ?? ''} className="campo">
-              <option value="">Consentimiento: indiferente</option>
-              <option value="si">Con consentimiento</option>
-              <option value="no">Sin consentimiento</option>
-            </select>
-            <button type="submit" className="btn btn-primary">
+
+            {/*
+              Los dos de menos uso, plegados. Con cinco desplegables la barra
+              se partía en dos líneas y ninguno destacaba; los que se usan a
+              diario son buscar y servicio, y esos se quedan a la vista.
+              `open` cuando alguno está puesto, para que un filtro activo no
+              quede escondido detrás de un botón.
+            */}
+            <details className="relative shrink-0" open={Boolean(filtros.etiqueta || filtros.consent)}>
+              <summary className="btn btn-ghost cursor-pointer list-none whitespace-nowrap [&::-webkit-details-marker]:hidden">
+                Más filtros
+              </summary>
+              <div className="panel absolute right-0 z-20 mt-2 flex w-64 flex-col gap-2 p-3">
+                <label className="etiqueta-campo">
+                  Etiqueta
+                  <select name="etiqueta" defaultValue={filtros.etiqueta ?? ''} className="campo">
+                    <option value="">Cualquiera</option>
+                    {etiquetas.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="etiqueta-campo">
+                  Consentimiento de marketing
+                  <select name="consent" defaultValue={filtros.consent ?? ''} className="campo">
+                    <option value="">Indiferente</option>
+                    <option value="si">Con consentimiento</option>
+                    <option value="no">Sin consentimiento</option>
+                  </select>
+                </label>
+                <button type="submit" className="btn btn-primary">
+                  Aplicar
+                </button>
+              </div>
+            </details>
+            <button type="submit" className="btn btn-primary shrink-0">
               Buscar
             </button>
-            {hayFiltros && (
-              <Link href="/contactos" className="px-2 py-2 text-primary hover:underline">
-                Limpiar
-              </Link>
-            )}
-          </form>
+              {hayFiltros && (
+                <Link href="/contactos" className="px-2 py-2 text-primary hover:underline">
+                  Limpiar
+                </Link>
+              )}
+            </form>
+          </FiltrosPlegables>
 
           {error ? (
             <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger ring-1 ring-danger/25">
@@ -441,30 +481,45 @@ function Pagina({
                 {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
               </p>
               <div className="panel hidden overflow-x-auto sm:block">
-                <table className="tabla min-w-[720px]">
+                <table className="tabla min-w-[720px] table-fixed">
                   <thead>
                     <tr>
-                      <th>Nombre</th>
-                      <th>Servicio</th>
-                      <th>Origen</th>
-                      <th>Teléfono</th>
-                      <th>Email</th>
-                      <th>Zona</th>
-                      <th>Etiquetas</th>
-                      <th>Casos</th>
-                      <th>Marketing</th>
+                      {/*
+                        Anchos declarados, no repartidos por el navegador. Con
+                        reparto automático el nombre —que es lo que se busca—
+                        se quedaba en 81 px y partido en tres líneas, mientras
+                        una etiqueta larga de centro se llevaba 245.
+                      */}
+                      <th className="w-[24%]">Nombre</th>
+                      <th className="w-[16%]">Servicio</th>
+                      <th className="w-[10%]">Origen</th>
+                      <th className="w-[13%]">Teléfono</th>
+                      <th className="w-[12%]">Email</th>
+                      <th className="w-[12%]">Etiquetas</th>
+                      <th className="w-[13%]">Marketing</th>
                     </tr>
                   </thead>
                   <tbody>
                     {contactos.map((c) => (
                       <tr key={c.id}>
-                        <td className="font-semibold">
+                        <td>
                           <Link
                             href={`/contactos/${c.id}`}
-                            className="hover:text-primary hover:underline"
+                            className="block truncate font-semibold hover:text-primary hover:underline"
+                            title={c.nombre}
                           >
                             {c.nombre}
                           </Link>
+                          {/* La zona ocupaba una columna entera para dos
+                              palabras: cabe aquí, como lo que es. */}
+                          <span className="block truncate text-xs text-muted">
+                            {[
+                              c.zona,
+                              `${c.lead_contactos.length} caso${c.lead_contactos.length === 1 ? '' : 's'}`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
                         </td>
                         <td>
                           {/*
@@ -473,15 +528,21 @@ function Pagina({
                             consulta»— contestada por dos caminos: el centro
                             sale de sus casos, el recorrido está en la persona.
                           */}
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex min-w-0 flex-wrap gap-1">
                             {centrosDe(c).map((centro) => (
-                              <span key={centro.slug} className={`chip ${clasesCentro(centro.slug).chip}`}>
+                              <span
+                                key={centro.slug}
+                                title={centro.nombre}
+                                className={`chip max-w-full truncate ${clasesCentro(centro.slug).chip}`}
+                              >
                                 {centro.nombre}
                               </span>
                             ))}
                             {centrosDe(c).length === 0 &&
                               (c.recorrido ? (
-                                <span className="chip chip-gr">{c.recorrido.nombre}</span>
+                                <span className="chip chip-gr max-w-full truncate">
+                                  {c.recorrido.nombre}
+                                </span>
                               ) : (
                                 <span className="text-muted">Sin aclarar</span>
                               ))}
@@ -490,28 +551,42 @@ function Pagina({
                         <td className="text-ink2">
                           {c.origen ? (ROTULO_ORIGEN[c.origen] ?? c.origen) : '—'}
                         </td>
-                        <td className="num text-ink2">{c.telefono ?? '—'}</td>
-                        <td className="num text-ink2">{c.email ?? '—'}</td>
-                        <td className="num text-ink2">{c.zona ?? '—'}</td>
-                        <td>
-                          <div className="flex flex-wrap gap-1">
-                            {c.contacto_etiquetas.map(
-                              (ce) =>
-                                ce.etiqueta && (
-                                  <span
-                                    key={ce.etiqueta.id}
-                                    className={`rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(ce.etiqueta.color)}`}
-                                  >
-                                    {ce.etiqueta.nombre}
-                                  </span>
-                                ),
-                            )}
-                            {c.contacto_etiquetas.length === 0 && (
-                              <span className="text-muted">—</span>
-                            )}
-                          </div>
+                        <td className="num truncate text-ink2">{c.telefono ?? '—'}</td>
+                        <td className="num truncate text-ink2" title={c.email ?? undefined}>
+                          {c.email ?? '—'}
                         </td>
-                        <td className="num text-ink2">{c.lead_contactos.length}</td>
+                        <td>
+                          {/*
+                            Una etiqueta y el resto contado. Con todas, las
+                            filas de dos etiquetas medían 85 px frente a 60 y
+                            la lista dejaba de barrerse de un vistazo. Las
+                            demás están a un paso, en la ficha, y el título
+                            las enseña sin moverse de aquí.
+                          */}
+                          {(() => {
+                            const etqs = c.contacto_etiquetas
+                              .map((ce) => ce.etiqueta)
+                              .filter((e): e is NonNullable<typeof e> => Boolean(e));
+                            if (etqs.length === 0) return <span className="text-muted">—</span>;
+                            return (
+                              <div
+                                className="flex min-w-0 items-center gap-1"
+                                title={etqs.map((e) => e.nombre).join(' · ')}
+                              >
+                                <span
+                                  className={`min-w-0 truncate rounded-full px-2 py-0.5 text-[11px] ring-1 ${clasesEtiqueta(etqs[0].color)}`}
+                                >
+                                  {etqs[0].nombre}
+                                </span>
+                                {etqs.length > 1 && (
+                                  <span className="num shrink-0 text-[11px] text-muted">
+                                    +{etqs.length - 1}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td>
                           {c.consentimiento_marketing ? (
                             <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok ring-1 ring-ok/25">
