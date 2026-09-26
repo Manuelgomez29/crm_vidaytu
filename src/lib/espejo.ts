@@ -89,7 +89,14 @@ export async function tocaCopiar(admin: SupabaseClient<Database>): Promise<boole
     .select('valor')
     .eq('clave', 'canal_copia_cada_horas')
     .maybeSingle();
-  const horas = Number(cfg?.valor) || 24;
+  /*
+   * `Number(x) || 24` no vale: el cero es falso en JavaScript, así que un
+   * intervalo puesto a cero —«copia en cada pasada»— se convertía en
+   * veinticuatro sin decir nada. Un ajuste que se ignora en silencio es peor
+   * que no tener el ajuste, porque quien lo pone se queda creyendo que manda.
+   */
+  const puesto = Number(cfg?.valor);
+  const horas = Number.isFinite(puesto) && puesto >= 0 ? puesto : 24;
 
   const { data: ultima } = await admin
     .from('canal_copias')
