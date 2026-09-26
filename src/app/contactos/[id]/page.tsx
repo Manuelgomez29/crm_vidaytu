@@ -5,7 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { etiquetaEstado } from '@/lib/estados';
 import { clasesEtiqueta } from '@/lib/colores';
 import { fecha } from '@/lib/fechas';
-import { conversacionDeContacto } from '@/lib/conversacion-espejo';
+import { conversacionDeContacto, origenSocialDe } from '@/lib/conversacion-espejo';
 import {
   anadirAListaEstatica,
   anadirEtiqueta,
@@ -39,6 +39,13 @@ function Seccion({ titulo, children }: { titulo: string; children: React.ReactNo
   );
 }
 
+const TIPO_PUBLICACION: Record<string, string> = {
+  STORY: 'una historia',
+  REELS: 'un reel',
+  FEED: 'una publicación',
+  AD: 'un anuncio',
+};
+
 export default async function FichaContacto({
   params,
   searchParams,
@@ -64,7 +71,10 @@ export default async function FichaContacto({
   // Borrar es de la cuenta máster (regla 11), no de cualquier dirección.
   const esDireccionDeGrupo = perfilRol?.rol === 'direccion' && perfilRol?.alcance === 'grupo';
 
-  const conversacion = await conversacionDeContacto(supabase, id);
+  const [conversacion, origen] = await Promise.all([
+    conversacionDeContacto(supabase, id),
+    origenSocialDe(supabase, id),
+  ]);
 
   const { data: contacto } = await supabase
     .from('contactos')
@@ -323,6 +333,61 @@ export default async function FichaContacto({
           </Seccion>
         </div>
       </div>
+
+      {/*
+        POR QUÉ ESCRIBIÓ.
+        Lo ve quien puede ver a esta persona, comerciales incluidos — al
+        contrario que la conversación, que es de dirección. Quien va a llamar
+        necesita saber de dónde sale, y esto no es contenido de la charla: es
+        su procedencia.
+      */}
+      {origen && (
+        <div className="mt-4">
+          <Seccion titulo="De dónde viene">
+            <p className="text-sm text-ink2">
+              Escribió por <strong className="text-ink">{origen.plataforma ?? 'un canal social'}</strong>
+              {origen.usuario && <> como <span className="num">@{origen.usuario}</span></>}
+              {origen.publicacion && (
+                <>
+                  , respondiendo a{' '}
+                  <strong className="text-ink">
+                    {TIPO_PUBLICACION[origen.publicacion.tipo ?? ''] ?? 'una publicación'}
+                  </strong>
+                  {origen.publicacion.via === 'comment' ? ' por comentario' : ''}
+                  {origen.publicacion.enlace && (
+                    <>
+                      {' '}
+                      (
+                      <a
+                        href={origen.publicacion.enlace}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        verla
+                      </a>
+                      )
+                    </>
+                  )}
+                </>
+              )}
+              .
+            </p>
+
+            {(origen.estado || origen.etiquetas.length > 0) && (
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                {origen.estado && <span className="chip chip-primary">{origen.estado}</span>}
+                {origen.etiquetas.map((e) => (
+                  <span key={e} className="chip chip-mut">
+                    {e}
+                  </span>
+                ))}
+                <span className="text-xs text-muted">según el bot que la atendió</span>
+              </div>
+            )}
+          </Seccion>
+        </div>
+      )}
 
       {/*
         LO QUE ESA PERSONA HA DICHO.

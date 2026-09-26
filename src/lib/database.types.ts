@@ -517,6 +517,7 @@ export type Database = {
           nombre: string | null
           plataforma: string
           primer_evento_at: string
+          publicacion: Json | null
           ref_highlevel: string | null
           ref_plataforma: string | null
           ref_sistema: string
@@ -537,6 +538,7 @@ export type Database = {
           nombre?: string | null
           plataforma: string
           primer_evento_at?: string
+          publicacion?: Json | null
           ref_highlevel?: string | null
           ref_plataforma?: string | null
           ref_sistema: string
@@ -557,6 +559,7 @@ export type Database = {
           nombre?: string | null
           plataforma?: string
           primer_evento_at?: string
+          publicacion?: Json | null
           ref_highlevel?: string | null
           ref_plataforma?: string | null
           ref_sistema?: string

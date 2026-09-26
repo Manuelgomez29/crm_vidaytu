@@ -9,6 +9,7 @@ import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { purgarContenidoVencido } from '@/lib/canal';
 import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
 import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
+import { enlazarIdentidadesSociales } from '@/lib/puente-identidades';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -119,6 +120,15 @@ export async function POST(req: NextRequest) {
       ? null
       : await fase('canal_directorio', fallos, () => volcarDirectorioDeHighLevel(admin), null);
 
+    /*
+     * Y el puente: la identidad de ZeroChats se une a la persona del
+     * directorio por su usuario de Instagram. Va después del volcado porque
+     * necesita que esa persona ya exista.
+     */
+    const puente = directorio
+      ? await fase('canal_puente', fallos, () => enlazarIdentidadesSociales(admin), null)
+      : null;
+
     const resultado = {
       ...(alertas ?? {}),
       ...automatizacion,
@@ -135,6 +145,7 @@ export async function POST(req: NextRequest) {
         ? Object.values(copia.recuentos).reduce((a, b) => a + b, 0)
         : 0,
       canalPersonas: (directorio?.creados ?? 0) + (directorio?.enlazados ?? 0),
+      canalEnlazadas: puente?.enlazadas ?? 0,
       canalDirectorio: directorio ?? undefined,
     };
 

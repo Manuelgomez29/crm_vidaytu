@@ -39,6 +39,48 @@ export type MensajeCopiado = {
   adjuntos: number;
 };
 
+/**
+ * De dónde salió esta persona, en lo que cabe en dos líneas.
+ *
+ * Es lo que necesita quien va a llamarla y hoy no tiene: no la conversación
+ * entera —que para mucha gente no existe— sino por qué escribió.
+ */
+export type OrigenSocial = {
+  plataforma: string | null;
+  usuario: string | null;
+  estado: string | null;
+  etiquetas: string[];
+  publicacion: { tipo: string | null; enlace: string | null; via: string | null } | null;
+};
+
+export async function origenSocialDe(
+  supabase: SupabaseClient<Database>,
+  contactoId: string,
+): Promise<OrigenSocial | null> {
+  const { data } = await supabase
+    .from('canal_identidades')
+    .select('plataforma, usuario, estado, etiquetas, publicacion')
+    .eq('contacto_id', contactoId)
+    .neq('sistema', 'highlevel')
+    .order('ultimo_evento_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const pub = data.publicacion as
+    | { tipo?: string | null; enlace?: string | null; via?: string | null }
+    | null;
+
+  return {
+    plataforma: data.plataforma,
+    usuario: data.usuario,
+    estado: data.estado,
+    etiquetas: data.etiquetas ?? [],
+    publicacion: pub ? { tipo: pub.tipo ?? null, enlace: pub.enlace ?? null, via: pub.via ?? null } : null,
+  };
+}
+
 export type ConversacionCopiada = {
   mensajes: MensajeCopiado[];
   total: number;

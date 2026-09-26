@@ -76,6 +76,15 @@ export type EventoZeroChats = {
   data?: { lead?: LeadZeroChats } & Record<string, unknown>;
 };
 
+/** La publicación a la que respondió, cuando el evento la trae. */
+export type PublicacionDeOrigen = {
+  id: string | null;
+  tipo: string | null;
+  enlace: string | null;
+  via: string | null;
+  cuando: string | null;
+};
+
 export type IdentidadNormalizada = {
   sistema: string;
   plataforma: string;
@@ -88,6 +97,7 @@ export type IdentidadNormalizada = {
   email: string | null;
   estado: string | null;
   etiquetas: string[];
+  publicacion: PublicacionDeOrigen | null;
 };
 
 /**
@@ -116,6 +126,26 @@ export function identidadDesdeEvento(
   const lead = evento.data?.lead;
   if (!lead?.id) return null;
 
+  /*
+   * A qué publicación respondió. Solo viene en `lead.media_replied`, y es la
+   * mejor pista que tenemos de POR QUÉ escribió esa persona: quien contesta a
+   * un reel sobre familias no pregunta lo mismo que quien contesta a un
+   * anuncio de ingreso. El enlace puede llegar vacío —Instagram deja de
+   * exponer una historia a las 24 horas— y eso es normal, no un fallo.
+   */
+  const media = evento.data?.media as
+    | { id?: string; type?: string; permalink?: string | null }
+    | undefined;
+  const publicacion: PublicacionDeOrigen | null = media?.id
+    ? {
+        id: media.id,
+        tipo: media.type ?? null,
+        enlace: media.permalink ?? null,
+        via: typeof evento.data?.source === 'string' ? evento.data.source : null,
+        cuando: evento.createdAt ?? null,
+      }
+    : null;
+
   const telefonoCrudo = (lead.phone ?? '').trim();
 
   return {
@@ -135,6 +165,7 @@ export function identidadDesdeEvento(
     email: lead.email ?? null,
     estado: lead.state ?? null,
     etiquetas: lead.tags ?? [],
+    publicacion,
   };
 }
 
@@ -214,6 +245,7 @@ export async function ingerirEvento(
         email: i.email,
         estado: i.estado,
         etiquetas: i.etiquetas,
+        ...(i.publicacion ? { publicacion: i.publicacion } : {}),
         ultimo_evento_at: ahora,
       },
       { onConflict: 'sistema,ref_sistema' },

@@ -60,6 +60,12 @@ export const QUE_HACE: { clave: string; texto: string; unidad: string; unidades:
     unidades: 'registros',
   },
   {
+    clave: 'canalEnlazadas',
+    texto: 'Identidades sociales unidas a su persona',
+    unidad: 'identidad',
+    unidades: 'identidades',
+  },
+  {
     clave: 'canalPersonas',
     texto: 'Personas de HighLevel llevadas al directorio',
     unidad: 'persona',
