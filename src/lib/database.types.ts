@@ -930,6 +930,7 @@ export type Database = {
           nombre: string
           notas: string | null
           origen: string | null
+          recorrido_id: string | null
           resena_pedida_at: string | null
           telefono: string | null
           updated_at: string
@@ -946,6 +947,7 @@ export type Database = {
           nombre: string
           notas?: string | null
           origen?: string | null
+          recorrido_id?: string | null
           resena_pedida_at?: string | null
           telefono?: string | null
           updated_at?: string
@@ -962,6 +964,7 @@ export type Database = {
           nombre?: string
           notas?: string | null
           origen?: string | null
+          recorrido_id?: string | null
           resena_pedida_at?: string | null
           telefono?: string | null
           updated_at?: string
@@ -973,6 +976,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contactos_recorrido_id_fkey"
+            columns: ["recorrido_id"]
+            isOneToOne: false
+            referencedRelation: "recorridos"
             referencedColumns: ["id"]
           },
         ]
@@ -3106,6 +3116,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recorridos: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          slug: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          slug: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          slug?: string
+        }
+        Relationships: []
       }
       reglas_etiquetado: {
         Row: {

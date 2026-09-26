@@ -18,6 +18,7 @@ type FilaContacto = {
   zona: string | null;
   consentimiento_marketing: boolean;
   origen: string | null;
+  recorrido: { nombre: string; slug: string } | null;
   contacto_etiquetas: { etiqueta: { id: string; nombre: string; color: string | null } | null }[];
   lead_contactos: {
     lead_id: string;
@@ -66,6 +67,8 @@ export default async function DirectorioContactos({
     consent?: string;
     vista?: string;
     aviso?: string;
+    servicio?: string;
+    origen?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -89,10 +92,18 @@ export default async function DirectorioContactos({
     .maybeSingle();
   if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
 
-  const [{ data: etiquetas }, { data: listas }, { count: totalContactos }] = await Promise.all([
+  const [
+    { data: etiquetas },
+    { data: listas },
+    { count: totalContactos },
+    { data: centrosCat },
+    { data: recorridosCat },
+  ] = await Promise.all([
     supabase.from('etiquetas').select('id, nombre, color').eq('activa', true).order('nombre'),
     supabase.from('listas').select('id, nombre, tipo, filtro').order('nombre'),
     supabase.from('contactos').select('id', { count: 'exact', head: true }),
+    supabase.from('centros').select('nombre, slug').eq('activo', true).order('nombre'),
+    supabase.from('recorridos').select('nombre, slug').eq('activo', true).order('orden'),
   ]);
 
   // Recuento de cada lista y segmento para el panel lateral.
@@ -151,6 +162,7 @@ export default async function DirectorioContactos({
     .from('contactos')
     .select(
       `id, nombre, telefono, email, zona, consentimiento_marketing, origen,
+       recorrido:recorridos (nombre, slug),
        contacto_etiquetas (etiqueta:etiquetas (id, nombre, color)),
        lead_contactos (lead_id, lead:leads (centro:centros (nombre, slug)))`,
     )
@@ -171,6 +183,37 @@ export default async function DirectorioContactos({
   }
   if (filtros.consent === 'si') consulta = consulta.eq('consentimiento_marketing', true);
   if (filtros.consent === 'no') consulta = consulta.eq('consentimiento_marketing', false);
+  if (filtros.origen) consulta = consulta.eq('origen', filtros.origen);
+
+  /*
+   * El servicio filtra por dos vías, porque son dos cosas distintas que se
+   * leen en la misma columna: un centro sale de los CASOS de la persona, y un
+   * recorrido está en la propia persona. «centro:bellamar» y «home» no se
+   * consultan igual.
+   */
+  if (filtros.servicio?.startsWith('centro:')) {
+    const slug = filtros.servicio.slice(7);
+    const { data: centro } = await supabase.from('centros').select('id').eq('slug', slug).maybeSingle();
+    if (centro) {
+      const { data: deEseCentro } = await supabase
+        .from('leads')
+        .select('lead_contactos (contacto_id)')
+        .eq('centro_id', centro.id);
+      const suyos = (deEseCentro ?? []).flatMap((l) =>
+        ((l as { lead_contactos?: { contacto_id: string }[] }).lead_contactos ?? []).map(
+          (x) => x.contacto_id,
+        ),
+      );
+      consulta = consulta.in('id', suyos.length ? [...new Set(suyos)] : ['00000000-0000-0000-0000-000000000000']);
+    }
+  } else if (filtros.servicio) {
+    const { data: rec } = await supabase
+      .from('recorridos')
+      .select('id')
+      .eq('slug', filtros.servicio)
+      .maybeSingle();
+    if (rec) consulta = consulta.eq('recorrido_id', rec.id);
+  }
   if (ids !== null) {
     if (ids.length === 0) {
       // Filtro que no deja a nadie: evitamos una consulta con lista vacía.
@@ -180,6 +223,8 @@ export default async function DirectorioContactos({
           filtrosPuestos={filtrosPuestos}
           etiquetas={etiquetas ?? []}
           listas={listas ?? []}
+          centros={centrosCat ?? []}
+          recorridos={recorridosCat ?? []}
           recuentos={recuentos}
           total={totalContactos ?? 0}
           filtros={filtros}
@@ -198,6 +243,8 @@ export default async function DirectorioContactos({
       filtrosPuestos={filtrosPuestos}
       etiquetas={etiquetas ?? []}
       listas={listas ?? []}
+      centros={centrosCat ?? []}
+      recorridos={recorridosCat ?? []}
       recuentos={recuentos}
       total={totalContactos ?? 0}
       filtros={filtros}
@@ -210,6 +257,8 @@ export default async function DirectorioContactos({
 function Pagina({
   etiquetas,
   listas,
+  centros,
+  recorridos,
   recuentos,
   total,
   filtros,
@@ -220,6 +269,8 @@ function Pagina({
 }: {
   etiquetas: { id: string; nombre: string; color: string | null }[];
   listas: { id: string; nombre: string; tipo: string }[];
+  centros: { nombre: string; slug: string }[];
+  recorridos: { nombre: string; slug: string }[];
   recuentos: Map<string, number>;
   total: number;
   filtros: {
@@ -229,6 +280,8 @@ function Pagina({
     consent?: string;
     vista?: string;
     aviso?: string;
+    servicio?: string;
+    origen?: string;
   };
   contactos: FilaContacto[];
   error?: string;
@@ -319,6 +372,36 @@ function Pagina({
               placeholder="Nombre, teléfono o email…"
               className="campo min-w-56 flex-1"
             />
+            {/*
+              Los dos ejes, cada uno con su desplegable. El de servicio mezcla
+              centros y recorridos a propósito: quien lo usa no piensa «esto es
+              un centro y esto un recorrido», piensa «enséñame los de Bellamar»
+              o «los de HOME». El prefijo distingue las dos consultas por
+              detrás, donde sí son distintas.
+            */}
+            <select name="servicio" defaultValue={filtros.servicio ?? ''} className="campo">
+              <option value="">Cualquier servicio</option>
+              {centros.map((c) => (
+                <option key={c.slug} value={`centro:${c.slug}`}>
+                  {c.nombre}
+                </option>
+              ))}
+              {recorridos.map((r) => (
+                <option key={r.slug} value={r.slug}>
+                  {r.nombre}
+                </option>
+              ))}
+            </select>
+
+            <select name="origen" defaultValue={filtros.origen ?? ''} className="campo">
+              <option value="">Cualquier origen</option>
+              {Object.entries(ROTULO_ORIGEN).map(([clave, texto]) => (
+                <option key={clave} value={clave}>
+                  {texto}
+                </option>
+              ))}
+            </select>
+
             <select name="etiqueta" defaultValue={filtros.etiqueta ?? ''} className="campo">
               <option value="">Cualquier etiqueta</option>
               {etiquetas.map((e) => (
@@ -362,7 +445,8 @@ function Pagina({
                   <thead>
                     <tr>
                       <th>Nombre</th>
-                      <th>Centro</th>
+                      <th>Servicio</th>
+                      <th>Origen</th>
                       <th>Teléfono</th>
                       <th>Email</th>
                       <th>Zona</th>
@@ -383,6 +467,12 @@ function Pagina({
                           </Link>
                         </td>
                         <td>
+                          {/*
+                            SERVICIO: el centro cuando lo hay, y si no el
+                            recorrido. Son la misma pregunta —«para qué
+                            consulta»— contestada por dos caminos: el centro
+                            sale de sus casos, el recorrido está en la persona.
+                          */}
                           <div className="flex flex-wrap gap-1">
                             {centrosDe(c).map((centro) => (
                               <span key={centro.slug} className={`chip ${clasesCentro(centro.slug).chip}`}>
@@ -390,14 +480,15 @@ function Pagina({
                               </span>
                             ))}
                             {centrosDe(c).length === 0 &&
-                              (c.origen ? (
-                                <span className="chip chip-mut">
-                                  {ROTULO_ORIGEN[c.origen] ?? c.origen}
-                                </span>
+                              (c.recorrido ? (
+                                <span className="chip chip-gr">{c.recorrido.nombre}</span>
                               ) : (
-                                <span className="text-muted">—</span>
+                                <span className="text-muted">Sin aclarar</span>
                               ))}
                           </div>
+                        </td>
+                        <td className="text-ink2">
+                          {c.origen ? (ROTULO_ORIGEN[c.origen] ?? c.origen) : '—'}
                         </td>
                         <td className="num text-ink2">{c.telefono ?? '—'}</td>
                         <td className="num text-ink2">{c.email ?? '—'}</td>
@@ -490,8 +581,13 @@ function Pagina({
                               </span>
                             ),
                         )}
-                        {centros.length === 0 && c.origen && (
-                          <span className="chip chip-mut">{ROTULO_ORIGEN[c.origen] ?? c.origen}</span>
+                        {centros.length === 0 && c.recorrido && (
+                          <span className="chip chip-gr">{c.recorrido.nombre}</span>
+                        )}
+                        {c.origen && (
+                          <span className="text-[11px] text-muted">
+                            vía {ROTULO_ORIGEN[c.origen] ?? c.origen}
+                          </span>
                         )}
                         {c.zona && <span className="text-[11px] text-muted">{c.zona}</span>}
                       </div>

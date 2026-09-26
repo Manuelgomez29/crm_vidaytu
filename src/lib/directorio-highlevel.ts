@@ -65,6 +65,18 @@ export async function volcarDirectorioDeHighLevel(
 ): Promise<ResultadoDirectorio> {
   const r: ResultadoDirectorio = { creados: 0, actualizados: 0, enlazados: 0, sinTelefono: 0 };
 
+  /*
+   * Quien esta en HighLevel es de Metodo HOME: no es una deduccion nuestra,
+   * es la regla de negocio —los centros no entran ahi—. Si algun dia deja de
+   * serlo, se corrige en el catalogo y aqui, no en ochenta y cinco fichas.
+   */
+  const { data: home } = await admin
+    .from('recorridos')
+    .select('id')
+    .eq('slug', 'metodo-home')
+    .maybeSingle();
+  const recorridoHome = home?.id ?? null;
+
   const { data: espejados } = await admin
     .from('canal_espejo')
     .select('ref, contenido')
@@ -111,7 +123,7 @@ export async function volcarDirectorioDeHighLevel(
     if (!contactoId) {
       const { data: nuevo, error } = await admin
         .from('contactos')
-        .insert({ nombre, telefono, email, zona, origen: 'highlevel' })
+        .insert({ nombre, telefono, email, zona, origen: 'highlevel', recorrido_id: recorridoHome })
         .select('id')
         .single();
       if (error || !nuevo) continue;
@@ -125,7 +137,7 @@ export async function volcarDirectorioDeHighLevel(
        */
       const { data: actual } = await admin
         .from('contactos')
-        .select('nombre, telefono, email, zona, origen')
+        .select('nombre, telefono, email, zona, origen, recorrido_id')
         .eq('id', contactoId)
         .maybeSingle();
 
@@ -134,6 +146,7 @@ export async function volcarDirectorioDeHighLevel(
       // Si ya estaba por otra vía (un formulario, por ejemplo), su origen es
       // aquel: la primera vez que supimos de esa persona manda.
       if (actual && !actual.origen) parche.origen = 'highlevel';
+      if (actual && !actual.recorrido_id && recorridoHome) parche.recorrido_id = recorridoHome;
       if (actual && !actual.email && email) parche.email = email;
       if (actual && !actual.zona && zona) parche.zona = zona;
       if (Object.keys(parche).length > 0) {
