@@ -119,6 +119,28 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
     (c) => c.activo && !c.es_bandeja_grupo && c.horario_atencion === null,
   );
 
+  /*
+   * LA COPIA DE HIGHLEVEL.
+   *
+   * Mientras dure el piloto, el trabajo comercial de Método HOME vive en una
+   * suscripción que se corta el día que no se pague, sin plazo de gracia. La
+   * copia es lo único que hace que eso no cueste los datos, así que su
+   * ausencia tiene que verse aquí y no en un registro que nadie abre.
+   */
+  const { data: ultimaCopia } = await admin
+    .from('canal_copias')
+    .select('inicio, ok, truncado')
+    .eq('ok', true)
+    .order('inicio', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const hayCredencialHighLevel = hay(process.env.HIGHLEVEL_TOKEN);
+  const horasDesdeCopia = ultimaCopia
+    ? Math.floor((Date.now() - Date.parse(ultimaCopia.inicio)) / 3_600_000)
+    : null;
+  const copiaAlDia = horasDesdeCopia !== null && horasDesdeCopia < 48;
+
   const puntos: Punto[] = [
     {
       clave: 'motor',
@@ -131,6 +153,22 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
         : motor.parado
           ? `la última pasada buena fue ${haceCuanto(motor.minutosDesdeBuena)}`
           : `última pasada ${haceCuanto(motor.minutosDesdeBuena)}`,
+      gravedad: 'bloquea',
+      donde: { texto: 'Ver el motor', href: '/admin/motor' },
+    },
+    {
+      clave: 'copia_highlevel',
+      titulo: 'Hay copia reciente de lo que hay en HighLevel',
+      porQue:
+        'El contrato se renueva mes a mes y al dejar de pagar se acaba el acceso, sin plazo de gracia — y basta una tarjeta caducada. La copia es lo único que hace que un corte no cueste el trabajo de esos meses.',
+      hecho: copiaAlDia,
+      detalle: !hayCredencialHighLevel
+        ? 'falta HIGHLEVEL_TOKEN: no se está copiando NADA'
+        : horasDesdeCopia === null
+          ? 'no se ha copiado nunca'
+          : copiaAlDia
+            ? `última copia hace ${horasDesdeCopia} h${ultimaCopia?.truncado ? ', y vino incompleta' : ''}`
+            : `la última copia es de hace ${Math.floor(horasDesdeCopia / 24)} día(s)`,
       gravedad: 'bloquea',
       donde: { texto: 'Ver el motor', href: '/admin/motor' },
     },

@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
       'canal_copia',
       fallos,
       async (): Promise<ResultadoCopia> =>
-        (await tocaCopiar(admin)) ? copiarDeHighLevel(admin) : { saltada: true },
-      { saltada: true },
+        (await tocaCopiar(admin)) ? copiarDeHighLevel(admin) : { saltada: 'no_tocaba' },
+      { saltada: 'no_tocaba' },
     );
 
     const resultado = {
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       recordatorios: recordatorios.enviados,
       push: push.enviados,
       canalPurgados: purgados,
-      canalCopia: copia?.saltada ? 'no tocaba' : copia?.recuentos,
+      canalCopia: copia?.saltada ?? copia?.recuentos,
     };
 
     await registrarEjecucion(admin, { inicio, resultado, fallos });

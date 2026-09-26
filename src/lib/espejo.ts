@@ -112,13 +112,24 @@ export async function tocaCopiar(admin: SupabaseClient<Database>): Promise<boole
  * falta, así que queda escrito.
  */
 export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promise<{
-  saltada?: true;
+  /*
+   * DOS MOTIVOS MUY DISTINTOS PARA NO COPIAR, Y NO PUEDEN CONTARSE IGUAL.
+   *
+   * «No tocaba» es el sistema funcionando: la copia es diaria y el motor pasa
+   * cada 15 minutos. «Sin credencial» es que NO HAY COPIA DE NADA, que es una
+   * emergencia con un contrato que se corta sin aviso.
+   *
+   * Los dos decían lo mismo, y la pantalla del motor mostraba «no tocaba»
+   * mientras el respaldo llevaba días sin existir. Eso es exactamente el fallo
+   * silencioso que esta pieza venía a evitar.
+   */
+  saltada?: 'sin_credencial' | 'no_tocaba';
   recuentos?: Recuentos;
   truncado?: boolean;
 }> {
   const token = process.env.HIGHLEVEL_TOKEN;
   const loc = process.env.HIGHLEVEL_LOCATION_ID;
-  if (!token || !loc) return { saltada: true };
+  if (!token || !loc) return { saltada: 'sin_credencial' };
 
   const inicio = new Date().toISOString();
   const { data: copia } = await admin
