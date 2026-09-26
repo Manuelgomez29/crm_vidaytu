@@ -66,6 +66,7 @@
     "verificar:canal": "tsx --env-file=.env.local scripts/verificar-canal.ts",
     "verificar:espejo": "tsx --env-file=.env.local scripts/verificar-espejo.ts",
     "verificar:directorio-hl": "tsx --env-file=.env.local scripts/verificar-directorio-highlevel.ts",
+    "staging:verificar:reservado": "tsx --env-file=.env.staging scripts/verificar-recorrido-reservado.ts",
     "copiar:highlevel": "tsx --env-file=.env.local scripts/copiar-highlevel.ts",
     "staging:verificar:canal": "tsx --env-file=.env.staging scripts/verificar-canal.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",

@@ -3124,6 +3124,7 @@ export type Database = {
           id: string
           nombre: string
           orden: number
+          restringido: boolean
           slug: string
         }
         Insert: {
@@ -3132,6 +3133,7 @@ export type Database = {
           id?: string
           nombre: string
           orden?: number
+          restringido?: boolean
           slug: string
         }
         Update: {
@@ -3140,6 +3142,7 @@ export type Database = {
           id?: string
           nombre?: string
           orden?: number
+          restringido?: boolean
           slug?: string
         }
         Relationships: []
@@ -3574,6 +3577,10 @@ export type Database = {
         }[]
       }
       puedo_ver_contacto: { Args: { p_contacto: string }; Returns: boolean }
+      puedo_ver_recorrido: {
+        Args: { p_contacto: string; p_recorrido: string }
+        Returns: boolean
+      }
       resumen_motor: { Args: { dias?: number }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
