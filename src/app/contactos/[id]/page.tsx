@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell';
 import { etiquetaEstado } from '@/lib/estados';
 import { clasesEtiqueta } from '@/lib/colores';
 import { fecha } from '@/lib/fechas';
+import { conversacionDeContacto } from '@/lib/conversacion-espejo';
 import {
   anadirAListaEstatica,
   anadirEtiqueta,
@@ -62,6 +63,8 @@ export default async function FichaContacto({
   if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
   // Borrar es de la cuenta máster (regla 11), no de cualquier dirección.
   const esDireccionDeGrupo = perfilRol?.rol === 'direccion' && perfilRol?.alcance === 'grupo';
+
+  const conversacion = await conversacionDeContacto(supabase, id);
 
   const { data: contacto } = await supabase
     .from('contactos')
@@ -320,6 +323,74 @@ export default async function FichaContacto({
           </Seccion>
         </div>
       </div>
+
+      {/*
+        LO QUE ESA PERSONA HA DICHO.
+        Para quien llegó por Instagram, esta sección ES su ficha: no hay
+        teléfono, ni casos, ni etiquetas del CRM. Todo lo que se sabe de ella
+        está en lo que escribió, y ya lo teníamos copiado cada noche sin usar.
+      */}
+      {conversacion && (
+        <div className="mt-4">
+          <Seccion titulo="Conversación">
+            <p className="text-[13px] text-ink2">
+              {conversacion.total} mensaje{conversacion.total === 1 ? '' : 's'}
+              {conversacion.canales.length > 0 && ` por ${conversacion.canales.join(' y ')}`}
+              {conversacion.ultimaAt && ` · el último, ${fecha(conversacion.ultimaAt)}`}
+            </p>
+
+            {conversacion.etiquetas.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span className="text-xs text-muted">En HighLevel:</span>
+                {conversacion.etiquetas.map((e) => (
+                  <span key={e} className="chip chip-mut">
+                    {e}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {conversacion.total > conversacion.mensajes.length && (
+              <p className="mt-3 text-xs text-muted">
+                Los {conversacion.mensajes.length} últimos de {conversacion.total}.
+              </p>
+            )}
+
+            <ul className="mt-3 flex flex-col gap-2">
+              {conversacion.mensajes.map((m) => (
+                <li
+                  key={m.id}
+                  className={`max-w-[42rem] rounded-lg px-3 py-2 text-sm ring-1 ${
+                    m.suyo
+                      ? 'bg-ground text-ink ring-line'
+                      : 'ml-auto bg-primary-soft text-ink ring-primary/20'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+                    {m.texto || <span className="text-muted">(sin texto)</span>}
+                    {m.adjuntos > 0 && (
+                      <span className="text-muted">
+                        {m.texto ? ' · ' : ''}
+                        {m.adjuntos} adjunto{m.adjuntos === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted">
+                    {m.suyo ? contacto.nombre.split(' ')[0] : 'Nosotros'} · {m.canal} ·{' '}
+                    {fecha(m.cuando)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-3 border-t border-line pt-2 text-xs text-muted">
+              Copiado de HighLevel, que es donde se atiende a esta persona durante el piloto. Se
+              actualiza una vez al día, así que puede faltar lo de hoy — para contestarle, entra
+              ahí.
+            </p>
+          </Seccion>
+        </div>
+      )}
 
       <div className="mt-4">
         <Seccion titulo="Casos en los que participa">
