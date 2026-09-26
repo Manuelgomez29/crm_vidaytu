@@ -54,6 +54,12 @@ export const MINUTOS_ENTRE_PASADAS = 15;
  */
 export const QUE_HACE: { clave: string; texto: string; unidad: string; unidades: string }[] = [
   {
+    clave: 'canalCopiados',
+    texto: 'Registros copiados de HighLevel',
+    unidad: 'registro',
+    unidades: 'registros',
+  },
+  {
     clave: 'repartidos',
     texto: 'Leads sin propietario repartidos',
     unidad: 'lead',

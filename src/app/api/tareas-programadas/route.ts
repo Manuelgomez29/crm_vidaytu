@@ -118,6 +118,12 @@ export async function POST(req: NextRequest) {
       push: push.enviados,
       canalPurgados: purgados,
       canalCopia: copia?.saltada ?? copia?.recuentos,
+      // Un número, además del desglose: la pantalla del motor cuenta cosas, y
+      // sin esto la copia no aparecía en ella — invisible justo donde se mira
+      // si algo lleva semanas funcionando.
+      canalCopiados: copia?.recuentos
+        ? Object.values(copia.recuentos).reduce((a, b) => a + b, 0)
+        : 0,
     };
 
     await registrarEjecucion(admin, { inicio, resultado, fallos });
