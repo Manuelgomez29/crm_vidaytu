@@ -24,6 +24,9 @@ const POR_DEFECTO: Record<string, { maximo: number; ventana: number }> = {
   recuperar_por_cuenta: { maximo: 3, ventana: 3600 },
   recuperar_por_ip: { maximo: 10, ventana: 3600 },
   formularios: { maximo: 60, ventana: 60 },
+  // Los canales sociales llegan a ráfagas: una campaña puede traer muchos en
+  // un minuto, y frenarlos sería perderlos.
+  canal_social: { maximo: 240, ventana: 60 },
   whatsapp: { maximo: 300, ventana: 60 },
   cron: { maximo: 20, ventana: 60 },
   baja: { maximo: 30, ventana: 3600 },

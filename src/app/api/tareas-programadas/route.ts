@@ -6,6 +6,7 @@ import { procesarCampanas } from '@/lib/campanas';
 import { enviarPushPendientes } from '@/lib/push-pendientes';
 import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
+import { purgarContenidoVencido } from '@/lib/canal';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -85,6 +86,13 @@ export async function POST(req: NextRequest) {
       dispositivosRetirados: 0,
     });
 
+    /*
+     * El contenido de los eventos sociales se vacía al vencer su plazo, y la
+     * traza se conserva. Va aquí y no en un cron aparte porque una limpieza
+     * que depende de que alguien se acuerde de lanzarla no se hace nunca.
+     */
+    const purgados = await fase('canal_retencion', fallos, () => purgarContenidoVencido(admin), 0);
+
     const resultado = {
       ...(alertas ?? {}),
       ...automatizacion,
@@ -92,6 +100,7 @@ export async function POST(req: NextRequest) {
       repartidos: reparto.asignados,
       recordatorios: recordatorios.enviados,
       push: push.enviados,
+      canalPurgados: purgados,
     };
 
     await registrarEjecucion(admin, { inicio, resultado, fallos });

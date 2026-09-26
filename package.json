@@ -63,6 +63,8 @@
     "staging:verificar:ausencias": "tsx --env-file=.env.staging scripts/verificar-ausencias.ts",
     "staging:verificar:recuperacion": "tsx --env-file=.env.staging scripts/verificar-recuperacion.ts",
     "staging:verificar:borrado": "tsx --env-file=.env.staging scripts/verificar-borrado.ts",
+    "verificar:canal": "tsx --env-file=.env.local scripts/verificar-canal.ts",
+    "staging:verificar:canal": "tsx --env-file=.env.staging scripts/verificar-canal.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",
     "staging:verificar:etiquetado": "tsx --env-file=.env.staging scripts/verificar-etiquetado.ts",
     "puesta-en-marcha": "tsx --env-file=.env.local scripts/puesta-en-marcha.ts",
