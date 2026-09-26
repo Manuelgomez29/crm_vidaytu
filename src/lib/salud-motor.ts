@@ -60,6 +60,12 @@ export const QUE_HACE: { clave: string; texto: string; unidad: string; unidades:
     unidades: 'registros',
   },
   {
+    clave: 'canalPersonas',
+    texto: 'Personas de HighLevel llevadas al directorio',
+    unidad: 'persona',
+    unidades: 'personas',
+  },
+  {
     clave: 'repartidos',
     texto: 'Leads sin propietario repartidos',
     unidad: 'lead',

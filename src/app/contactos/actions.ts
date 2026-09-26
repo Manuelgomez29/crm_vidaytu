@@ -21,9 +21,18 @@ function volver(contactoId: string, aviso?: { error?: string; aviso?: string }):
 
 export async function guardarContacto(contactoId: string, formData: FormData) {
   const nombre = String(formData.get('nombre') ?? '').trim();
-  const telefono = normalizarTelefono(String(formData.get('telefono') ?? ''));
-  if (!nombre || !telefono) {
-    volver(contactoId, { error: 'Nombre y teléfono válido (+34…) son obligatorios.' });
+  const escrito = String(formData.get('telefono') ?? '').trim();
+  const telefono = escrito ? normalizarTelefono(escrito) : null;
+
+  if (!nombre) volver(contactoId, { error: 'El nombre es obligatorio.' });
+  /*
+   * El teléfono ya no se exige —quien llega por Instagram no lo da— pero si
+   * se escribe algo tiene que ser un número válido. Aceptar «lo llamo luego»
+   * en el campo del teléfono es peor que dejarlo vacío: parece un dato y no
+   * lo es.
+   */
+  if (escrito && !telefono) {
+    volver(contactoId, { error: 'Ese teléfono no es válido. Escríbelo en formato +34… o déjalo vacío.' });
   }
 
   const supabase = await createClient();

@@ -929,8 +929,9 @@ export type Database = {
           id: string
           nombre: string
           notas: string | null
+          origen: string | null
           resena_pedida_at: string | null
-          telefono: string
+          telefono: string | null
           updated_at: string
           zona: string | null
         }
@@ -944,8 +945,9 @@ export type Database = {
           id?: string
           nombre: string
           notas?: string | null
+          origen?: string | null
           resena_pedida_at?: string | null
-          telefono: string
+          telefono?: string | null
           updated_at?: string
           zona?: string | null
         }
@@ -959,8 +961,9 @@ export type Database = {
           id?: string
           nombre?: string
           notas?: string | null
+          origen?: string | null
           resena_pedida_at?: string | null
-          telefono?: string
+          telefono?: string | null
           updated_at?: string
           zona?: string | null
         }

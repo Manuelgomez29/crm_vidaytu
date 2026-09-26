@@ -8,6 +8,7 @@ import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { purgarContenidoVencido } from '@/lib/canal';
 import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
+import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -109,6 +110,15 @@ export async function POST(req: NextRequest) {
       { saltada: 'no_tocaba' },
     );
 
+    /*
+     * Y del espejo al directorio: las personas de HighLevel se ven en
+     * Contactos. Va DESPUÉS de la copia y solo si hubo copia — volcar de un
+     * espejo viejo es escribir en el CRM datos que ya no son ciertos.
+     */
+    const directorio = copia?.saltada
+      ? null
+      : await fase('canal_directorio', fallos, () => volcarDirectorioDeHighLevel(admin), null);
+
     const resultado = {
       ...(alertas ?? {}),
       ...automatizacion,
@@ -124,6 +134,8 @@ export async function POST(req: NextRequest) {
       canalCopiados: copia?.recuentos
         ? Object.values(copia.recuentos).reduce((a, b) => a + b, 0)
         : 0,
+      canalPersonas: (directorio?.creados ?? 0) + (directorio?.enlazados ?? 0),
+      canalDirectorio: directorio ?? undefined,
     };
 
     await registrarEjecucion(admin, { inicio, resultado, fallos });

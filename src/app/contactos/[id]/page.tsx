@@ -121,7 +121,7 @@ export default async function FichaContacto({
 
       <h2 className="mt-3 text-2xl font-semibold">{contacto.nombre}</h2>
       <p className="text-sm text-ink2">
-        {contacto.telefono}
+        {contacto.telefono ?? 'Sin teléfono'}
         {contacto.email && ` · ${contacto.email}`} · en el directorio desde{' '}
         {fecha(contacto.created_at, false)}
       </p>
@@ -140,11 +140,16 @@ export default async function FichaContacto({
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm font-medium text-ink">
-                Teléfono *
+                Teléfono
+                {/*
+                  Ya no es obligatorio: quien llega por Instagram no da número,
+                  y a veces no lo dará nunca. Si lo da más tarde, se escribe
+                  aquí y a partir de ese momento el caso se puede trabajar.
+                */}
                 <input
                   name="telefono"
-                  defaultValue={contacto.telefono}
-                  required
+                  defaultValue={contacto.telefono ?? ''}
+                  placeholder="+34…"
                   className={inputClase}
                 />
               </label>

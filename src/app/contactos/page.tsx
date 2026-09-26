@@ -13,10 +13,11 @@ const LIMITE = 100;
 type FilaContacto = {
   id: string;
   nombre: string;
-  telefono: string;
+  telefono: string | null;
   email: string | null;
   zona: string | null;
   consentimiento_marketing: boolean;
+  origen: string | null;
   contacto_etiquetas: { etiqueta: { id: string; nombre: string; color: string | null } | null }[];
   lead_contactos: {
     lead_id: string;
@@ -37,6 +38,13 @@ type FilaContacto = {
  * igual que no ve esos casos. La lista vacía es información: significa que esa
  * persona tiene casos en centros ajenos, o que todavía no tiene ninguno.
  */
+const ROTULO_ORIGEN: Record<string, string> = {
+  highlevel: 'HighLevel',
+  zerochats: 'Instagram',
+  manychat: 'Instagram',
+  formulario: 'Formulario web',
+};
+
 function centrosDe(c: FilaContacto): { nombre: string; slug: string }[] {
   const vistos = new Map<string, { nombre: string; slug: string }>();
   for (const v of c.lead_contactos ?? []) {
@@ -142,7 +150,7 @@ export default async function DirectorioContactos({
   let consulta = supabase
     .from('contactos')
     .select(
-      `id, nombre, telefono, email, zona, consentimiento_marketing,
+      `id, nombre, telefono, email, zona, consentimiento_marketing, origen,
        contacto_etiquetas (etiqueta:etiquetas (id, nombre, color)),
        lead_contactos (lead_id, lead:leads (centro:centros (nombre, slug)))`,
     )
@@ -234,7 +242,10 @@ function Pagina({
       seccion="contactos"
       subseccion="/contactos"
       titulo="Contactos"
-      descripcion={`${total} personas · deduplicadas por teléfono y email`}
+      // Ya no todas tienen teléfono: quien llega por Instagram no lo da, y
+      // decir que se deduplica por él sería describir algo que dejó de ser
+      // cierto para la mayoría de esta lista.
+      descripcion={`${total} personas · de los centros y de los canales sociales`}
     >
       {filtros.aviso && (
         <p className="mb-2 rounded-lg bg-warn-soft px-4 py-2 text-sm text-warn ring-1 ring-warn/25">
@@ -378,10 +389,17 @@ function Pagina({
                                 {centro.nombre}
                               </span>
                             ))}
-                            {centrosDe(c).length === 0 && <span className="text-muted">—</span>}
+                            {centrosDe(c).length === 0 &&
+                              (c.origen ? (
+                                <span className="chip chip-mut">
+                                  {ROTULO_ORIGEN[c.origen] ?? c.origen}
+                                </span>
+                              ) : (
+                                <span className="text-muted">—</span>
+                              ))}
                           </div>
                         </td>
-                        <td className="num text-ink2">{c.telefono}</td>
+                        <td className="num text-ink2">{c.telefono ?? '—'}</td>
                         <td className="num text-ink2">{c.email ?? '—'}</td>
                         <td className="num text-ink2">{c.zona ?? '—'}</td>
                         <td>
@@ -441,12 +459,18 @@ function Pagina({
                         </span>
                       </div>
 
-                      <a
-                        href={`tel:${c.telefono}`}
-                        className="num mt-1 block text-[15px] font-semibold text-primary"
-                      >
-                        {c.telefono}
-                      </a>
+                      {/* Sin número no hay nada que marcar: se dice, en vez
+                          de ofrecer un enlace que no llama a nadie. */}
+                      {c.telefono ? (
+                        <a
+                          href={`tel:${c.telefono}`}
+                          className="num mt-1 block text-[15px] font-semibold text-primary"
+                        >
+                          {c.telefono}
+                        </a>
+                      ) : (
+                        <p className="mt-1 text-[13px] text-muted">Sin teléfono</p>
+                      )}
                       {c.email && <p className="num text-xs text-ink2">{c.email}</p>}
 
                       <div className="mt-2 flex flex-wrap items-center gap-1">
@@ -465,6 +489,9 @@ function Pagina({
                                 {ce.etiqueta.nombre}
                               </span>
                             ),
+                        )}
+                        {centros.length === 0 && c.origen && (
+                          <span className="chip chip-mut">{ROTULO_ORIGEN[c.origen] ?? c.origen}</span>
                         )}
                         {c.zona && <span className="text-[11px] text-muted">{c.zona}</span>}
                       </div>
