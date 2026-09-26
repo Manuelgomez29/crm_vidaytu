@@ -64,6 +64,8 @@
     "staging:verificar:recuperacion": "tsx --env-file=.env.staging scripts/verificar-recuperacion.ts",
     "staging:verificar:borrado": "tsx --env-file=.env.staging scripts/verificar-borrado.ts",
     "verificar:canal": "tsx --env-file=.env.local scripts/verificar-canal.ts",
+    "verificar:espejo": "tsx --env-file=.env.local scripts/verificar-espejo.ts",
+    "copiar:highlevel": "tsx --env-file=.env.local scripts/copiar-highlevel.ts",
     "staging:verificar:canal": "tsx --env-file=.env.staging scripts/verificar-canal.ts",
     "staging:verificar:derivacion": "tsx --env-file=.env.staging scripts/verificar-derivacion.ts",
     "staging:verificar:etiquetado": "tsx --env-file=.env.staging scripts/verificar-etiquetado.ts",

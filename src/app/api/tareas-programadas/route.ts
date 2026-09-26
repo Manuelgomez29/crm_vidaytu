@@ -7,6 +7,7 @@ import { enviarPushPendientes } from '@/lib/push-pendientes';
 import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { purgarContenidoVencido } from '@/lib/canal';
+import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -93,6 +94,21 @@ export async function POST(req: NextRequest) {
      */
     const purgados = await fase('canal_retencion', fallos, () => purgarContenidoVencido(admin), 0);
 
+    /*
+     * La copia de HighLevel es diaria, pero vive aquí y no en un cron aparte:
+     * un cron más es una pieza más que puede pararse sin que nadie se entere,
+     * y de este motor ya sabemos si corre. Se mira si toca y, si no, no cuesta
+     * nada.
+     */
+    type ResultadoCopia = Awaited<ReturnType<typeof copiarDeHighLevel>>;
+    const copia = await fase<ResultadoCopia>(
+      'canal_copia',
+      fallos,
+      async (): Promise<ResultadoCopia> =>
+        (await tocaCopiar(admin)) ? copiarDeHighLevel(admin) : { saltada: true },
+      { saltada: true },
+    );
+
     const resultado = {
       ...(alertas ?? {}),
       ...automatizacion,
@@ -101,6 +117,7 @@ export async function POST(req: NextRequest) {
       recordatorios: recordatorios.enviados,
       push: push.enviados,
       canalPurgados: purgados,
+      canalCopia: copia?.saltada ? 'no tocaba' : copia?.recuentos,
     };
 
     await registrarEjecucion(admin, { inicio, resultado, fallos });

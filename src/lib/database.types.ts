@@ -389,6 +389,72 @@ export type Database = {
           },
         ]
       }
+      canal_copias: {
+        Row: {
+          error: string | null
+          fin: string | null
+          id: string
+          inicio: string
+          ok: boolean
+          recuentos: Json
+          sistema: string
+          truncado: boolean
+        }
+        Insert: {
+          error?: string | null
+          fin?: string | null
+          id?: string
+          inicio?: string
+          ok?: boolean
+          recuentos?: Json
+          sistema?: string
+          truncado?: boolean
+        }
+        Update: {
+          error?: string | null
+          fin?: string | null
+          id?: string
+          inicio?: string
+          ok?: boolean
+          recuentos?: Json
+          sistema?: string
+          truncado?: boolean
+        }
+        Relationships: []
+      }
+      canal_espejo: {
+        Row: {
+          contenido: Json
+          id: number
+          primera_copia_at: string
+          ref: string
+          ref_padre: string | null
+          sistema: string
+          tipo: string
+          visto_at: string
+        }
+        Insert: {
+          contenido: Json
+          id?: never
+          primera_copia_at?: string
+          ref: string
+          ref_padre?: string | null
+          sistema?: string
+          tipo: string
+          visto_at?: string
+        }
+        Update: {
+          contenido?: Json
+          id?: never
+          primera_copia_at?: string
+          ref?: string
+          ref_padre?: string | null
+          sistema?: string
+          tipo?: string
+          visto_at?: string
+        }
+        Relationships: []
+      }
       canal_eventos: {
         Row: {
           entrega_ref: string | null
