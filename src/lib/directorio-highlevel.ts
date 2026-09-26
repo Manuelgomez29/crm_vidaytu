@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { normalizarTelefono } from '@/lib/telefonos';
+import { traerTodo } from '@/lib/paginar';
 
 /**
  * Los contactos de HighLevel, en el directorio del CRM.
@@ -77,20 +78,30 @@ export async function volcarDirectorioDeHighLevel(
     .maybeSingle();
   const recorridoHome = home?.id ?? null;
 
-  const { data: espejados } = await admin
-    .from('canal_espejo')
-    .select('ref, contenido')
-    .eq('sistema', 'highlevel')
-    .eq('tipo', 'contacto');
+  // Paginado: a cuarenta contactos nuevos al día, esto cruza las mil filas
+  // —donde PostgREST corta sin avisar— en menos de un mes.
+  const { filas: espejados } = await traerTodo((d, h) =>
+    admin
+      .from('canal_espejo')
+      .select('ref, contenido')
+      .eq('sistema', 'highlevel')
+      .eq('tipo', 'contacto')
+      .order('id')
+      .range(d, h),
+  );
 
-  if (!espejados?.length) return r;
+  if (espejados.length === 0) return r;
 
   // Las identidades ya conocidas de HighLevel, para no volver a crear a nadie.
-  const { data: identidades } = await admin
-    .from('canal_identidades')
-    .select('id, ref_sistema, contacto_id')
-    .eq('sistema', 'highlevel');
-  const porRef = new Map((identidades ?? []).map((i) => [i.ref_sistema, i]));
+  const { filas: identidades } = await traerTodo((d, h) =>
+    admin
+      .from('canal_identidades')
+      .select('id, ref_sistema, contacto_id')
+      .eq('sistema', 'highlevel')
+      .order('id')
+      .range(d, h),
+  );
+  const porRef = new Map(identidades.map((i) => [i.ref_sistema, i]));
 
   for (const fila of espejados) {
     const c = fila.contenido as ContactoHL;

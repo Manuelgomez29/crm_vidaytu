@@ -75,6 +75,7 @@
     "puesta-en-marcha": "tsx --env-file=.env.local scripts/puesta-en-marcha.ts",
     "staging:puesta-en-marcha": "tsx --env-file=.env.staging scripts/puesta-en-marcha.ts",
     "verificar:admin-alcance": "tsx --env-file=.env.local scripts/verificar-admin-alcance.ts",
+    "verificar:paginacion": "tsx --env-file=.env.local scripts/verificar-paginacion.ts",
     "staging:verificar:admin-alcance": "tsx --env-file=.env.staging scripts/verificar-admin-alcance.ts"
   },
   "dependencies": {

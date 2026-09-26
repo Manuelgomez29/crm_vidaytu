@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { traerTodo } from '@/lib/paginar';
 
 /**
  * El puente entre ZeroChats y HighLevel: la misma persona, dos fichas.
@@ -31,13 +32,17 @@ export async function enlazarIdentidadesSociales(
   const r: ResultadoPuente = { enlazadas: 0, sinPareja: 0 };
 
   // Identidades de canal que todavía no saben a quién pertenecen.
-  const { data: sueltas } = await admin
-    .from('canal_identidades')
-    .select('id, usuario, telefono')
-    .is('contacto_id', null)
-    .neq('sistema', 'highlevel');
+  const { filas: sueltas } = await traerTodo((d, h) =>
+    admin
+      .from('canal_identidades')
+      .select('id, usuario, telefono')
+      .is('contacto_id', null)
+      .neq('sistema', 'highlevel')
+      .order('id')
+      .range(d, h),
+  );
 
-  if (!sueltas?.length) return r;
+  if (sueltas.length === 0) return r;
 
   /*
    * Qué campo de HighLevel guarda el usuario de Instagram. Se busca por su
@@ -56,14 +61,13 @@ export async function enlazarIdentidadesSociales(
     return texto.includes('ig_username') || texto.includes('instagram');
   })?.ref;
 
-  const { data: contactosHL } = await admin
-    .from('canal_espejo')
-    .select('ref, contenido')
-    .eq('tipo', 'contacto');
+  const { filas: contactosHL } = await traerTodo((d, h) =>
+    admin.from('canal_espejo').select('ref, contenido').eq('tipo', 'contacto').order('id').range(d, h),
+  );
 
   /** usuario de Instagram (en minúsculas) → identificador del contacto en HighLevel. */
   const porUsuario = new Map<string, string>();
-  for (const fila of contactosHL ?? []) {
+  for (const fila of contactosHL) {
     const c = fila.contenido as ContactoHL;
     const valor = campoUsuario
       ? c.customFields?.find((f) => f.id === campoUsuario)?.value
@@ -74,14 +78,16 @@ export async function enlazarIdentidadesSociales(
   }
 
   // Y a qué persona del directorio corresponde cada contacto de HighLevel.
-  const { data: deHighLevel } = await admin
-    .from('canal_identidades')
-    .select('ref_sistema, contacto_id')
-    .eq('sistema', 'highlevel')
-    .not('contacto_id', 'is', null);
-  const personaDe = new Map(
-    (deHighLevel ?? []).map((i) => [i.ref_sistema, i.contacto_id as string]),
+  const { filas: deHighLevel } = await traerTodo((d, h) =>
+    admin
+      .from('canal_identidades')
+      .select('ref_sistema, contacto_id')
+      .eq('sistema', 'highlevel')
+      .not('contacto_id', 'is', null)
+      .order('id')
+      .range(d, h),
   );
+  const personaDe = new Map(deHighLevel.map((i) => [i.ref_sistema, i.contacto_id as string]));
 
   for (const suelta of sueltas) {
     const usuario = (suelta.usuario ?? '').trim().replace(/^@/, '').toLowerCase();

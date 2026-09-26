@@ -9,7 +9,8 @@ import { clasesEtiqueta, clasesCentro } from '@/lib/colores';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
 
-const LIMITE = 100;
+/** Personas por página. Cabe en una pantalla sin tener que buscar dos veces. */
+const POR_PAGINA = 50;
 
 type FilaContacto = {
   id: string;
@@ -40,6 +41,22 @@ type FilaContacto = {
  * igual que no ve esos casos. La lista vacía es información: significa que esa
  * persona tiene casos en centros ajenos, o que todavía no tiene ninguno.
  */
+/**
+ * El enlace a otra página, con los filtros puestos.
+ *
+ * Si al pasar de página se perdieran, la página 2 enseñaría el directorio
+ * entero y quien la abriera creería que su búsqueda daba eso.
+ */
+function enlacePagina(filtros: Record<string, string | undefined>, n: number): string {
+  const p = new URLSearchParams();
+  for (const [k, v] of Object.entries(filtros)) {
+    if (v && k !== 'pagina' && k !== 'aviso') p.set(k, v);
+  }
+  if (n > 1) p.set('pagina', String(n));
+  const q = p.toString();
+  return q ? `/contactos?${q}` : '/contactos';
+}
+
 const ROTULO_ORIGEN: Record<string, string> = {
   highlevel: 'HighLevel',
   zerochats: 'Instagram',
@@ -70,6 +87,7 @@ export default async function DirectorioContactos({
     aviso?: string;
     servicio?: string;
     origen?: string;
+    pagina?: string;
   }>;
 }) {
   const filtros = await searchParams;
@@ -159,87 +177,119 @@ export default async function DirectorioContactos({
     ids = idsDeLista ?? idsDeEtiqueta;
   }
 
-  let consulta = supabase
-    .from('contactos')
-    .select(
-      `id, nombre, telefono, email, zona, consentimiento_marketing, origen,
-       recorrido:recorridos (nombre, slug),
-       contacto_etiquetas (etiqueta:etiquetas (id, nombre, color)),
-       lead_contactos (lead_id, lead:leads (centro:centros (nombre, slug)))`,
-    )
-    .order('nombre')
-    .limit(LIMITE);
-
   const busqueda = (filtros.q ?? '').trim();
-  if (busqueda) {
-    // Busca por nombre, email o teléfono (también si se teclea sin prefijo).
-    const comoTelefono = normalizarTelefono(busqueda);
-    const patrones = [
-      `nombre.ilike.%${busqueda}%`,
-      `email.ilike.%${busqueda}%`,
-      `telefono.ilike.%${busqueda}%`,
-      ...(comoTelefono ? [`telefono.eq.${comoTelefono}`] : []),
-    ];
-    consulta = consulta.or(patrones.join(','));
-  }
-  if (filtros.consent === 'si') consulta = consulta.eq('consentimiento_marketing', true);
-  if (filtros.consent === 'no') consulta = consulta.eq('consentimiento_marketing', false);
-  if (filtros.origen) consulta = consulta.eq('origen', filtros.origen);
+  const comoTelefono = busqueda ? normalizarTelefono(busqueda) : null;
 
   /*
-   * El servicio filtra por dos vías, porque son dos cosas distintas que se
-   * leen en la misma columna: un centro sale de los CASOS de la persona, y un
-   * recorrido está en la propia persona. «centro:bellamar» y «home» no se
-   * consultan igual.
+   * El centro se resuelve ANTES, porque hace falta para decidir la forma de
+   * la consulta y no se puede esperar dentro de ella.
    */
-  if (filtros.servicio?.startsWith('centro:')) {
-    const slug = filtros.servicio.slice(7);
-    const { data: centro } = await supabase.from('centros').select('id').eq('slug', slug).maybeSingle();
-    if (centro) {
-      const { data: deEseCentro } = await supabase
-        .from('leads')
-        .select('lead_contactos (contacto_id)')
-        .eq('centro_id', centro.id);
-      const suyos = (deEseCentro ?? []).flatMap((l) =>
-        ((l as { lead_contactos?: { contacto_id: string }[] }).lead_contactos ?? []).map(
-          (x) => x.contacto_id,
-        ),
+  const slugCentro = filtros.servicio?.startsWith('centro:') ? filtros.servicio.slice(7) : null;
+  const idCentro = slugCentro
+    ? ((await supabase.from('centros').select('id').eq('slug', slugCentro).maybeSingle()).data
+        ?.id ?? null)
+    : null;
+  const idRecorrido =
+    !slugCentro && filtros.servicio
+      ? ((
+          await supabase.from('recorridos').select('id').eq('slug', filtros.servicio).maybeSingle()
+        ).data?.id ?? null)
+      : null;
+
+  /*
+   * FILTRAR POR CENTRO SIN TRAERSE LOS CASOS.
+   *
+   * La primera versión pedía todos los leads de ese centro, sacaba los
+   * identificadores de sus contactos y los metía en un `in(...)`. Con cien
+   * personas va; con tres mil, la lista de identificadores no cabe en la URL
+   * y la consulta falla — y antes de eso, la propia lectura de leads se
+   * habría cortado en mil sin avisar.
+   *
+   * Con `!inner` lo hace la base: solo salen las personas que tienen un caso
+   * en ese centro, en una sola consulta y sin límite que la traicione.
+   */
+  const seleccion = (inner: boolean) => `id, nombre, telefono, email, zona,
+       consentimiento_marketing, origen,
+       recorrido:recorridos (nombre, slug),
+       contacto_etiquetas (etiqueta:etiquetas (id, nombre, color)),
+       lead_contactos${inner ? '!inner' : ''} (lead_id,
+         lead:leads${inner ? '!inner' : ''} (centro_id, centro:centros (nombre, slug)))`;
+
+  /*
+   * La lista y el recuento tienen que llevar los MISMOS filtros. Construirlos
+   * dos veces a mano es la forma segura de que un día se separen, así que se
+   * construyen con la misma función.
+   */
+  const construir = (contar: boolean) => {
+    let q = contar
+      ? supabase
+          .from('contactos')
+          .select(seleccion(!!idCentro), { count: 'exact', head: true })
+      : supabase.from('contactos').select(seleccion(!!idCentro));
+
+    if (busqueda) {
+      q = q.or(
+        [
+          `nombre.ilike.%${busqueda}%`,
+          `email.ilike.%${busqueda}%`,
+          `telefono.ilike.%${busqueda}%`,
+          ...(comoTelefono ? [`telefono.eq.${comoTelefono}`] : []),
+        ].join(','),
       );
-      consulta = consulta.in('id', suyos.length ? [...new Set(suyos)] : ['00000000-0000-0000-0000-000000000000']);
     }
-  } else if (filtros.servicio) {
-    const { data: rec } = await supabase
-      .from('recorridos')
-      .select('id')
-      .eq('slug', filtros.servicio)
-      .maybeSingle();
-    if (rec) consulta = consulta.eq('recorrido_id', rec.id);
-  }
-  if (ids !== null) {
-    if (ids.length === 0) {
-      // Filtro que no deja a nadie: evitamos una consulta con lista vacía.
-      return (
-        <Pagina
-          vistas={vistas}
-          filtrosPuestos={filtrosPuestos}
-          etiquetas={etiquetas ?? []}
-          listas={listas ?? []}
-          centros={centrosCat ?? []}
-          recorridos={recorridosCat ?? []}
-          recuentos={recuentos}
-          total={totalContactos ?? 0}
-          filtros={filtros}
-          contactos={[]}
-        />
-      );
-    }
-    consulta = consulta.in('id', ids);
+    if (filtros.consent === 'si') q = q.eq('consentimiento_marketing', true);
+    if (filtros.consent === 'no') q = q.eq('consentimiento_marketing', false);
+    if (filtros.origen) q = q.eq('origen', filtros.origen);
+    if (idCentro) q = q.eq('lead_contactos.lead.centro_id', idCentro);
+    if (idRecorrido) q = q.eq('recorrido_id', idRecorrido);
+    if (ids !== null) q = q.in('id', ids);
+    return q;
+  };
+
+  if (ids !== null && ids.length === 0) {
+    // Filtro que no deja a nadie: evitamos una consulta con lista vacía.
+    return (
+      <Pagina
+        pagina={1}
+        paginas={1}
+        totalFiltrado={0}
+        vistas={vistas}
+        filtrosPuestos={filtrosPuestos}
+        etiquetas={etiquetas ?? []}
+        listas={listas ?? []}
+        centros={centrosCat ?? []}
+        recorridos={recorridosCat ?? []}
+        recuentos={recuentos}
+        total={totalContactos ?? 0}
+        filtros={filtros}
+        contactos={[]}
+      />
+    );
   }
 
-  const { data, error } = await consulta;
+  const consulta = construir(false).order('nombre').order('id');
+  const contarConsulta = construir(true);
+
+  /*
+   * El recuento va con los MISMOS filtros que la lista. Antes se enseñaba el
+   * total del directorio junto a una lista filtrada, y no cuadraban.
+   *
+   * `count: 'planned'` no vale aquí: para paginar hace falta el número exacto,
+   * o la última página sale vacía.
+   */
+  const { count: totalFiltrado } = await contarConsulta;
+
+  const paginas = Math.max(1, Math.ceil((totalFiltrado ?? 0) / POR_PAGINA));
+  const pagina = Math.min(Math.max(1, Number(filtros.pagina) || 1), paginas);
+  const desde = (pagina - 1) * POR_PAGINA;
+
+  const { data, error } = await consulta.range(desde, desde + POR_PAGINA - 1);
 
   return (
     <Pagina
+      pagina={pagina}
+      paginas={paginas}
+      totalFiltrado={totalFiltrado ?? 0}
       vistas={vistas}
       filtrosPuestos={filtrosPuestos}
       etiquetas={etiquetas ?? []}
@@ -256,6 +306,9 @@ export default async function DirectorioContactos({
 }
 
 function Pagina({
+  pagina,
+  paginas,
+  totalFiltrado,
   etiquetas,
   listas,
   centros,
@@ -268,6 +321,9 @@ function Pagina({
   vistas,
   filtrosPuestos,
 }: {
+  pagina: number;
+  paginas: number;
+  totalFiltrado: number;
   etiquetas: { id: string; nombre: string; color: string | null }[];
   listas: { id: string; nombre: string; tipo: string }[];
   centros: { nombre: string; slug: string }[];
@@ -283,6 +339,7 @@ function Pagina({
     aviso?: string;
     servicio?: string;
     origen?: string;
+    pagina?: string;
   };
   contactos: FilaContacto[];
   error?: string;
@@ -477,8 +534,8 @@ function Pagina({
           ) : (
             <>
               <p className="mb-2 text-sm text-ink2">
-                {contactos.length} contacto{contactos.length === 1 ? '' : 's'}
-                {contactos.length === LIMITE && ' (mostrando los primeros 100; afina la búsqueda)'}
+                {totalFiltrado} contacto{totalFiltrado === 1 ? '' : 's'}
+                {paginas > 1 && ` · página ${pagina} de ${paginas}`}
               </p>
               <div className="panel hidden overflow-x-auto sm:block">
                 <table className="tabla min-w-[720px] table-fixed">
@@ -513,9 +570,13 @@ function Pagina({
                           {/* La zona ocupaba una columna entera para dos
                               palabras: cabe aquí, como lo que es. */}
                           <span className="block truncate text-xs text-muted">
+                            {/* «0 casos» en cada fila es ruido: la mayoría de
+                                las personas de redes no tienen ninguno. */}
                             {[
                               c.zona,
-                              `${c.lead_contactos.length} caso${c.lead_contactos.length === 1 ? '' : 's'}`,
+                              c.lead_contactos.length > 0
+                                ? `${c.lead_contactos.length} caso${c.lead_contactos.length === 1 ? '' : 's'}`
+                                : null,
                             ]
                               .filter(Boolean)
                               .join(' · ')}
@@ -620,9 +681,11 @@ function Pagina({
                         >
                           {c.nombre}
                         </Link>
-                        <span className="num shrink-0 text-xs text-muted">
-                          {c.lead_contactos.length} caso{c.lead_contactos.length === 1 ? '' : 's'}
-                        </span>
+                        {c.lead_contactos.length > 0 && (
+                          <span className="num shrink-0 text-xs text-muted">
+                            {c.lead_contactos.length} caso{c.lead_contactos.length === 1 ? '' : 's'}
+                          </span>
+                        )}
                       </div>
 
                       {/* Sin número no hay nada que marcar: se dice, en vez
@@ -670,6 +733,35 @@ function Pagina({
                   );
                 })}
               </ul>
+
+              {paginas > 1 && (
+                <nav
+                  aria-label="Páginas de contactos"
+                  className="mt-4 flex items-center justify-between gap-2 text-sm"
+                >
+                  {pagina > 1 ? (
+                    <Link href={enlacePagina(filtros, pagina - 1)} className="btn btn-ghost">
+                      ← Anterior
+                    </Link>
+                  ) : (
+                    <span className="btn btn-ghost pointer-events-none opacity-40">← Anterior</span>
+                  )}
+
+                  <span className="num text-ink2">
+                    {pagina} de {paginas}
+                  </span>
+
+                  {pagina < paginas ? (
+                    <Link href={enlacePagina(filtros, pagina + 1)} className="btn btn-ghost">
+                      Siguiente →
+                    </Link>
+                  ) : (
+                    <span className="btn btn-ghost pointer-events-none opacity-40">
+                      Siguiente →
+                    </span>
+                  )}
+                </nav>
+              )}
             </>
           )}
         </div>

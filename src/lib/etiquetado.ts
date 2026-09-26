@@ -17,6 +17,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import type { CampoRegla, CondicionRegla } from '@/lib/reglas';
+import { traerTodo } from '@/lib/paginar';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -100,17 +101,27 @@ export async function ejecutarEtiquetado(admin: Cliente): Promise<ResultadoEtiqu
     motivos: indexar(motivos),
   };
 
-  const { data: casos } = await admin
-    .from('leads')
-    .select('id, estado, centro_id, canal_id, modalidad_interes_id, motivo_perdida_id');
-  if (!casos || casos.length === 0) return { reglas: reglas.length, etiquetasAplicadas: 0 };
+  /*
+   * Los dos paginados: PostgREST corta en mil y no avisa, así que a partir
+   * del caso 1.001 el motor habría dejado de etiquetar sin que nada fallara.
+   * Un motor que trabaja a medias en silencio es peor que uno parado, porque
+   * el parado se ve.
+   */
+  const { filas: casos } = await traerTodo((d, h) =>
+    admin
+      .from('leads')
+      .select('id, estado, centro_id, canal_id, modalidad_interes_id, motivo_perdida_id')
+      .order('id')
+      .range(d, h),
+  );
+  if (casos.length === 0) return { reglas: reglas.length, etiquetasAplicadas: 0 };
 
-  // Contactos de cada caso, en una sola consulta.
-  const { data: vinculos } = await admin
-    .from('lead_contactos')
-    .select('lead_id, contacto_id, tipo');
+  // Contactos de cada caso, de una vez.
+  const { filas: vinculos } = await traerTodo((d, h) =>
+    admin.from('lead_contactos').select('lead_id, contacto_id, tipo').order('id').range(d, h),
+  );
   const contactosPorCaso = new Map<string, { id: string; tipo: string }[]>();
-  for (const v of vinculos ?? []) {
+  for (const v of vinculos) {
     const lista = contactosPorCaso.get(v.lead_id) ?? [];
     lista.push({ id: v.contacto_id, tipo: v.tipo });
     contactosPorCaso.set(v.lead_id, lista);

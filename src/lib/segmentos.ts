@@ -6,6 +6,7 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { traerTodo } from '@/lib/paginar';
 
 export type FiltroSegmento = {
   /** Ids de etiquetas que el contacto debe tener (todas). */
@@ -56,18 +57,36 @@ export async function contactosDelSegmento(
   }
   if (filtro.conEmail) consulta = consulta.not('email', 'is', null);
 
-  const { data: candidatos } = await consulta;
-  let ids = (candidatos ?? []).map((c) => c.id);
+  /*
+   * PAGINADO, y no por manía: de aquí sale a quién se le manda una campaña.
+   * PostgREST corta en mil sin avisar, así que un segmento de mil doscientas
+   * personas habría enviado a mil y nadie habría notado que faltaban
+   * doscientas — ni las doscientas, ni quien lanzó la campaña.
+   */
+  const { filas: candidatos } = await traerTodo((d, h) => consulta.range(d, h));
+  let ids = candidatos.map((c) => c.id);
 
   // Todas las etiquetas exigidas (intersección, no unión).
   for (const etiquetaId of filtro.etiquetas ?? []) {
     if (ids.length === 0) break;
-    const { data: conEtiqueta } = await cliente
-      .from('contacto_etiquetas')
-      .select('contacto_id')
-      .eq('etiqueta_id', etiquetaId)
-      .in('contacto_id', ids);
-    const permitidos = new Set((conEtiqueta ?? []).map((e) => e.contacto_id));
+    /*
+     * Se pregunta por tandas de identificadores en vez de mandarlos todos en
+     * un `in(...)`: con varios miles, esa lista no cabe en la URL y la
+     * consulta falla entera.
+     */
+    const permitidos = new Set<string>();
+    for (let i = 0; i < ids.length; i += 300) {
+      const tanda = ids.slice(i, i + 300);
+      const { filas } = await traerTodo((d, h) =>
+        cliente
+          .from('contacto_etiquetas')
+          .select('contacto_id')
+          .eq('etiqueta_id', etiquetaId)
+          .in('contacto_id', tanda)
+          .range(d, h),
+      );
+      for (const e of filas) permitidos.add(e.contacto_id);
+    }
     ids = ids.filter((id) => permitidos.has(id));
   }
 

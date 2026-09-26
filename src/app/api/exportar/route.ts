@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sesionVerificada } from '@/lib/sesion-verificada';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { traerTodo } from '@/lib/paginar';
 
 /**
  * Exportación a CSV. SOLO dirección (regla 11) y cada descarga queda auditada
@@ -65,8 +66,8 @@ export async function GET(req: NextRequest) {
     if (desde) consulta = consulta.gte('created_at', desde);
     if (hasta) consulta = consulta.lte('created_at', hasta);
 
-    const { data } = await consulta;
-    filas = (data ?? []).map((l) => ({
+    const { filas: leads } = await traerTodo((d, h) => consulta.range(d, h));
+    filas = leads.map((l) => ({
       nombre: l.nombre,
       telefono: l.telefono,
       centro: l.centro?.nombre,
@@ -86,13 +87,17 @@ export async function GET(req: NextRequest) {
       utm_campaign: l.utm_campaign,
     }));
   } else if (que === 'contactos') {
-    const { data } = await supabase
-      .from('contactos')
-      .select(
-        'nombre, telefono, email, zona, consentimiento_marketing, consentimiento_marketing_at, consentimiento_marketing_origen, created_at',
-      )
-      .order('nombre');
-    filas = (data ?? []) as Record<string, unknown>[];
+    const { filas: personas } = await traerTodo((d, h) =>
+      supabase
+        .from('contactos')
+        .select(
+          'nombre, telefono, email, zona, consentimiento_marketing, consentimiento_marketing_at, consentimiento_marketing_origen, created_at',
+        )
+        .order('nombre')
+        .order('id')
+        .range(d, h),
+    );
+    filas = personas as Record<string, unknown>[];
   } else if (que === 'conversiones') {
     let consulta = supabase
       .from('conversiones')
@@ -104,8 +109,8 @@ export async function GET(req: NextRequest) {
     if (desde) consulta = consulta.gte('created_at', desde);
     if (hasta) consulta = consulta.lte('created_at', hasta);
 
-    const { data } = await consulta;
-    filas = (data ?? []).map((c) => ({
+    const { filas: conv } = await traerTodo((d, h) => consulta.range(d, h));
+    filas = conv.map((c) => ({
       caso: c.lead?.nombre,
       telefono: c.lead?.telefono,
       centro: c.centro?.nombre,
@@ -127,8 +132,8 @@ export async function GET(req: NextRequest) {
     if (desde) consulta = consulta.gte('inicio', desde);
     if (hasta) consulta = consulta.lte('inicio', hasta);
 
-    const { data } = await consulta;
-    filas = (data ?? []).map((c) => ({
+    const { filas: conv } = await traerTodo((d, h) => consulta.range(d, h));
+    filas = conv.map((c) => ({
       caso: c.lead?.nombre,
       telefono: c.lead?.telefono,
       centro: c.centro?.nombre,
