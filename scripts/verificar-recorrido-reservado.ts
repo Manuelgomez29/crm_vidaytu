@@ -63,12 +63,60 @@ async function main() {
     .select('id')
     .single();
 
-  // Y una de un centro, para comprobar que lo demás se sigue viendo.
-  const { data: abierta } = await admin
+  /*
+   * Y DOS del recorrido abierto, porque el recorrido no es la única regla:
+   * encima sigue estando el filtro por centro de siempre. Una persona del
+   * directorio no se ve «por no estar restringida», se ve por tener un caso en
+   * un centro tuyo o por haberla creado tú.
+   *
+   * La primera versión de esta prueba solo creaba la suelta y exigía que el
+   * comercial LA VIERA. Con eso, el control afirmaba la fuga en lugar de
+   * cazarla: pasaba justo cuando el filtro por centro había desaparecido.
+   */
+  const { data: suelta } = await admin
     .from('contactos')
-    .insert({ nombre: MARCA + ' abierta', telefono: '+34600999111' })
+    .insert({ nombre: MARCA + ' suelta', telefono: '+34600999111' })
     .select('id')
     .single();
+
+  const [{ data: centro }, { data: pipe }, { data: canal }] = await Promise.all([
+    admin.from('centros').select('id').eq('slug', 'bellamar').single(),
+    admin.from('pipelines').select('id').limit(1).single(),
+    admin.from('canales').select('id').eq('slug', 'otro').single(),
+  ]);
+  const { data: etapa } = await admin
+    .from('pipeline_etapas')
+    .select('id')
+    .eq('pipeline_id', pipe!.id)
+    .order('orden')
+    .limit(1)
+    .single();
+
+  const nuevoCaso = async (telefono: string) => {
+    const { data } = await admin
+      .from('leads')
+      .insert({
+        centro_id: centro!.id,
+        pipeline_id: pipe!.id,
+        etapa_id: etapa!.id,
+        nombre: MARCA,
+        telefono,
+        canal_id: canal!.id,
+      })
+      .select('id')
+      .single();
+    return data!.id;
+  };
+
+  const { data: conCaso } = await admin
+    .from('contactos')
+    .insert({ nombre: MARCA + ' con caso', telefono: '+34600999113' })
+    .select('id')
+    .single();
+  const casoDeBellamar = await nuevoCaso('+34600999114');
+  await admin
+    .from('lead_contactos')
+    .insert({ lead_id: casoDeBellamar, contacto_id: conCaso!.id, tipo: 'familiar' });
 
   // ---------------------------------------------------------------------------
   console.log('\nQuién la ve:');
@@ -88,11 +136,28 @@ async function main() {
       'es lo que se pidió, y lo aplica la base, no la pantalla',
     );
 
-    const { data: normal } = await comercial.from('contactos').select('id').eq('id', abierta!.id);
+    /*
+     * Restringir de más sería tan malo como no restringir: lo que SÍ le toca,
+     * lo tiene que ver.
+     */
+    const { data: propia } = await comercial.from('contactos').select('id').eq('id', conCaso!.id);
     comprobar(
-      'pero sigue viendo el resto del directorio',
-      (normal ?? []).length === 1,
+      'pero sigue viendo a la gente de sus casos',
+      (propia ?? []).length === 1,
       'restringir de más sería tan malo como no restringir',
+    );
+
+    /*
+     * Y el otro sentido, que es el que se me escapó: alguien del directorio sin
+     * caso suyo y que él no creó NO se ve, aunque su recorrido esté abierto. Sin
+     * esta línea, una migración puede cambiar el filtro por centro por el del
+     * recorrido y dejar el nombre y el teléfono de todo el grupo a la vista.
+     */
+    const { data: ajena } = await comercial.from('contactos').select('id').eq('id', suelta!.id);
+    comprobar(
+      'y a quien no es de ningún caso suyo, NO',
+      (ajena ?? []).length === 0,
+      'el recorrido se suma al filtro por centro; no lo sustituye',
     );
 
     // ------------------------------------------------------------------------
@@ -103,34 +168,10 @@ async function main() {
      * A partir de ahí tiene que verla: si no, llevaría un caso sin poder abrir
      * la ficha de la persona del caso.
      */
-    const [{ data: centro }, { data: pipe }, { data: canal }] = await Promise.all([
-      admin.from('centros').select('id').eq('slug', 'bellamar').single(),
-      admin.from('pipelines').select('id').limit(1).single(),
-      admin.from('canales').select('id').eq('slug', 'otro').single(),
-    ]);
-    const { data: etapa } = await admin
-      .from('pipeline_etapas')
-      .select('id')
-      .eq('pipeline_id', pipe!.id)
-      .order('orden')
-      .limit(1)
-      .single();
-
-    const { data: caso } = await admin
-      .from('leads')
-      .insert({
-        centro_id: centro!.id,
-        pipeline_id: pipe!.id,
-        etapa_id: etapa!.id,
-        nombre: MARCA,
-        telefono: '+34600999112',
-        canal_id: canal!.id,
-      })
-      .select('id')
-      .single();
+    const caso = await nuevoCaso('+34600999112');
     await admin
       .from('lead_contactos')
-      .insert({ lead_id: caso!.id, contacto_id: persona!.id, tipo: 'familiar' });
+      .insert({ lead_id: caso, contacto_id: persona!.id, tipo: 'familiar' });
 
     const { data: ahora } = await comercial.from('contactos').select('id').eq('id', persona!.id);
     comprobar(
@@ -139,13 +180,14 @@ async function main() {
       'sin esto, llevaría un caso sin poder abrir la ficha de su protagonista',
     );
 
-    await admin.from('leads').delete().eq('id', caso!.id);
+    await admin.from('leads').delete().eq('id', caso);
 
     const { data: despues } = await comercial.from('contactos').select('id').eq('id', persona!.id);
     comprobar('y al irse el caso, vuelve a no verla', (despues ?? []).length === 0);
   }
 
   // ---------------------------------------------------------------------------
+  await admin.from('leads').delete().like('nombre', `${MARCA}%`);
   await admin.from('contactos').delete().like('nombre', `${MARCA}%`);
   console.log('\n  (datos de prueba retirados)');
 
