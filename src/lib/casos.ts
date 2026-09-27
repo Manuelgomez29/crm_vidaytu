@@ -80,21 +80,24 @@ export async function asegurarContacto(
     telefono: string;
     email?: string | null;
     zona?: string | null;
+    /** Rótulo de por dónde llegó: «formulario», «manual»… */
+    origen?: string | null;
   },
   creadoPor: string | null,
 ): Promise<{ id: string; yaExistia: boolean } | { error: string }> {
   const { data: existente } = await admin
     .from('contactos')
-    .select('id, email, zona')
+    .select('id, email, zona, origen')
     .eq('telefono', datos.telefono)
     .maybeSingle();
 
   if (existente) {
     // Solo se rellenan huecos. Lo que ya hay se ha ganado hablando con la
     // persona; lo que llega ahora puede venir de un formulario mal escrito.
-    const parche: { email?: string; zona?: string } = {};
+    const parche: { email?: string; zona?: string; origen?: string } = {};
     if (!existente.email && datos.email) parche.email = datos.email;
     if (!existente.zona && datos.zona) parche.zona = datos.zona;
+    if (!existente.origen && datos.origen) parche.origen = datos.origen;
     if (Object.keys(parche).length > 0) {
       await admin.from('contactos').update(parche).eq('id', existente.id);
     }
@@ -108,6 +111,7 @@ export async function asegurarContacto(
       telefono: datos.telefono,
       email: datos.email ?? null,
       zona: datos.zona ?? null,
+      origen: datos.origen ?? null,
       created_by: creadoPor,
     })
     .select('id')

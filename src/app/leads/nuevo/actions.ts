@@ -133,7 +133,13 @@ export async function crearLead(formData: FormData) {
    */
   const contacto = await asegurarContacto(
     admin,
-    { nombre, telefono, email: String(formData.get('email') ?? '').trim() || null, zona },
+    {
+      nombre,
+      telefono,
+      email: String(formData.get('email') ?? '').trim() || null,
+      zona,
+      origen: 'manual',
+    },
     user.id,
   );
   if ('error' in contacto) fallar(`No se pudo crear el contacto: ${contacto.error}`);

@@ -195,6 +195,8 @@ export async function POST(req: NextRequest) {
       telefono,
       email: (datos.email ?? '').trim() || null,
       zona: (datos.zona ?? '').trim() || null,
+      // Por dónde llegó, que es uno de los dos ejes del directorio.
+      origen: 'formulario',
     })
     .select('id')
     .single();

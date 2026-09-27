@@ -131,7 +131,7 @@ export async function anadirContacto(leadId: string, formData: FormData) {
      */
     const resultado = await asegurarContacto(
       createAdminClient(),
-      { nombre, telefono },
+      { nombre, telefono, origen: 'manual' },
       user?.id ?? null,
     );
     if ('error' in resultado) {
