@@ -45,6 +45,9 @@ export async function GET(req: NextRequest) {
       ZEROCHATS_WEBHOOK_SECRET: puesta('ZEROCHATS_WEBHOOK_SECRET'),
       ZEROCHATS_API_KEY: puesta('ZEROCHATS_API_KEY'),
       RESEND_API_KEY: puesta('RESEND_API_KEY'),
+      // El interruptor de las webs que mandan con el secreto global.
+      FORMULARIOS_WEBHOOK_SECRET: puesta('FORMULARIOS_WEBHOOK_SECRET'),
+      ENLACES_SECRET: puesta('ENLACES_SECRET'),
       NEXT_PUBLIC_URL_APP: process.env.NEXT_PUBLIC_URL_APP ?? null,
     },
   });
