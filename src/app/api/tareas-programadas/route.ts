@@ -10,6 +10,7 @@ import { purgarContenidoVencido } from '@/lib/canal';
 import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
 import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
 import { enlazarIdentidadesSociales } from '@/lib/puente-identidades';
+import { enviarPendientesAHighLevel } from '@/lib/highlevel-salida';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -129,10 +130,26 @@ export async function POST(req: NextRequest) {
       ? await fase('canal_puente', fallos, () => enlazarIdentidadesSociales(admin), null)
       : null;
 
+    /*
+     * Y de vuelta: las personas de Método HOME que entraron POR AQUÍ y en
+     * HighLevel no existen. Va DESPUÉS del puente a propósito: así las que
+     * acaban de enlazarse ya tienen su recibo y no se envían por duplicado.
+     *
+     * Esta fase no depende de que haya habido copia: un formulario de la landing
+     * de HOME entra a cualquier hora y ese equipo tiene que verlo hoy, no mañana.
+     */
+    const salidaHighLevel = await fase(
+      'canal_salida_highlevel',
+      fallos,
+      () => enviarPendientesAHighLevel(admin),
+      null,
+    );
+
     const resultado = {
       ...(alertas ?? {}),
       ...automatizacion,
       ...(campanas ?? {}),
+      ...(salidaHighLevel ? { salida_highlevel: salidaHighLevel } : {}),
       repartidos: reparto.asignados,
       recordatorios: recordatorios.enviados,
       push: push.enviados,
