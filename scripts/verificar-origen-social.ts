@@ -180,6 +180,92 @@ async function main() {
     'dos «Carmen» no son la misma persona',
   );
 
+  /*
+   * Y las dos rutas del correo sintético, que es de donde sale la identidad de
+   * verdad: el campo `ig_username` de HighLevel está VACÍO en los 85 contactos
+   * de la cuenta real —comprobado también en la ficha de detalle—, así que un
+   * puente que dependa de él no enlaza a nadie nunca.
+   */
+  console.log('\nEl correo sintético de Instagram también enlaza:');
+
+  const rutas = [
+    {
+      clave: 'usuario',
+      correo: `${USUARIO}_b@instagram.com`,
+      usuario: `${USUARIO}_b`,
+      igsid: '17841400000008881',
+    },
+    {
+      clave: 'IGSID',
+      correo: 'ig-17841400000008882@instagram.com',
+      usuario: null,
+      igsid: '17841400000008882',
+    },
+  ];
+
+  for (const r of rutas) {
+    const { data: p } = await admin
+      .from('contactos')
+      .insert({ nombre: `Prueba ${r.clave} ${MARCA}`, origen: 'highlevel' })
+      .select('id')
+      .single();
+    const refHL = `HL-${r.clave}-${MARCA}`;
+    await admin.from('canal_identidades').insert({
+      sistema: 'highlevel',
+      plataforma: 'highlevel',
+      ref_sistema: refHL,
+      contacto_id: p!.id,
+    });
+    // La ficha de HighLevel: SOLO el correo, sin campo personalizado ninguno.
+    await admin.from('canal_espejo').insert({
+      sistema: 'highlevel',
+      tipo: 'contacto',
+      ref: refHL,
+      contenido: { id: refHL, email: r.correo, customFields: [] },
+    });
+    await admin.from('canal_identidades').insert({
+      sistema: 'zerochats',
+      plataforma: 'instagram',
+      ref_sistema: `lead-${r.clave}-${MARCA}`,
+      ref_plataforma: r.igsid,
+      usuario: r.usuario,
+      nombre: 'Quien sea',
+    });
+
+    await enlazarIdentidadesSociales(admin);
+    const { data: quedo } = await admin
+      .from('canal_identidades')
+      .select('contacto_id')
+      .eq('ref_sistema', `lead-${r.clave}-${MARCA}`)
+      .single();
+    comprobar(
+      `enlaza por ${r.clave} (${r.correo})`,
+      quedo?.contacto_id === p!.id,
+      'es lo único que trae la cuenta real',
+    );
+  }
+
+  // Y sin correo que cuadre se queda suelta, aunque el nombre sea el mismo.
+  await admin.from('canal_identidades').insert({
+    sistema: 'zerochats',
+    plataforma: 'instagram',
+    ref_sistema: `lead-ajena-${MARCA}`,
+    ref_plataforma: '17841400000009999999',
+    usuario: `nadie_${MARCA}`,
+    nombre: 'Quien sea',
+  });
+  await enlazarIdentidadesSociales(admin);
+  const { data: ajena } = await admin
+    .from('canal_identidades')
+    .select('contacto_id')
+    .eq('ref_sistema', `lead-ajena-${MARCA}`)
+    .single();
+  comprobar(
+    'y sin correo que cuadre, se queda suelta',
+    ajena?.contacto_id === null,
+    'mismo nombre que las otras dos: el nombre nunca enlaza',
+  );
+
   // ---------------------------------------------------------------------------
   console.log('\nY un comercial lo ve:');
 
@@ -215,6 +301,7 @@ async function main() {
   await admin.from('canal_identidades').delete().like('ref_sistema', `%${MARCA}`);
   await admin.from('canal_espejo').delete().like('ref', `%${MARCA}`);
   await admin.from('contactos').delete().eq('id', persona!.id);
+  await admin.from('contactos').delete().like('nombre', `Prueba %${MARCA}`);
   console.log('\n  (datos de prueba retirados)');
 
   console.log(
