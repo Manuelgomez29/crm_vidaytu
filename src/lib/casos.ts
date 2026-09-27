@@ -82,22 +82,44 @@ export async function asegurarContacto(
     zona?: string | null;
     /** Rótulo de por dónde llegó: «formulario», «manual»… */
     origen?: string | null;
+    /**
+     * Consentimiento de marketing, SOLO si hay un sí explícito (regla 5).
+     *
+     * Nunca se usa para quitarlo: que un formulario no lo traiga no significa
+     * que la persona se haya dado de baja. Para eso está el enlace de baja.
+     */
+    consentimientoMarketing?: boolean;
+    /** De dónde salió ese sí: hace falta para poder demostrarlo. */
+    consentimientoOrigen?: string | null;
   },
   creadoPor: string | null,
 ): Promise<{ id: string; yaExistia: boolean } | { error: string }> {
   const { data: existente } = await admin
     .from('contactos')
-    .select('id, email, zona, origen')
+    .select('id, email, zona, origen, consentimiento_marketing')
     .eq('telefono', datos.telefono)
     .maybeSingle();
 
   if (existente) {
     // Solo se rellenan huecos. Lo que ya hay se ha ganado hablando con la
     // persona; lo que llega ahora puede venir de un formulario mal escrito.
-    const parche: { email?: string; zona?: string; origen?: string } = {};
+    const parche: {
+      email?: string;
+      zona?: string;
+      origen?: string;
+      consentimiento_marketing?: boolean;
+      consentimiento_marketing_at?: string;
+      consentimiento_marketing_origen?: string | null;
+    } = {};
     if (!existente.email && datos.email) parche.email = datos.email;
     if (!existente.zona && datos.zona) parche.zona = datos.zona;
     if (!existente.origen && datos.origen) parche.origen = datos.origen;
+    // Un sí nuevo sobre alguien que no lo tenía. Al revés, nunca.
+    if (datos.consentimientoMarketing && !existente.consentimiento_marketing) {
+      parche.consentimiento_marketing = true;
+      parche.consentimiento_marketing_at = new Date().toISOString();
+      parche.consentimiento_marketing_origen = datos.consentimientoOrigen ?? null;
+    }
     if (Object.keys(parche).length > 0) {
       await admin.from('contactos').update(parche).eq('id', existente.id);
     }
@@ -112,6 +134,13 @@ export async function asegurarContacto(
       email: datos.email ?? null,
       zona: datos.zona ?? null,
       origen: datos.origen ?? null,
+      consentimiento_marketing: datos.consentimientoMarketing === true,
+      consentimiento_marketing_at: datos.consentimientoMarketing
+        ? new Date().toISOString()
+        : null,
+      consentimiento_marketing_origen: datos.consentimientoMarketing
+        ? (datos.consentimientoOrigen ?? null)
+        : null,
       created_by: creadoPor,
     })
     .select('id')

@@ -113,8 +113,13 @@ function mapearColumnas(cabecera: string[]): Record<string, number> {
   return mapa;
 }
 
-/** ¿El valor de la columna de consentimiento dice que sí, sin ambigüedad? */
-function esSi(valor: string | undefined): boolean {
+/**
+ * ¿El valor dice que sí, sin ambigüedad?
+ *
+ * Lo comparte la ingesta web: un «no» y un campo ausente no son lo mismo que un
+ * sí, y de eso depende a quién se le puede escribir.
+ */
+export function esSi(valor: string | undefined): boolean {
   const v = (valor ?? '').trim().toLowerCase();
   return ['si', 'sí', 'yes', 'true', '1', 'x', 'acepta', 'suscrito'].includes(v);
 }

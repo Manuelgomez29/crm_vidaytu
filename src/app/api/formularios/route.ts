@@ -3,9 +3,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizarTelefono } from '@/lib/telefonos';
 import { secretoCoincide } from '@/lib/enlaces';
 import { apuntarLead, fuentePorToken } from '@/lib/fuentes';
+import { esSi } from '@/lib/importar';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import {
   anotarEnCasoAbierto,
+  asegurarContacto,
   pipelineYPrimeraEtapa,
   reabrirCaso,
   slaMinutos,
@@ -19,7 +21,8 @@ import {
  * POST /api/formularios  (cabecera `x-webhook-secret` o `?token=`)
  * Acepta JSON o form-data. Campos: nombre* y telefono*; opcionales: email,
  * mensaje, centro (slug), canal (slug), subcanal, adiccion (slug),
- * modalidad (slug), quien_contacta, urgencia, zona, utm_source, utm_medium,
+ * modalidad (slug), quien_contacta, urgencia, zona, consentimiento_marketing,
+ * utm_source, utm_medium,
  * utm_campaign, landing_url, origen_sistema, origen_ref (idempotencia).
  *
  * Reglas (compartidas con el alta manual en src/lib/casos.ts):
@@ -188,21 +191,45 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: pipeline.error }, { status: 500 });
   }
 
-  const { data: contactoNuevo, error: errorContacto } = await admin
-    .from('contactos')
-    .insert({
+  /*
+   * El consentimiento, y de DÓNDE salió.
+   *
+   * «Marketing» de una landing y «marketing» de la web no valen lo mismo si un
+   * día hay que demostrar qué aceptó esa persona: se guarda la fuente y, si la
+   * hay, la URL donde lo marcó.
+   */
+  const consiente = esSi(datos.consentimiento_marketing ?? datos.consentimiento);
+  const landing = (datos.landing_url ?? '').trim();
+  const origenDelConsentimiento = landing
+    ? `formulario ${origenSistema} · ${landing}`
+    : `formulario ${origenSistema}`;
+  /*
+   * La persona, por la vía compartida con el alta manual.
+   *
+   * Antes se insertaba aquí a mano, y eso rompía con 500 cuando la persona YA
+   * existía en el directorio sin caso: el teléfono es único. Pasa de verdad
+   * —hay gente traída de HighLevel con número— y la web habría reintentado en
+   * bucle contra un error que nunca se iba a arreglar solo.
+   *
+   * `asegurarContacto` reutiliza la que haya y solo rellena huecos, que es
+   * además la regla 5: la persona es global, no se duplica.
+   */
+  const contactoNuevo = await asegurarContacto(
+    admin,
+    {
       nombre,
       telefono,
       email: (datos.email ?? '').trim() || null,
       zona: (datos.zona ?? '').trim() || null,
-      // Por dónde llegó, que es uno de los dos ejes del directorio.
       origen: 'formulario',
-    })
-    .select('id')
-    .single();
-  if (errorContacto || !contactoNuevo) {
+      consentimientoMarketing: consiente,
+      consentimientoOrigen: origenDelConsentimiento,
+    },
+    null,
+  );
+  if ('error' in contactoNuevo) {
     return NextResponse.json(
-      { error: `No se pudo crear el contacto: ${errorContacto?.message}` },
+      { error: `No se pudo crear el contacto: ${contactoNuevo.error}` },
       { status: 500 },
     );
   }
