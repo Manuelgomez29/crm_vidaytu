@@ -23,6 +23,9 @@ const TOPE_PAGINAS = 60;
 /** Cuántas conversaciones se recorren para traer sus mensajes, por pasada. */
 const TOPE_CONVERSACIONES = 400;
 
+/** Páginas de mensajes por conversación: 100 cada una, de sobra para una charla. */
+const TOPE_PAGINAS_MENSAJES = 20;
+
 type Fila = { tipo: string; ref: string; refPadre?: string | null; contenido: unknown };
 
 function cabeceras(token: string) {
@@ -234,20 +237,43 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
     /*
      * Los mensajes son el motivo de todo esto: sin ellos se vuelve con una
      * lista de nombres. Por eso se recorren una a una aunque salga caro.
+     *
+     * Y con TODAS sus páginas. La primera versión pedía solo la primera y
+     * marcaba `truncado` si había más: de las 22 conversaciones de la cuenta
+     * real, una tenía 20 mensajes y seguía. Perder la cola de una conversación
+     * es perder justo el final, que es donde se dice si la persona va a venir.
+     *
+     * El cursor es `lastMessageId`, que el propio sobre devuelve.
      */
     for (const c of conversaciones.slice(0, TOPE_CONVERSACIONES)) {
-      const m = await pedir(token, `/conversations/${c.id}/messages`);
-      const sobre = (m.messages ?? {}) as { messages?: { id: string }[]; nextPage?: boolean };
-      await anotar(
-        'mensaje',
-        (sobre.messages ?? []).map((x) => ({
-          tipo: 'mensaje',
-          ref: x.id,
-          refPadre: c.id,
-          contenido: x,
-        })),
-      );
-      if (sobre.nextPage) truncado = true;
+      let desde: string | null = null;
+      for (let p = 0; p < TOPE_PAGINAS_MENSAJES; p++) {
+        const ruta = `/conversations/${c.id}/messages?limit=100${desde ? `&lastMessageId=${desde}` : ''}`;
+        const m = await pedir(token, ruta);
+        const sobre = (m.messages ?? {}) as {
+          messages?: { id: string }[];
+          nextPage?: boolean;
+          lastMessageId?: string;
+        };
+        const lote = sobre.messages ?? [];
+        await anotar(
+          'mensaje',
+          lote.map((x) => ({
+            tipo: 'mensaje',
+            ref: x.id,
+            refPadre: c.id,
+            contenido: x,
+          })),
+        );
+        if (!sobre.nextPage || lote.length === 0) break;
+        // Sin cursor no se puede seguir sin repetir: se dice y se deja.
+        desde = sobre.lastMessageId ?? null;
+        if (!desde) {
+          truncado = true;
+          break;
+        }
+        if (p === TOPE_PAGINAS_MENSAJES - 1) truncado = true;
+      }
     }
     if (conversaciones.length > TOPE_CONVERSACIONES) truncado = true;
 

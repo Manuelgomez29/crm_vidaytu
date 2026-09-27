@@ -97,6 +97,16 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nRepetirlo no duplica:');
 
+  /*
+   * Primero una pasada que ASIENTE, y la medida sobre la siguiente.
+   *
+   * Sin esto la prueba grita en falso: cuando el espejo trae personas nuevas
+   * —20 la primera noche que lo miramos— el directorio crece por motivo
+   * legitimo y la comprobacion lo lee como un duplicado. Una prueba que falla
+   * cuando el sistema funciona se acaba ignorando, y entonces no protege nada.
+   */
+  await volcarDirectorioDeHighLevel(admin);
+
   const antes = await contar('contactos');
   const segunda = await volcarDirectorioDeHighLevel(admin);
   const despues = await contar('contactos');
