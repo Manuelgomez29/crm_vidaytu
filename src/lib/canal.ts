@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
-import { normalizarTelefono } from '@/lib/telefonos';
+import { normalizarTelefono, telefonoDeCanal } from '@/lib/telefonos';
 
 /**
  * El anexo de canales sociales.
@@ -146,11 +146,31 @@ export function identidadDesdeEvento(
       }
     : null;
 
-  const telefonoCrudo = (lead.phone ?? '').trim();
+  /*
+   * EL TELÉFONO, QUE EN WHATSAPP ES LA IDENTIDAD.
+   *
+   * `lead.phone` es lo que la persona haya dicho en la conversación, y puede
+   * venir vacío incluso en WhatsApp. Lo que siempre viene en un canal de
+   * WhatsApp es `externalId`: los dígitos del número, sin prefijo.
+   *
+   * Sin esto, un lead de WhatsApp entraba con el teléfono en blanco y su número
+   * guardado como texto suelto en `ref_plataforma`. Nunca habría emparejado con
+   * la persona del directorio, que vive en E.164, así que el embudo de HOME
+   * —Instagram, TikTok y Facebook desembocando en un WhatsApp— habría llenado la
+   * base de identidades sueltas.
+   */
+  const plataforma = (lead.platform ?? 'desconocida').toLowerCase();
+  const esWhatsApp = plataforma.includes('whats') || plataforma.includes('wasender');
+
+  const telefonoDicho = (lead.phone ?? '').trim();
+  const telefono =
+    (telefonoDicho ? normalizarTelefono(telefonoDicho) : null) ??
+    (esWhatsApp ? telefonoDeCanal(lead.externalId ?? '') : null) ??
+    (telefonoDicho || null);
 
   return {
     sistema,
-    plataforma: (lead.platform ?? 'desconocida').toLowerCase(),
+    plataforma,
     /*
      * El evento NO dice por qué cuenta receptora entró: solo de qué negocio de
      * ZeroChats viene. Con dos Instagram en el grupo esto importará, así que
@@ -161,7 +181,7 @@ export function identidadDesdeEvento(
     ref_plataforma: lead.externalId ?? null,
     usuario: lead.username ?? null,
     nombre: lead.name ?? null,
-    telefono: telefonoCrudo ? (normalizarTelefono(telefonoCrudo) ?? telefonoCrudo) : null,
+    telefono,
     email: lead.email ?? null,
     estado: lead.state ?? null,
     etiquetas: lead.tags ?? [],

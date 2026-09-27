@@ -32,6 +32,19 @@ import { traerTodo } from '@/lib/paginar';
  * campo personalizado se sigue mirando por si algún día lo rellenan, pero ya no
  * es de lo que esto depende.
  *
+ * Y EN WHATSAPP, EL TELÉFONO
+ *
+ * Cuando el embudo de HOME desemboca en un WhatsApp —Instagram, TikTok y
+ * Facebook llevando al mismo número—, la identidad ya no es un usuario de
+ * Instagram: es el número. Y el número no hace falta buscarlo en HighLevel,
+ * porque es la clave con la que este CRM deduplica personas desde el primer día.
+ *
+ * Por eso el teléfono va PRIMERO: es más directo y no depende de que la copia
+ * de la noche haya pasado. Si ese número todavía no está en el directorio, la
+ * identidad se queda suelta y se enlaza sola en la siguiente pasada, cuando el
+ * volcado de HighLevel cree a la persona. Aquí no se crea a nadie: el directorio
+ * tiene un único responsable de escribir en él, y no es este puente.
+ *
  * Y NUNCA por el nombre. Dos «María García» no son la misma persona; dos
  * cuentas con el mismo usuario de Instagram, sí.
  */
@@ -43,6 +56,9 @@ type ContactoHL = {
 };
 
 const SUFIJO = '@instagram.com';
+
+/** Teléfonos por consulta: un `in(...)` demasiado largo rompe la URL. */
+const LOTE = 300;
 
 export type ResultadoPuente = { enlazadas: number; sinPareja: number };
 
@@ -118,6 +134,23 @@ export async function enlazarIdentidadesSociales(
     }
   }
 
+  /*
+   * Las personas del directorio que tienen uno de esos números.
+   *
+   * Por lotes: un `in(...)` con miles de teléfonos no cabe en la URL, y ese
+   * fallo no aparece hasta que hay volumen.
+   */
+  const telefonos = [...new Set(sueltas.map((s) => s.telefono).filter(Boolean) as string[])];
+  const porTelefono = new Map<string, string>();
+  for (let i = 0; i < telefonos.length; i += LOTE) {
+    const { data, error } = await admin
+      .from('contactos')
+      .select('id, telefono')
+      .in('telefono', telefonos.slice(i, i + LOTE));
+    if (error) throw new Error('buscando por teléfono: ' + error.message);
+    for (const c of data ?? []) if (c.telefono) porTelefono.set(c.telefono, c.id);
+  }
+
   // Y a qué persona del directorio corresponde cada contacto de HighLevel.
   const { filas: deHighLevel } = await traerTodo((d, h) =>
     admin
@@ -135,14 +168,18 @@ export async function enlazarIdentidadesSociales(
     const igsid = String(suelta.ref_plataforma ?? '').trim();
 
     /*
-     * Por usuario primero y por IGSID después. Para el resultado da igual —las
-     * dos claves son exactas— pero no para lo que se entiende al mirar los
-     * datos: el usuario es legible y el IGSID es solo un número largo.
+     * El teléfono primero, porque no pasa por HighLevel: va directo a la persona
+     * del directorio. Después el usuario de Instagram y después el IGSID; para
+     * el resultado da igual cuál de los dos —las dos claves son exactas— pero no
+     * para lo que se entiende al mirar los datos: el usuario es legible y el
+     * IGSID es solo un número largo.
      */
-    const refHL =
-      (usuario ? porUsuario.get(usuario) : undefined) ??
-      (igsid ? porIgsid.get(igsid) : undefined);
-    const contactoId = refHL ? personaDe.get(refHL) : undefined;
+    const porNumero = suelta.telefono ? porTelefono.get(suelta.telefono) : undefined;
+    const refHL = porNumero
+      ? undefined
+      : ((usuario ? porUsuario.get(usuario) : undefined) ??
+        (igsid ? porIgsid.get(igsid) : undefined));
+    const contactoId = porNumero ?? (refHL ? personaDe.get(refHL) : undefined);
 
     if (!contactoId) {
       r.sinPareja++;
