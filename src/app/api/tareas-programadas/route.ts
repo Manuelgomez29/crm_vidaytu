@@ -11,6 +11,7 @@ import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
 import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
 import { enlazarIdentidadesSociales } from '@/lib/puente-identidades';
 import { enviarPendientesAHighLevel } from '@/lib/highlevel-salida';
+import { ejecutarFlujos } from '@/lib/flujos';
 import { dentroDelLimite, ipDeLaPeticion } from '@/lib/limites';
 import { secretoCoincide } from '@/lib/enlaces';
 import { fase, registrarEjecucion, type FalloDeFase } from '@/lib/salud-motor';
@@ -84,6 +85,13 @@ export async function POST(req: NextRequest) {
         sinDestinatario: 0,
       },
     );
+    /*
+     * Los flujos van ANTES que las campañas a propósito: lo que un paso de
+     * email encola en esta pasada sale en esta misma pasada, no en la de dentro
+     * de quince minutos. A quien espera un correo le da igual el motivo.
+     */
+    const flujos = await fase('flujos', fallos, () => ejecutarFlujos(admin), null);
+
     const campanas = await fase('campanas', fallos, () => procesarCampanas(admin), null);
     const push = await fase('push', fallos, () => enviarPushPendientes(admin), {
       enviados: 0,
@@ -150,6 +158,7 @@ export async function POST(req: NextRequest) {
       ...automatizacion,
       ...(campanas ?? {}),
       ...(salidaHighLevel ? { salida_highlevel: salidaHighLevel } : {}),
+      ...(flujos ? { flujos } : {}),
       repartidos: reparto.asignados,
       recordatorios: recordatorios.enviados,
       push: push.enviados,

@@ -33,6 +33,7 @@ const AVISOS: Record<TipoNotificacion, { titulo: string; ruta: string }> = {
   seguimiento_post_alta: { titulo: 'Seguimiento pendiente', ruta: '/clinica' },
   campana_finalizada: { titulo: 'Campaña terminada', ruta: '/marketing' },
   mensaje_chat: { titulo: 'Mensaje nuevo', ruta: '/clinica/chat' },
+  aviso_flujo: { titulo: 'Aviso de seguimiento', ruta: '/leads' },
 };
 
 export async function enviarPushPendientes(

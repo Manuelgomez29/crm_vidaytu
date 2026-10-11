@@ -79,7 +79,8 @@
     "staging:verificar:admin-alcance": "tsx --env-file=.env.staging scripts/verificar-admin-alcance.ts",
     "staging:verificar:consentimiento": "tsx --env-file=.env.staging scripts/verificar-consentimiento.ts",
     "staging:verificar:whatsapp-home": "tsx --env-file=.env.staging scripts/verificar-whatsapp-home.ts",
-    "staging:verificar:salida-hl": "tsx --env-file=.env.staging scripts/verificar-salida-highlevel.ts"
+    "staging:verificar:salida-hl": "tsx --env-file=.env.staging scripts/verificar-salida-highlevel.ts",
+    "staging:verificar:flujos": "tsx --env-file=.env.staging scripts/verificar-flujos.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

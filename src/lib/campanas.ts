@@ -384,6 +384,25 @@ export async function procesarCampanas(admin: Cliente): Promise<ResultadoCampana
   let enviados = 0;
   let fallidos = 0;
 
+  /*
+   * Las campañas PERPETUAS de los flujos: cada paso de email de un flujo es una
+   * campaña en estado «flujo» a la que el motor va añadiendo destinatarios uno
+   * a uno. Se envían con la misma función y el mismo lote que las normales
+   * —mismo pie de baja, mismo remitente por centro— pero NUNCA se dan por
+   * terminadas: que hoy no quede nadie pendiente no significa que mañana no
+   * llegue alguien al paso.
+   */
+  const { data: perpetuas } = await admin
+    .from('campanas_email')
+    .select('id')
+    .eq('estado', 'flujo');
+
+  for (const campana of perpetuas ?? []) {
+    const lote = await enviarLote(admin, campana.id, tamano);
+    enviados += lote.enviados;
+    fallidos += lote.fallidos;
+  }
+
   for (const campana of enCurso ?? []) {
     const lote = await enviarLote(admin, campana.id, tamano);
     enviados += lote.enviados;

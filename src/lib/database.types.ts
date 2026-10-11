@@ -311,6 +311,7 @@ export type Database = {
           cuerpo_texto: string
           enviada_at: string | null
           estado: Database["public"]["Enums"]["estado_campana"]
+          flujo_paso_id: string | null
           id: string
           lista_id: string | null
           nombre: string
@@ -332,6 +333,7 @@ export type Database = {
           cuerpo_texto: string
           enviada_at?: string | null
           estado?: Database["public"]["Enums"]["estado_campana"]
+          flujo_paso_id?: string | null
           id?: string
           lista_id?: string | null
           nombre: string
@@ -353,6 +355,7 @@ export type Database = {
           cuerpo_texto?: string
           enviada_at?: string | null
           estado?: Database["public"]["Enums"]["estado_campana"]
+          flujo_paso_id?: string | null
           id?: string
           lista_id?: string | null
           nombre?: string
@@ -378,6 +381,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanas_email_flujo_paso_id_fkey"
+            columns: ["flujo_paso_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
             referencedColumns: ["id"]
           },
           {
@@ -1725,6 +1735,250 @@ export type Database = {
           orden?: number
         }
         Relationships: []
+      }
+      flujo_eventos: {
+        Row: {
+          created_at: string
+          detalle: string | null
+          id: number
+          inscripcion_id: string
+          paso_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          detalle?: string | null
+          id?: never
+          inscripcion_id: string
+          paso_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          detalle?: string | null
+          id?: never
+          inscripcion_id?: string
+          paso_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flujo_eventos_inscripcion_id_fkey"
+            columns: ["inscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_inscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_eventos_paso_id_fkey"
+            columns: ["paso_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flujo_inscripciones: {
+        Row: {
+          contacto_id: string
+          created_at: string
+          disparado_por: Json | null
+          estado: string
+          flujo_id: string
+          id: string
+          lead_id: string | null
+          motivo: string | null
+          paso_actual_id: string | null
+          siguiente_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          contacto_id: string
+          created_at?: string
+          disparado_por?: Json | null
+          estado?: string
+          flujo_id: string
+          id?: string
+          lead_id?: string | null
+          motivo?: string | null
+          paso_actual_id?: string | null
+          siguiente_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contacto_id?: string
+          created_at?: string
+          disparado_por?: Json | null
+          estado?: string
+          flujo_id?: string
+          id?: string
+          lead_id?: string | null
+          motivo?: string | null
+          paso_actual_id?: string | null
+          siguiente_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flujo_inscripciones_contacto_id_fkey"
+            columns: ["contacto_id"]
+            isOneToOne: false
+            referencedRelation: "contactos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_inscripciones_flujo_id_fkey"
+            columns: ["flujo_id"]
+            isOneToOne: false
+            referencedRelation: "flujos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_inscripciones_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_inscripciones_paso_actual_id_fkey"
+            columns: ["paso_actual_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flujo_pasos: {
+        Row: {
+          config: Json
+          created_at: string
+          es_inicio: boolean
+          flujo_id: string
+          id: string
+          orden: number
+          posicion: Json | null
+          siguiente_id: string | null
+          siguiente_no_id: string | null
+          siguiente_si_id: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          es_inicio?: boolean
+          flujo_id: string
+          id?: string
+          orden?: number
+          posicion?: Json | null
+          siguiente_id?: string | null
+          siguiente_no_id?: string | null
+          siguiente_si_id?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          es_inicio?: boolean
+          flujo_id?: string
+          id?: string
+          orden?: number
+          posicion?: Json | null
+          siguiente_id?: string | null
+          siguiente_no_id?: string | null
+          siguiente_si_id?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flujo_pasos_flujo_id_fkey"
+            columns: ["flujo_id"]
+            isOneToOne: false
+            referencedRelation: "flujos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_pasos_siguiente_id_fkey"
+            columns: ["siguiente_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_pasos_siguiente_no_id_fkey"
+            columns: ["siguiente_no_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujo_pasos_siguiente_si_id_fkey"
+            columns: ["siguiente_si_id"]
+            isOneToOne: false
+            referencedRelation: "flujo_pasos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flujos: {
+        Row: {
+          activo: boolean
+          centro_id: string | null
+          created_at: string
+          created_by: string | null
+          descripcion: string | null
+          disparador: Json
+          id: string
+          nombre: string
+          salida: Json
+          ultimo_barrido_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          disparador: Json
+          id?: string
+          nombre: string
+          salida?: Json
+          ultimo_barrido_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          centro_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string | null
+          disparador?: Json
+          id?: string
+          nombre?: string
+          salida?: Json
+          ultimo_barrido_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flujos_centro_id_fkey"
+            columns: ["centro_id"]
+            isOneToOne: false
+            referencedRelation: "centros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flujos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fuentes_captacion: {
         Row: {
@@ -3561,6 +3815,7 @@ export type Database = {
       }
       darse_de_baja: { Args: { p_token: string }; Returns: boolean }
       es_direccion: { Args: never; Returns: boolean }
+      hora_del_servidor: { Args: never; Returns: string }
       limpiar_limites: { Args: never; Returns: number }
       manda_en: { Args: { p_centro: string }; Returns: boolean }
       manda_en_grupo: { Args: never; Returns: boolean }
@@ -3604,6 +3859,7 @@ export type Database = {
         | "enviando"
         | "enviada"
         | "cancelada"
+        | "flujo"
       estado_cita: "programada" | "realizada" | "no_show" | "cancelada"
       estado_conversion: "pendiente_validacion" | "validada"
       estado_envio: "pendiente" | "enviado" | "fallido" | "rebotado"
@@ -3666,6 +3922,7 @@ export type Database = {
         | "seguimiento_post_alta"
         | "campana_finalizada"
         | "mensaje_chat"
+        | "aviso_flujo"
       tipo_sesion: "individual" | "grupal" | "familiar"
       urgencia_lead: "alta" | "media" | "baja"
     }
@@ -3802,6 +4059,7 @@ export const Constants = {
         "enviando",
         "enviada",
         "cancelada",
+        "flujo",
       ],
       estado_cita: ["programada", "realizada", "no_show", "cancelada"],
       estado_conversion: ["pendiente_validacion", "validada"],
@@ -3870,6 +4128,7 @@ export const Constants = {
         "seguimiento_post_alta",
         "campana_finalizada",
         "mensaje_chat",
+        "aviso_flujo",
       ],
       tipo_sesion: ["individual", "grupal", "familiar"],
       urgencia_lead: ["alta", "media", "baja"],
