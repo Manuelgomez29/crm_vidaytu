@@ -657,39 +657,39 @@ export type Database = {
           ciudad: string | null
           created_at: string
           direccion: string | null
+          email_remitente: string | null
           es_bandeja_grupo: boolean
           horario_atencion: Json | null
           id: string
           nombre: string
           slug: string
           url_resena_google: string | null
-          email_remitente: string | null
         }
         Insert: {
           activo?: boolean
           ciudad?: string | null
           created_at?: string
           direccion?: string | null
+          email_remitente?: string | null
           es_bandeja_grupo?: boolean
           horario_atencion?: Json | null
           id?: string
           nombre: string
           slug: string
           url_resena_google?: string | null
-          email_remitente?: string | null
         }
         Update: {
           activo?: boolean
           ciudad?: string | null
           created_at?: string
           direccion?: string | null
+          email_remitente?: string | null
           es_bandeja_grupo?: boolean
           horario_atencion?: Json | null
           id?: string
           nombre?: string
           slug?: string
           url_resena_google?: string | null
-          email_remitente?: string | null
         }
         Relationships: []
       }
