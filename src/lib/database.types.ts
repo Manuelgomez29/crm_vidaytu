@@ -663,6 +663,7 @@ export type Database = {
           nombre: string
           slug: string
           url_resena_google: string | null
+          email_remitente: string | null
         }
         Insert: {
           activo?: boolean
@@ -675,6 +676,7 @@ export type Database = {
           nombre: string
           slug: string
           url_resena_google?: string | null
+          email_remitente?: string | null
         }
         Update: {
           activo?: boolean
@@ -687,6 +689,7 @@ export type Database = {
           nombre?: string
           slug?: string
           url_resena_google?: string | null
+          email_remitente?: string | null
         }
         Relationships: []
       }

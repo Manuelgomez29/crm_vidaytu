@@ -250,7 +250,7 @@ export async function enviarLote(
 ): Promise<{ enviados: number; fallidos: number; quedan: number }> {
   const { data: campana } = await admin
     .from('campanas_email')
-    .select('id, asunto, cuerpo_texto, cuerpo_html')
+    .select('id, asunto, cuerpo_texto, cuerpo_html, centro:centros (email_remitente)')
     .eq('id', campanaId)
     .maybeSingle();
   if (!campana) return { enviados: 0, fallidos: 0, quedan: 0 };
@@ -264,10 +264,21 @@ export async function enviarLote(
     typeof mapa.get('marketing_pie') === 'string'
       ? (mapa.get('marketing_pie') as string)
       : 'Puedes darte de baja aquí: {baja}';
+
+  /*
+   * El remitente es el del CENTRO de la campaña, y solo si no lo tiene se usa
+   * el global. Quien consultó en Bellamar espera un correo de Bellamar; uno
+   * firmado por un nombre de grupo que no le dice nada es un desconocido
+   * escribiendo, y eso también es discreción (regla 12). Cada centro firma con
+   * su propio dominio verificado.
+   */
+  const remitenteCentro = (campana.centro as { email_remitente?: string | null } | null)
+    ?.email_remitente;
   const remitente =
-    typeof mapa.get('marketing_remitente') === 'string' && mapa.get('marketing_remitente')
+    (remitenteCentro && remitenteCentro.trim()) ||
+    (typeof mapa.get('marketing_remitente') === 'string' && mapa.get('marketing_remitente')
       ? (mapa.get('marketing_remitente') as string)
-      : undefined;
+      : undefined);
 
   const { data: pendientes } = await admin
     .from('campana_destinatarios')

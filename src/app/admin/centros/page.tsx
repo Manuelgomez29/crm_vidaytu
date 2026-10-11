@@ -16,7 +16,7 @@ export default async function AdminCentros({
     supabase
       .from('centros')
       .select(
-        'id, nombre, slug, ciudad, activo, es_bandeja_grupo, url_resena_google, horario_atencion',
+        'id, nombre, slug, ciudad, activo, es_bandeja_grupo, url_resena_google, email_remitente, horario_atencion',
       )
       .order('es_bandeja_grupo')
       .order('nombre'),
@@ -91,6 +91,13 @@ export default async function AdminCentros({
                 placeholder="Enlace de reseña de Google"
                 title="Sin enlace no se propone pedir reseña para los casos de este centro"
                 className={`${inputAdmin} min-w-56 flex-1`}
+              />
+              <input
+                name="email_remitente"
+                defaultValue={c.email_remitente ?? ''}
+                placeholder="Remitente: Bellamar <hola@bellamarcentro.com>"
+                title="Con qué nombre y dirección salen las campañas de este centro. El dominio tiene que estar verificado en Resend. Vacío = remitente global."
+                className={`${inputAdmin} min-w-64 flex-1`}
               />
               <input
                 name="ciudad"

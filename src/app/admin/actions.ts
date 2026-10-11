@@ -746,6 +746,24 @@ export async function editarCentro(centroId: string, formData: FormData) {
   if (!nombre) volver('centros', { error: 'El centro necesita un nombre.' });
 
   /*
+   * El remitente de las campañas de este centro: «Nombre <correo@dominio>» o
+   * solo el correo. Se valida la forma aquí porque un remitente mal escrito no
+   * falla al guardar, falla al ENVIAR —a las tres de la mañana, en el cron, con
+   * cuarenta destinatarios ya preparados—, que es el peor momento para
+   * enterarse de que faltaba un «>».
+   */
+  const remitente = String(formData.get('email_remitente') ?? '').trim() || null;
+  if (remitente) {
+    const soloCorreo = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
+    const conNombre = /^[^<>]+<[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+>$/;
+    if (!soloCorreo.test(remitente) && !conNombre.test(remitente)) {
+      volver('centros', {
+        error: `${nombre}: el remitente tiene que ser un correo, o «Nombre <correo@dominio>».`,
+      });
+    }
+  }
+
+  /*
    * El horario de atencion es el reloj del SLA (regla 9). Se guarda como
    * `{ siempre: true }` o como los dias con su franja; un dia sin horas es un
    * dia cerrado. Ver `src/lib/horarios.ts`.
@@ -783,6 +801,7 @@ export async function editarCentro(centroId: string, formData: FormData) {
       ciudad,
       activo,
       url_resena_google: urlResena,
+      email_remitente: remitente,
       horario_atencion: horario,
     })
     .eq('id', centroId);
