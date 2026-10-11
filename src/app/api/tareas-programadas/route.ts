@@ -7,7 +7,7 @@ import { enviarPushPendientes } from '@/lib/push-pendientes';
 import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { purgarContenidoVencido } from '@/lib/canal';
-import { copiarDeHighLevel, tocaCopiar } from '@/lib/espejo';
+import { copiarDeHighLevel, purgarEspejoVencido, tocaCopiar } from '@/lib/espejo';
 import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
 import { enlazarIdentidadesSociales } from '@/lib/puente-identidades';
 import { enviarPendientesAHighLevel } from '@/lib/highlevel-salida';
@@ -104,6 +104,11 @@ export async function POST(req: NextRequest) {
      * que depende de que alguien se acuerde de lanzarla no se hace nunca.
      */
     const purgados = await fase('canal_retencion', fallos, () => purgarContenidoVencido(admin), 0);
+    /*
+     * Y el espejo de HighLevel. El plazo estaba en configuración desde el primer
+     * día sin nadie que lo aplicara: la copia de conversaciones crecía sin tope.
+     */
+    const espejoPurgado = await fase('canal_espejo_retencion', fallos, () => purgarEspejoVencido(admin), 0);
 
     /*
      * La copia de HighLevel es diaria, pero vive aquí y no en un cron aparte:
@@ -163,6 +168,7 @@ export async function POST(req: NextRequest) {
       recordatorios: recordatorios.enviados,
       push: push.enviados,
       canalPurgados: purgados,
+      canalEspejoPurgado: espejoPurgado,
       canalCopia: copia?.saltada ?? copia?.recuentos,
       // Un número, además del desglose: la pantalla del motor cuenta cosas, y
       // sin esto la copia no aparecía en ella — invisible justo donde se mira

@@ -394,6 +394,18 @@ export default async function Panel({
     : (centros ?? []).filter((c) => (misCentros ?? []).some((m) => m.centro_id === c.id));
 
   const leads = (leadsData ?? []) as unknown as LeadMetrica[];
+
+  /*
+   * PostgREST devuelve como mucho 1.000 filas por consulta y NO avisa. Mientras
+   * un periodo tenga menos casos, estos números son exactos; el día que tenga
+   * más, las métricas se quedarían cortas en silencio, que es la peor forma de
+   * estar mal. Aquí se detecta el tope y se dice, para que quien decide con
+   * estas cifras sepa que tiene que acortar el periodo (o que toca pasar el
+   * panel a agregados en la base).
+   */
+  const TOPE_CONSULTA = 1000;
+  const consultaAlTope = [leadsData, conversiones, citas, leadsAbiertosSinTarea, presupuestosVivos, leadsPrevios]
+    .some((filas) => (filas ?? []).length >= TOPE_CONSULTA);
   // Las mismas filas, vistas como las quiere el cruce. Nunca dos consultas.
   const casosCruce = (leadsData ?? []) as unknown as FilaCruce[];
   const slaMinutos = Number(configSla?.valor) || 60;
@@ -710,6 +722,17 @@ export default async function Panel({
        * parece muchísimo a no tener nada pendiente, así que puede pasar días
        * sin que nadie lo note. Este recuadro es la única forma de enterarse.
        */}
+      {consultaAlTope && (
+        <div className="mb-4 rounded-lg bg-warn-soft px-4 py-3 ring-1 ring-warn/25">
+          <p className="text-sm font-medium text-warn-ink">
+            Este periodo supera las 1.000 filas en alguna consulta: las cifras pueden quedarse cortas
+          </p>
+          <p className="mt-1 text-sm text-ink2">
+            Acorta el periodo o filtra por centro para que los números sean exactos. Es un límite de
+            la base por consulta, no un fallo de los datos.
+          </p>
+        </div>
+      )}
       {motor.nuncaHaCorrido && (
         <div className="mb-4 rounded-lg bg-warn-soft px-4 py-3 ring-1 ring-warn/25">
           <p className="text-sm font-medium text-warn-ink">

@@ -80,7 +80,9 @@
     "staging:verificar:consentimiento": "tsx --env-file=.env.staging scripts/verificar-consentimiento.ts",
     "staging:verificar:whatsapp-home": "tsx --env-file=.env.staging scripts/verificar-whatsapp-home.ts",
     "staging:verificar:salida-hl": "tsx --env-file=.env.staging scripts/verificar-salida-highlevel.ts",
-    "staging:verificar:flujos": "tsx --env-file=.env.staging scripts/verificar-flujos.ts"
+    "staging:verificar:flujos": "tsx --env-file=.env.staging scripts/verificar-flujos.ts",
+    "verificar:bloques": "tsx scripts/verificar-bloques.ts",
+    "staging:verificar:espejo-retencion": "tsx --env-file=.env.staging scripts/verificar-espejo-retencion.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
@@ -89,7 +91,7 @@
     "@supabase/supabase-js": "^2.112.4",
     "@types/web-push": "^3.6.4",
     "cmdk": "^1.1.1",
-    "next": "15.5.24",
+    "next": "^15.5.27",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "web-push": "^3.6.7"
@@ -101,7 +103,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.24",
+    "eslint-config-next": "^15.5.27",
     "prettier": "^3.9.6",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",

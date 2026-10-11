@@ -294,3 +294,44 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
     throw e;
   }
 }
+
+/**
+ * Borra del espejo las conversaciones y mensajes que llevan demasiado sin verse.
+ *
+ * El plazo (`canal_espejo_retencion_dias`, 180 por defecto) existía desde el
+ * primer día en `configuracion`… y no lo aplicaba nadie: la auditoría encontró
+ * el parámetro sin ninguna función detrás. El espejo crecía sin tope con el
+ * contenido más delicado que guarda esta base —conversaciones sobre consumo,
+ * datos de categoría especial (regla 11)—.
+ *
+ * Qué se borra y qué no, y por qué:
+ *
+ *   · Se borran MENSAJES y CONVERSACIONES. Es el contenido; es lo que no puede
+ *     quedarse indefinidamente.
+ *   · Se conservan contactos, campos, usuarios y embudos. Son el directorio: lo
+ *     que permite seguir reconociendo a cada persona y mantener sus enlaces.
+ *
+ * El reloj es `visto_at`, no `primera_copia_at`: una conversación que sigue en
+ * HighLevel se refresca cada noche y nunca vence; vence la que HighLevel ya no
+ * devuelve desde hace ese plazo. Así el espejo es una copia viva, no un archivo.
+ */
+export async function purgarEspejoVencido(admin: SupabaseClient<Database>): Promise<number> {
+  const { data: cfg } = await admin
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', 'canal_espejo_retencion_dias')
+    .maybeSingle();
+
+  const dias = Number(cfg?.valor) || 180;
+  const limite = new Date(Date.now() - dias * 86_400_000).toISOString();
+
+  const { data, error } = await admin
+    .from('canal_espejo')
+    .delete()
+    .in('tipo', ['mensaje', 'conversacion'])
+    .lt('visto_at', limite)
+    .select('id');
+  if (error) throw new Error(`purgando el espejo: ${error.message}`);
+
+  return (data ?? []).length;
+}
