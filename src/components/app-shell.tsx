@@ -182,6 +182,7 @@ const SUBSECCIONES: Partial<
   marketing: [
     { texto: 'Campañas', href: '/marketing' },
     { texto: 'Plantillas', href: '/marketing/plantillas' },
+    { texto: 'Flujos', href: '/marketing/flujos' },
   ],
   panel: [
     { texto: 'Cuadro de mando', href: '/panel' },

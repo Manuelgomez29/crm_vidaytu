@@ -51,6 +51,9 @@ export default async function Marketing({
       .select(
         'id, nombre, asunto, estado, programada_para, enviada_at, total_destinatarios, total_enviados, total_aperturas, total_clics, total_bajas, created_at, lista:listas (nombre), centro:centros (nombre)',
       )
+      // Las campañas perpetuas de los flujos son tubería, no campañas: se ven
+      // desde su flujo, con sus pasos, no mezcladas con las programadas.
+      .is('flujo_paso_id', null)
       .order('created_at', { ascending: false })
       .limit(50),
     supabase.from('plantillas_email').select('id, nombre').eq('activa', true).order('nombre'),
