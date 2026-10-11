@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
 import { fecha } from '@/lib/fechas';
 import { borrarPlantilla, crearPlantilla } from '../actions';
+import { MARCA_POR_DEFECTO } from '@/lib/bloques';
+import { EditorBloques } from '../editor-bloques';
 
 export default async function Plantillas({
   searchParams,
@@ -59,18 +61,18 @@ export default async function Plantillas({
               required
             />
           </div>
-          <textarea
-            name="cuerpo_texto"
-            rows={6}
-            placeholder="Cuerpo en texto plano. Usa {nombre} para personalizar."
-            className="campo w-full font-mono text-[12.5px]"
-            required
-          />
-          <textarea
-            name="cuerpo_html"
-            rows={4}
-            placeholder="Cuerpo en HTML (opcional)"
-            className="campo w-full font-mono text-[12.5px]"
+          {/*
+            El contenido se compone por bloques: título, párrafo, botón, imagen,
+            separador. El HTML y el texto los genera la aplicación, iguales para
+            todo el grupo y con la marca del centro al convertirse en campaña.
+            Nadie tiene que saber HTML para mandar una guía.
+          */}
+          <EditorBloques
+            inicial={[
+              { tipo: 'titulo', texto: '' },
+              { tipo: 'parrafo', texto: 'Hola {nombre},' },
+            ]}
+            marca={MARCA_POR_DEFECTO}
           />
           <div>
             <button type="submit" className="btn btn-primary">

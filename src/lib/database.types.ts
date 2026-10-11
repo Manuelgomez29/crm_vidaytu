@@ -304,6 +304,7 @@ export type Database = {
       campanas_email: {
         Row: {
           asunto: string
+          bloques: Json | null
           centro_id: string | null
           created_at: string
           created_by: string | null
@@ -326,6 +327,7 @@ export type Database = {
         }
         Insert: {
           asunto: string
+          bloques?: Json | null
           centro_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -348,6 +350,7 @@ export type Database = {
         }
         Update: {
           asunto?: string
+          bloques?: Json | null
           centro_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -3218,6 +3221,7 @@ export type Database = {
         Row: {
           activa: boolean
           asunto: string
+          bloques: Json | null
           created_at: string
           created_by: string | null
           cuerpo_html: string | null
@@ -3229,6 +3233,7 @@ export type Database = {
         Insert: {
           activa?: boolean
           asunto: string
+          bloques?: Json | null
           created_at?: string
           created_by?: string | null
           cuerpo_html?: string | null
@@ -3240,6 +3245,7 @@ export type Database = {
         Update: {
           activa?: boolean
           asunto?: string
+          bloques?: Json | null
           created_at?: string
           created_by?: string | null
           cuerpo_html?: string | null

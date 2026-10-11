@@ -11,6 +11,8 @@ import {
   revisarCampana,
 } from '../actions';
 import { VistaPrevia } from './vista-previa';
+import { EditorBloques } from '../editor-bloques';
+import { marcaDeCentro, validarBloques } from '@/lib/bloques';
 
 const CHIP_ESTADO: Record<string, { texto: string; clase: string }> = {
   borrador: { texto: 'Borrador', clase: 'chip-mut' },
@@ -46,7 +48,7 @@ export default async function EditorCampana({
   const [{ data: campana }, { data: listas }] = await Promise.all([
     supabase
       .from('campanas_email')
-      .select('*, lista:listas (nombre, tipo)')
+      .select('*, lista:listas (nombre, tipo), centro:centros (slug, nombre)')
       .eq('id', id)
       .maybeSingle(),
     supabase.from('listas').select('id, nombre, tipo').order('nombre'),
@@ -56,6 +58,12 @@ export default async function EditorCampana({
 
   const editable = campana.estado === 'borrador' || campana.estado === 'programada';
   const estado = CHIP_ESTADO[campana.estado] ?? { texto: campana.estado, clase: 'chip-mut' };
+
+  // La marca con la que se pinta la vista previa: la del centro de la campaña.
+  const marca = marcaDeCentro(campana.centro as { slug: string; nombre: string } | null);
+  // Si la campaña se compuso por bloques, se abre con el editor; si no, a mano.
+  const validacion = campana.bloques ? validarBloques(campana.bloques) : null;
+  const bloquesIniciales = validacion && !('error' in validacion) ? validacion.bloques : null;
 
   const { data: pieConfig } = await supabase
     .from('configuracion')
@@ -149,32 +157,43 @@ export default async function EditorCampana({
               </span>
             </label>
 
-            <label className="block">
-              <span className="etiqueta-campo">Cuerpo en texto (obligatorio)</span>
-              <textarea
-                name="cuerpo_texto"
-                defaultValue={campana.cuerpo_texto}
-                rows={10}
-                className="campo w-full font-mono text-[12.5px]"
-                disabled={!editable}
-                required
-              />
-              <span className="mt-1 block text-xs text-muted">
-                Usa <code>{'{nombre}'}</code> para el nombre de la persona. El pie con el enlace de
-                baja se añade solo: no hay que escribirlo.
-              </span>
-            </label>
+            {/*
+              Dos formas de escribir el correo, y las dos conviven: por bloques
+              (si la campaña nació de una plantilla por bloques o ya se editó así)
+              o a mano, con el texto y el HTML. `bloques` nulo = a mano.
+            */}
+            {bloquesIniciales ? (
+              <EditorBloques inicial={bloquesIniciales} marca={marca} />
+            ) : (
+              <>
+                <label className="block">
+                  <span className="etiqueta-campo">Cuerpo en texto (obligatorio)</span>
+                  <textarea
+                    name="cuerpo_texto"
+                    defaultValue={campana.cuerpo_texto}
+                    rows={10}
+                    className="campo w-full font-mono text-[12.5px]"
+                    disabled={!editable}
+                    required
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    Usa <code>{'{nombre}'}</code> para el nombre de la persona. El pie con el enlace
+                    de baja se añade solo: no hay que escribirlo.
+                  </span>
+                </label>
 
-            <label className="block">
-              <span className="etiqueta-campo">Cuerpo en HTML (opcional)</span>
-              <textarea
-                name="cuerpo_html"
-                defaultValue={campana.cuerpo_html ?? ''}
-                rows={8}
-                className="campo w-full font-mono text-[12.5px]"
-                disabled={!editable}
-              />
-            </label>
+                <label className="block">
+                  <span className="etiqueta-campo">Cuerpo en HTML (opcional)</span>
+                  <textarea
+                    name="cuerpo_html"
+                    defaultValue={campana.cuerpo_html ?? ''}
+                    rows={8}
+                    className="campo w-full font-mono text-[12.5px]"
+                    disabled={!editable}
+                  />
+                </label>
+              </>
+            )}
 
             {editable && (
               <div>

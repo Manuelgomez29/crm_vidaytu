@@ -7,6 +7,43 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { desdeDatetimeLocal } from '@/lib/fechas';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
 import { prepararDestinatarios, terminosConfigurados, terminosProhibidosEn } from '@/lib/campanas';
+import { marcaDeCentro, renderizarBloques, validarBloques, type MarcaCorreo } from '@/lib/bloques';
+import type { Json } from '@/lib/database.types';
+
+/**
+ * El cuerpo del correo, venga de donde venga.
+ *
+ * Si el formulario trae `bloques` (el editor), se validan y es la aplicación
+ * la que genera el HTML y el texto: lo que se guarda es exactamente lo que se
+ * vio en la vista previa. Si no los trae, se leen las dos cajas de texto de
+ * siempre. Las dos formas conviven; `bloques` nulo significa «escrito a mano».
+ */
+function cuerpoDesdeFormulario(
+  formData: FormData,
+  marca: MarcaCorreo,
+): { cuerpo_texto: string; cuerpo_html: string | null; bloques: Json | null } | { error: string } {
+  const crudo = String(formData.get('bloques') ?? '').trim();
+  if (crudo) {
+    let entrada: unknown;
+    try {
+      entrada = JSON.parse(crudo);
+    } catch {
+      return { error: 'El contenido del correo no se ha podido leer.' };
+    }
+    const v = validarBloques(entrada);
+    if ('error' in v) return v;
+    const { html, texto } = renderizarBloques(v.bloques, marca);
+    return { cuerpo_texto: texto, cuerpo_html: html, bloques: v.bloques as unknown as Json };
+  }
+
+  const cuerpoTexto = String(formData.get('cuerpo_texto') ?? '').trim();
+  if (!cuerpoTexto) return { error: 'El correo necesita un cuerpo.' };
+  return {
+    cuerpo_texto: cuerpoTexto,
+    cuerpo_html: String(formData.get('cuerpo_html') ?? '').trim() || null,
+    bloques: null,
+  };
+}
 
 /**
  * Acciones de email marketing. Todas vuelven a comprobar el rol en el
@@ -81,20 +118,20 @@ export async function crearPlantilla(formData: FormData) {
 
   const nombre = String(formData.get('nombre') ?? '').trim();
   const asunto = String(formData.get('asunto') ?? '').trim();
-  const cuerpoTexto = String(formData.get('cuerpo_texto') ?? '').trim();
-  const cuerpoHtml = String(formData.get('cuerpo_html') ?? '').trim() || null;
 
-  if (!nombre || !asunto || !cuerpoTexto) {
-    volver('/marketing/plantillas', {
-      error: 'Nombre, asunto y cuerpo en texto son obligatorios.',
-    });
+  if (!nombre || !asunto) {
+    volver('/marketing/plantillas', { error: 'Nombre y asunto son obligatorios.' });
   }
+
+  // Las plantillas son del grupo: se previsualizan con la marca del grupo y
+  // cada campaña las vuelve a pintar con la de su centro al crearse.
+  const cuerpo = cuerpoDesdeFormulario(formData, marcaDeCentro(null));
+  if ('error' in cuerpo) volver('/marketing/plantillas', { error: cuerpo.error });
 
   const { error } = await supabase.from('plantillas_email').insert({
     nombre,
     asunto,
-    cuerpo_texto: cuerpoTexto,
-    cuerpo_html: cuerpoHtml,
+    ...cuerpo,
     created_by: userId,
   });
   if (error) volver('/marketing/plantillas', { error: `No se pudo guardar: ${error.message}` });
@@ -120,20 +157,38 @@ export async function crearCampana(formData: FormData) {
 
   if (!nombre) volver('/marketing', { error: 'La campaña necesita un nombre.' });
 
+  const centroId = await centroDeLaCampana(formData);
+
   let asunto = 'Sin asunto';
   let cuerpoTexto = '';
   let cuerpoHtml: string | null = null;
+  let bloques: Json | null = null;
 
   if (plantillaId) {
     const { data: plantilla } = await supabase
       .from('plantillas_email')
-      .select('asunto, cuerpo_texto, cuerpo_html')
+      .select('asunto, cuerpo_texto, cuerpo_html, bloques')
       .eq('id', plantillaId)
       .maybeSingle();
     if (plantilla) {
       asunto = plantilla.asunto;
       cuerpoTexto = plantilla.cuerpo_texto;
       cuerpoHtml = plantilla.cuerpo_html;
+      bloques = plantilla.bloques;
+
+      /*
+       * Una plantilla por bloques se vuelve a pintar con la marca del centro de
+       * la campaña: la plantilla es del grupo, el correo lo firma el centro.
+       */
+      const v = bloques ? validarBloques(bloques) : null;
+      if (v && !('error' in v)) {
+        const { data: centro } = centroId
+          ? await supabase.from('centros').select('slug, nombre').eq('id', centroId).maybeSingle()
+          : { data: null };
+        const pintado = renderizarBloques(v.bloques, marcaDeCentro(centro));
+        cuerpoTexto = pintado.texto;
+        cuerpoHtml = pintado.html;
+      }
     }
   }
 
@@ -144,7 +199,8 @@ export async function crearCampana(formData: FormData) {
       asunto,
       cuerpo_texto: cuerpoTexto,
       cuerpo_html: cuerpoHtml,
-      centro_id: await centroDeLaCampana(formData),
+      bloques,
+      centro_id: centroId,
       created_by: userId,
     })
     .select('id')
@@ -160,30 +216,31 @@ export async function guardarCampana(id: string, formData: FormData) {
 
   const nombre = String(formData.get('nombre') ?? '').trim();
   const asunto = String(formData.get('asunto') ?? '').trim();
-  const cuerpoTexto = String(formData.get('cuerpo_texto') ?? '').trim();
-  const cuerpoHtml = String(formData.get('cuerpo_html') ?? '').trim() || null;
   const listaId = String(formData.get('lista') ?? '') || null;
 
-  if (!nombre || !asunto || !cuerpoTexto) {
-    volver(ruta, { error: 'Nombre, asunto y cuerpo en texto son obligatorios.' });
-  }
+  if (!nombre || !asunto) volver(ruta, { error: 'Nombre y asunto son obligatorios.' });
 
   const { data: campana } = await supabase
     .from('campanas_email')
-    .select('estado')
+    .select('estado, centro:centros (slug, nombre)')
     .eq('id', id)
     .maybeSingle();
   if (campana && campana.estado !== 'borrador' && campana.estado !== 'programada') {
     volver(ruta, { error: 'Una campaña que ya se está enviando no se puede editar.' });
   }
 
+  const cuerpo = cuerpoDesdeFormulario(
+    formData,
+    marcaDeCentro(campana?.centro as { slug: string; nombre: string } | null),
+  );
+  if ('error' in cuerpo) volver(ruta, { error: cuerpo.error });
+
   const { error } = await supabase
     .from('campanas_email')
     .update({
       nombre,
       asunto,
-      cuerpo_texto: cuerpoTexto,
-      cuerpo_html: cuerpoHtml,
+      ...cuerpo,
       lista_id: listaId,
     })
     .eq('id', id);
