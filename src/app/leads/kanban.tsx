@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { createClient } from '@/lib/supabase/client';
 import { useAviso } from '@/components/avisos';
 import { nivelDeCalor, type Umbrales } from '@/lib/scoring';

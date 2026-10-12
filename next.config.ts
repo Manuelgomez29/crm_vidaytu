@@ -44,6 +44,19 @@ const nextConfig: NextConfig = {
   // busca vulnerabilidades conocidas.
   poweredByHeader: false,
 
+  experimental: {
+    /*
+     * Cuánto vale una pantalla PRECARGADA (al posar el ratón sobre un enlace,
+     * ver `enlace-rapido.tsx`). Por defecto son cinco minutos, y en un CRM eso
+     * es abrir una ficha con lo que tenía hace cinco minutos: una tarea que ya
+     * cerró un compañero, un caso que ya no es tuyo. Treinta segundos —el
+     * mínimo que admite Next— cubren de sobra lo que pasa entre apuntar y
+     * pulsar, y nada más. Las pantallas no precargadas siguen pidiéndose al
+     * servidor siempre (`dynamic: 0`).
+     */
+    staleTimes: { dynamic: 0, static: 30 },
+  },
+
   async headers() {
     return [{ source: '/:path*', headers: CABECERAS }];
   },

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
+import { FilaOptimista } from '@/components/fila-optimista';
 import { CabeceraCaso } from './cabecera-caso';
 import {
   ESTADOS_CERRADOS,
@@ -548,12 +549,13 @@ export default async function FichaLead({
             </FormularioSeguro>
             <ul className="mt-3 flex flex-col gap-2">
               {(tareas ?? []).map((t) => (
-                <li
+                <FilaOptimista
                   key={t.id}
+                  como="li"
                   className="flex items-center justify-between gap-2 rounded-lg bg-ground px-3 py-2 ring-1 ring-line"
                 >
                   <div>
-                    <p className={`text-sm ${t.completada_at ? 'text-muted line-through' : ''}`}>
+                    <p data-titulo className={`text-sm ${t.completada_at ? 'text-muted line-through' : ''}`}>
                       {t.titulo}
                     </p>
                     {t.completada_at ? (
@@ -577,13 +579,13 @@ export default async function FichaLead({
                     )}
                   </div>
                   {!t.completada_at && (
-                    <form action={completarTarea.bind(null, lead.id, t.id)}>
+                    <form action={completarTarea.bind(null, lead.id, t.id)} data-optimista="hecha">
                       <button type="submit" className={botonSecundario}>
                         Completar
                       </button>
                     </form>
                   )}
-                </li>
+                </FilaOptimista>
               ))}
               {(tareas ?? []).length === 0 && <li className="text-sm text-muted">Sin tareas.</li>}
             </ul>

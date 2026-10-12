@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { createClient } from '@/lib/supabase/server';
 import { etiquetaEstado } from '@/lib/estados';
 import { fecha } from '@/lib/fechas';

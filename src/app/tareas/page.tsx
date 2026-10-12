@@ -1,7 +1,8 @@
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
+import { FilaOptimista } from '@/components/fila-optimista';
 import { fecha, hoyMadrid } from '@/lib/fechas';
 import {
   aplazarTarea,
@@ -82,7 +83,7 @@ function Grupo({
       </h3>
       <div className="flex flex-col gap-2">
         {tareas.map((t) => (
-          <article key={t.id} className="panel flex flex-wrap items-center gap-3 p-3">
+          <FilaOptimista key={t.id} como="article" className="panel flex flex-wrap items-center gap-3 p-3">
             <div className="min-w-0 flex-1">
               <p className="text-[13.5px] font-semibold">{t.titulo}</p>
               <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-ink2">
@@ -100,7 +101,7 @@ function Grupo({
                 [3, '+3d'],
                 [7, '+7d'],
               ].map(([dias, texto]) => (
-                <form key={dias} action={aplazarTarea.bind(null, t.id, dias as number)}>
+                <form key={dias} action={aplazarTarea.bind(null, t.id, dias as number)} data-optimista="sale">
                   <button
                     type="submit"
                     title={`Aplazar ${dias} día(s)`}
@@ -112,13 +113,13 @@ function Grupo({
               ))}
             </div>
 
-            <form action={completarTareaDesdeLista.bind(null, t.id)}>
+            <form action={completarTareaDesdeLista.bind(null, t.id)} data-optimista="sale">
               <button type="submit" className="btn btn-ghost">
                 Completar
               </button>
             </form>
 
-            <form action={borrarTarea.bind(null, t.id)}>
+            <form action={borrarTarea.bind(null, t.id)} data-optimista="sale">
               <button
                 type="submit"
                 title="Borrar la tarea"
@@ -127,7 +128,7 @@ function Grupo({
                 Borrar
               </button>
             </form>
-          </article>
+          </FilaOptimista>
         ))}
       </div>
     </section>

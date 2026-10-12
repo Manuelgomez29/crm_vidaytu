@@ -282,6 +282,30 @@ input[type='number'] {
     pointer-events: none;
     opacity: 0.55;
   }
+
+  /* Respuesta instantánea (`fila-optimista.tsx`): la fila cambia en el mismo
+     clic y el servidor confirma después. Si dice que no, vuelve como estaba. */
+  [data-optimista='sale'] {
+    pointer-events: none;
+    animation: salir 0.2s ease-out forwards;
+  }
+  [data-optimista='hecha'] {
+    opacity: 0.6;
+  }
+  [data-optimista='hecha'] [data-titulo] {
+    text-decoration: line-through;
+    color: var(--color-muted);
+  }
+  [data-optimista='hecha'] form {
+    display: none;
+  }
+}
+
+@keyframes salir {
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
 }
 
 @keyframes girar {

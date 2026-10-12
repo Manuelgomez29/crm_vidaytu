@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { useRouter } from 'next/navigation';
 import { useAviso } from '@/components/avisos';
 import { nivelDeCalor, type Umbrales } from '@/lib/scoring';

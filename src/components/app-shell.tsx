@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { createClient } from '@/lib/supabase/server';
 import { cerrarSesion, marcarNotificacionesLeidas } from '@/app/leads/actions';
 import { AREAS, areasActivas, type Area } from '@/lib/areas';

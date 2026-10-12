@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from '@/components/enlace-rapido';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
