@@ -93,81 +93,116 @@ export default async function DirectorioContactos({
   const filtros = await searchParams;
   const supabase = await createClient();
 
-  // Vistas guardadas de esta persona para el directorio (solo las suyas: RLS).
-  const vistas = await misVistas('contactos');
-  const filtrosPuestos = Object.fromEntries(
-    Object.entries(filtros).filter(([k, v]) => v && k !== 'vista') as [string, string][],
-  );
+  const busqueda = (filtros.q ?? '').trim();
+  const comoTelefono = busqueda ? normalizarTelefono(busqueda) : null;
+  const slugCentro = filtros.servicio?.startsWith('centro:') ? filtros.servicio.slice(7) : null;
+  const slugRecorrido = !slugCentro && filtros.servicio ? filtros.servicio : null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
-  const { data: perfilRol } = await supabase
-    .from('perfiles')
-    .select('rol')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
-
+  /*
+   * EN TANDAS, NO EN FILA.
+   *
+   * Esta pantalla hacía siete viajes a la base uno detrás de otro: las vistas,
+   * la sesión, el rol, los catálogos, el centro elegido, el recorrido, el
+   * recuento y la página. Cada viaje son decenas de milisegundos aunque la
+   * consulta sea instantánea. Ahora va en tres tandas, y en cada una todo lo
+   * que no depende de lo anterior sale a la vez:
+   *
+   *   1. Lo que solo depende de la dirección: sesión, vistas, catálogos, y el
+   *      centro, el recorrido y la etiqueta del filtro.
+   *   2. Lo que depende de la tanda 1: el rol y los miembros de la lista
+   *      elegida. Los recuentos del panel lateral arrancan aquí pero NO se
+   *      esperan: pueden ser lentos (un segmento se calcula entero) y no hacen
+   *      falta para pedir la página.
+   *   3. El recuento filtrado y la página, a la vez.
+   */
   const [
+    vistas,
+    {
+      data: { user },
+    },
     { data: etiquetas },
     { data: listas },
     { count: totalContactos },
     { data: centrosCat },
     { data: recorridosCat },
+    idCentro,
+    idRecorrido,
+    idsDeEtiqueta,
   ] = await Promise.all([
+    // Vistas guardadas de esta persona para el directorio (solo las suyas: RLS).
+    misVistas('contactos'),
+    supabase.auth.getUser(),
     supabase.from('etiquetas').select('id, nombre, color').eq('activa', true).order('nombre'),
     supabase.from('listas').select('id, nombre, tipo, filtro').order('nombre'),
     supabase.from('contactos').select('id', { count: 'exact', head: true }),
     supabase.from('centros').select('nombre, slug').eq('activo', true).order('nombre'),
     supabase.from('recorridos').select('nombre, slug').eq('activo', true).order('orden'),
+    slugCentro
+      ? supabase
+          .from('centros')
+          .select('id')
+          .eq('slug', slugCentro)
+          .maybeSingle()
+          .then((r) => r.data?.id ?? null)
+      : null,
+    slugRecorrido
+      ? supabase
+          .from('recorridos')
+          .select('id')
+          .eq('slug', slugRecorrido)
+          .maybeSingle()
+          .then((r) => r.data?.id ?? null)
+      : null,
+    filtros.etiqueta
+      ? supabase
+          .from('contacto_etiquetas')
+          .select('contacto_id')
+          .eq('etiqueta_id', filtros.etiqueta)
+          .then((r) => (r.data ?? []).map((c) => c.contacto_id))
+      : null,
   ]);
+  if (!user) redirect('/login');
 
-  // Recuento de cada lista y segmento para el panel lateral.
-  const recuentos = new Map<string, number>();
-  await Promise.all(
-    (listas ?? []).map(async (l) => {
-      if (l.tipo === 'estatica') {
-        const { count } = await supabase
-          .from('lista_contactos')
-          .select('contacto_id', { count: 'exact', head: true })
-          .eq('lista_id', l.id);
-        recuentos.set(l.id, count ?? 0);
-      } else {
-        const ids = await contactosDelSegmento(supabase, (l.filtro ?? {}) as FiltroSegmento);
-        recuentos.set(l.id, ids.length);
-      }
-    }),
+  const filtrosPuestos = Object.fromEntries(
+    Object.entries(filtros).filter(([k, v]) => v && k !== 'vista') as [string, string][],
   );
 
-  // Filtro por lista: estática = sus miembros; dinámica = se calcula ahora.
-  let idsDeLista: string[] | null = null;
-  const listaElegida = listas?.find((l) => l.id === filtros.lista);
-  if (listaElegida) {
-    if (listaElegida.tipo === 'estatica') {
-      const { data: miembros } = await supabase
-        .from('lista_contactos')
-        .select('contacto_id')
-        .eq('lista_id', listaElegida.id);
-      idsDeLista = (miembros ?? []).map((m) => m.contacto_id);
-    } else {
-      idsDeLista = await contactosDelSegmento(
-        supabase,
-        (listaElegida.filtro ?? {}) as FiltroSegmento,
-      );
-    }
-  }
+  // Recuento de cada lista y segmento para el panel lateral. Arranca ya; se
+  // espera al final, junto a la página.
+  const recuentosPromesa = (async () => {
+    const recuentos = new Map<string, number>();
+    await Promise.all(
+      (listas ?? []).map(async (l) => {
+        if (l.tipo === 'estatica') {
+          const { count } = await supabase
+            .from('lista_contactos')
+            .select('contacto_id', { count: 'exact', head: true })
+            .eq('lista_id', l.id);
+          recuentos.set(l.id, count ?? 0);
+        } else {
+          const ids = await contactosDelSegmento(supabase, (l.filtro ?? {}) as FiltroSegmento);
+          recuentos.set(l.id, ids.length);
+        }
+      }),
+    );
+    return recuentos;
+  })();
 
-  let idsDeEtiqueta: string[] | null = null;
-  if (filtros.etiqueta) {
-    const { data: conEtiqueta } = await supabase
-      .from('contacto_etiquetas')
-      .select('contacto_id')
-      .eq('etiqueta_id', filtros.etiqueta);
-    idsDeEtiqueta = (conEtiqueta ?? []).map((c) => c.contacto_id);
-  }
+  // Filtro por lista: estática = sus miembros; dinámica = se calcula ahora.
+  const listaElegida = listas?.find((l) => l.id === filtros.lista);
+  const [{ data: perfilRol }, idsDeLista] = await Promise.all([
+    supabase.from('perfiles').select('rol').eq('id', user.id).maybeSingle(),
+    !listaElegida
+      ? null
+      : listaElegida.tipo === 'estatica'
+        ? supabase
+            .from('lista_contactos')
+            .select('contacto_id')
+            .eq('lista_id', listaElegida.id)
+            .then((r) => (r.data ?? []).map((m) => m.contacto_id))
+        : contactosDelSegmento(supabase, (listaElegida.filtro ?? {}) as FiltroSegmento),
+  ]);
+  if (perfilRol?.rol === 'terapeuta') redirect('/agenda');
 
   let ids: string[] | null = null;
   if (idsDeLista !== null && idsDeEtiqueta !== null) {
@@ -176,24 +211,6 @@ export default async function DirectorioContactos({
   } else {
     ids = idsDeLista ?? idsDeEtiqueta;
   }
-
-  const busqueda = (filtros.q ?? '').trim();
-  const comoTelefono = busqueda ? normalizarTelefono(busqueda) : null;
-
-  /*
-   * El centro se resuelve ANTES, porque hace falta para decidir la forma de
-   * la consulta y no se puede esperar dentro de ella.
-   */
-  const slugCentro = filtros.servicio?.startsWith('centro:') ? filtros.servicio.slice(7) : null;
-  const idCentro = slugCentro
-    ? ((await supabase.from('centros').select('id').eq('slug', slugCentro).maybeSingle()).data
-        ?.id ?? null)
-    : null;
-  const idRecorrido =
-    !slugCentro && filtros.servicio
-      ? ((await supabase.from('recorridos').select('id').eq('slug', filtros.servicio).maybeSingle())
-          .data?.id ?? null)
-      : null;
 
   /*
    * FILTRAR POR CENTRO SIN TRAERSE LOS CASOS.
@@ -220,8 +237,18 @@ export default async function DirectorioContactos({
    * construyen con la misma función.
    */
   const construir = (contar: boolean) => {
+    /*
+     * Para CONTAR no se piden etiquetas ni casos: la base los calcularía para
+     * las mil seiscientas personas solo para tirarlos. Solo va el cruce con
+     * los casos cuando se filtra por centro, que es cuando cambia el número.
+     */
     let q = contar
-      ? supabase.from('contactos').select(seleccion(!!idCentro), { count: 'exact', head: true })
+      ? supabase
+          .from('contactos')
+          .select(idCentro ? 'id, lead_contactos!inner(lead:leads!inner(centro_id))' : 'id', {
+            count: 'exact',
+            head: true,
+          })
       : supabase.from('contactos').select(seleccion(!!idCentro));
 
     if (busqueda) {
@@ -243,29 +270,30 @@ export default async function DirectorioContactos({
     return q;
   };
 
+  const comunes = {
+    vistas,
+    filtrosPuestos,
+    etiquetas: etiquetas ?? [],
+    listas: listas ?? [],
+    centros: centrosCat ?? [],
+    recorridos: recorridosCat ?? [],
+    total: totalContactos ?? 0,
+    filtros,
+  };
+
   if (ids !== null && ids.length === 0) {
     // Filtro que no deja a nadie: evitamos una consulta con lista vacía.
     return (
       <Pagina
+        {...comunes}
         pagina={1}
         paginas={1}
         totalFiltrado={0}
-        vistas={vistas}
-        filtrosPuestos={filtrosPuestos}
-        etiquetas={etiquetas ?? []}
-        listas={listas ?? []}
-        centros={centrosCat ?? []}
-        recorridos={recorridosCat ?? []}
-        recuentos={recuentos}
-        total={totalContactos ?? 0}
-        filtros={filtros}
+        recuentos={await recuentosPromesa}
         contactos={[]}
       />
     );
   }
-
-  const consulta = construir(false).order('nombre').order('id');
-  const contarConsulta = construir(true);
 
   /*
    * El recuento va con los MISMOS filtros que la lista. Antes se enseñaba el
@@ -273,29 +301,36 @@ export default async function DirectorioContactos({
    *
    * `count: 'planned'` no vale aquí: para paginar hace falta el número exacto,
    * o la última página sale vacía.
+   *
+   * La página pedida y el recuento salen a la vez. Si alguien llega a una
+   * página que ya no existe (un enlace viejo, un filtro que ahora deja menos),
+   * se pide la última de verdad: un viaje más, pero solo en ese caso raro.
    */
-  const { count: totalFiltrado } = await contarConsulta;
+  const pedir = (pagina: number) => {
+    const desde = (pagina - 1) * POR_PAGINA;
+    return construir(false)
+      .order('nombre')
+      .order('id')
+      .range(desde, desde + POR_PAGINA - 1);
+  };
+  const pedida = Math.max(1, Number(filtros.pagina) || 1);
+  const [{ count: totalFiltrado }, primera, recuentos] = await Promise.all([
+    construir(true),
+    pedir(pedida),
+    recuentosPromesa,
+  ]);
 
   const paginas = Math.max(1, Math.ceil((totalFiltrado ?? 0) / POR_PAGINA));
-  const pagina = Math.min(Math.max(1, Number(filtros.pagina) || 1), paginas);
-  const desde = (pagina - 1) * POR_PAGINA;
-
-  const { data, error } = await consulta.range(desde, desde + POR_PAGINA - 1);
+  const pagina = Math.min(pedida, paginas);
+  const { data, error } = pagina === pedida ? primera : await pedir(pagina);
 
   return (
     <Pagina
+      {...comunes}
       pagina={pagina}
       paginas={paginas}
       totalFiltrado={totalFiltrado ?? 0}
-      vistas={vistas}
-      filtrosPuestos={filtrosPuestos}
-      etiquetas={etiquetas ?? []}
-      listas={listas ?? []}
-      centros={centrosCat ?? []}
-      recorridos={recorridosCat ?? []}
       recuentos={recuentos}
-      total={totalContactos ?? 0}
-      filtros={filtros}
       contactos={(data ?? []) as unknown as FilaContacto[]}
       error={error?.message}
     />

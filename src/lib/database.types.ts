@@ -3872,6 +3872,7 @@ export type Database = {
         Args: { p_clave: string; p_maximo: number; p_ventana_segundos: number }
         Returns: boolean
       }
+      contactos_de_mis_casos: { Args: never; Returns: string[] }
       darse_de_baja: { Args: { p_token: string }; Returns: boolean }
       es_direccion: { Args: never; Returns: boolean }
       hora_del_servidor: { Args: never; Returns: string }
