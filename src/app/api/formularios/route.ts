@@ -81,10 +81,23 @@ export async function POST(req: NextRequest) {
    */
   const admin = createAdminClient();
   const tokenFuente = (req.headers.get('x-fuente-token') ?? '').trim();
-  const fuente = tokenFuente ? await fuentePorToken(admin, tokenFuente) : null;
+  let fuente = tokenFuente ? await fuentePorToken(admin, tokenFuente) : null;
 
   if (tokenFuente && !fuente) {
     return NextResponse.json({ error: 'Fuente desconocida o desactivada' }, { status: 401 });
+  }
+
+  /*
+   * El token de una fuente también vale en el campo del SECRETO.
+   *
+   * Los temas de WordPress de las webs y las landings tienen un solo campo,
+   * «secreto del CRM», y lo mandan como `x-webhook-secret`. Para pasar una web
+   * de secreto global a fuente propia basta con pegar ahí el token de su
+   * fuente: sin tocar el tema ni volver a subirlo. Solo se mira si no es el
+   * secreto global, y la búsqueda es por huella del token, nunca por el token.
+   */
+  if (!fuente && !tokenFuente && secreto && !secretoCoincide(secreto, secretoEsperado)) {
+    fuente = await fuentePorToken(admin, secreto.trim());
   }
   // En tiempo constante: `!==` corta en el primer caracter distinto y filtra
   // cuantos acertaste.
