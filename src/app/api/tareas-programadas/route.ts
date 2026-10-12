@@ -109,7 +109,12 @@ export async function POST(req: NextRequest) {
      * Y el espejo de HighLevel. El plazo estaba en configuración desde el primer
      * día sin nadie que lo aplicara: la copia de conversaciones crecía sin tope.
      */
-    const espejoPurgado = await fase('canal_espejo_retencion', fallos, () => purgarEspejoVencido(admin), 0);
+    const espejoPurgado = await fase(
+      'canal_espejo_retencion',
+      fallos,
+      () => purgarEspejoVencido(admin),
+      0,
+    );
 
     /*
      * Los dominios de correo que aún no verifican: se les vuelve a preguntar a
@@ -226,3 +231,10 @@ export async function POST(req: NextRequest) {
 
 // Algunos cron solo saben hacer GET.
 export const GET = POST;
+
+/*
+ * El tiempo máximo de una pasada, explícito. La pasada que coincide con la copia
+ * diaria de HighLevel es la larga; si un día vuelve a acercarse a este límite,
+ * Vercel la corta sin dejar registro, así que mejor saber cuál es.
+ */
+export const maxDuration = 300;

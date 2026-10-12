@@ -34,6 +34,16 @@ const contar = async (tabla: 'contactos' | 'leads' | 'tareas' | 'notificaciones'
 async function main() {
   console.log('\nLas personas de HighLevel en el directorio\n');
 
+  /*
+   * Lo que hay ANTES de volcar, para medir lo que el volcado añade. La
+   * primera versión exigía «cero casos» en todo el sistema, que solo era
+   * cierto el primer día: en cuanto entra un caso real, la prueba fallaba sin
+   * que el volcado hubiera hecho nada malo.
+   */
+  const casosAntes = await contar('leads');
+  const tareasAntes = await contar('tareas');
+  await volcarDirectorioDeHighLevel(admin);
+
   // ---------------------------------------------------------------------------
   console.log('Están:');
 
@@ -53,14 +63,31 @@ async function main() {
     `${sinTelefono} sin número`,
   );
 
-  const { count: sinOrigen } = await admin
-    .from('contactos')
-    .select('id', { count: 'exact', head: true })
-    .is('origen', null)
-    .not('id', 'is', null);
+  // Las que trae el volcado: las enlazadas a una ficha de HighLevel.
+  const deHL: string[] = [];
+  for (let d = 0; ; d += 1000) {
+    const { data } = await admin
+      .from('canal_identidades')
+      .select('contacto_id')
+      .eq('sistema', 'highlevel')
+      .not('contacto_id', 'is', null)
+      .order('id')
+      .range(d, d + 999);
+    deHL.push(...(data ?? []).map((i) => i.contacto_id as string));
+    if ((data ?? []).length < 1000) break;
+  }
+  let sinOrigen = 0;
+  for (let i = 0; i < deHL.length; i += 300) {
+    const { count } = await admin
+      .from('contactos')
+      .select('id', { count: 'exact', head: true })
+      .in('id', deHL.slice(i, i + 300))
+      .is('origen', null);
+    sinOrigen += count ?? 0;
+  }
   comprobar(
     'todas dicen de dónde vienen',
-    (sinOrigen ?? 0) === 0,
+    sinOrigen === 0,
     'sin rótulo, la lista no se puede leer de un vistazo',
   );
 
@@ -83,10 +110,10 @@ async function main() {
   const tareas = await contar('tareas');
   comprobar(
     'no se ha creado ningún caso',
-    casos === 0,
+    casos === casosAntes,
     'si entraran como casos, el motor los repartiría y arrancaría su SLA',
   );
-  comprobar('ni ninguna tarea', tareas === 0);
+  comprobar('ni ninguna tarea', tareas === tareasAntes);
 
   const { count: sinDuenoConCaso } = await admin
     .from('leads')
