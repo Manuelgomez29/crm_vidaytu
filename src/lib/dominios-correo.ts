@@ -211,7 +211,17 @@ export async function refrescarDominiosPendientes(
   return r;
 }
 
-/** ¿El dominio de este remitente está verificado? Para no guardar lo que fallaría al enviar. */
+/**
+ * ¿El dominio de este remitente está verificado? Para no guardar lo que
+ * fallaría al enviar.
+ *
+ * Coincidencia EXACTA: para Resend un subdominio es otro dominio, con su propia
+ * verificación. Un dominio verificado cubre cualquier dirección en él
+ * —«hola@lolodrago.com», «equipo@lolodrago.com»— pero no
+ * «hola@send.lolodrago.com»: ese «send» es el subdominio del Return-Path que
+ * Resend usa por dentro, no un dominio desde el que se envía. La primera versión
+ * aceptaba subdominios y habría dejado guardar un remitente que Resend rechaza.
+ */
 export async function dominioDelRemitenteVerificado(
   admin: Cliente,
   remitente: string,
@@ -220,11 +230,8 @@ export async function dominioDelRemitenteVerificado(
   const dominioCompleto = correo.split('@')[1]?.trim().toLowerCase() ?? '';
   if (!dominioCompleto) return { ok: false, dominio: '', motivo: 'no tiene dominio' };
 
-  // «hola@send.bellamarcentro.com» pertenece a «bellamarcentro.com».
   const { data: dominios } = await admin.from('dominios_correo').select('dominio, estado');
-  const propio = (dominios ?? []).find(
-    (d) => dominioCompleto === d.dominio || dominioCompleto.endsWith('.' + d.dominio),
-  );
+  const propio = (dominios ?? []).find((d) => dominioCompleto === d.dominio);
   if (!propio) {
     return (dominios ?? []).length === 0
       ? { ok: true } // Sin dominios dados de alta aún no se bloquea a nadie.

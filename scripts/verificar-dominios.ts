@@ -126,7 +126,12 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nEl remitente de un centro solo pasa sobre un dominio verificado:');
   comprobar('el dominio verificado pasa', (await dominioDelRemitenteVerificado(admin, `Centro <hola@${DOMINIO}>`)).ok);
-  comprobar('y su subdominio send. también', (await dominioDelRemitenteVerificado(admin, `hola@send.${DOMINIO}`)).ok);
+  const sub = await dominioDelRemitenteVerificado(admin, `hola@send.${DOMINIO}`);
+  comprobar(
+    'pero su subdominio send. NO: para Resend es otro dominio',
+    !sub.ok,
+    'la primera versión lo aceptaba y Resend habría rechazado el envío',
+  );
   const ajeno = await dominioDelRemitenteVerificado(admin, 'hola@otro-sitio.example');
   comprobar('uno que no está dado de alta, no', !ajeno.ok && /no está dado de alta/.test(ajeno.ok ? '' : ajeno.motivo));
   await admin.from('dominios_correo').update({ estado: 'pending' }).eq('id', fila.id);
