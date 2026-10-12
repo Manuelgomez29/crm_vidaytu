@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { estadoDelMotor } from '@/lib/salud-motor';
 import { hoyMadrid } from '@/lib/fechas';
+import { remitenteRevela } from '@/lib/discrecion';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -71,9 +72,14 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
   ] = await Promise.all([
     admin
       .from('centros')
-      .select('id, nombre, url_resena_google, es_bandeja_grupo, activo, horario_atencion'),
+      .select(
+        'id, nombre, url_resena_google, es_bandeja_grupo, activo, horario_atencion, email_remitente',
+      ),
     admin.from('fuentes_captacion').select('id', { count: 'exact', head: true }).eq('activa', true),
-    admin.from('configuracion').select('clave, valor').in('clave', ['ia_activa']),
+    admin
+      .from('configuracion')
+      .select('clave, valor')
+      .in('clave', ['ia_activa', 'marketing_remitente']),
     estadoDelMotor(supabase),
     admin
       .from('objetivos')
@@ -97,6 +103,20 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
   const rastroDePrueba = (casosDePrueba ?? 0) + (cuentasDePrueba ?? 0) + centrosDePrueba;
 
   const iaActiva = (config ?? []).find((c) => c.clave === 'ia_activa')?.valor === true;
+
+  /*
+   * Los remitentes que llegan a pacientes: el global del servidor (recordatorios
+   * y lo que no tenga otro), el de marketing y el de cada centro.
+   */
+  const marketingRemitente = (config ?? []).find((c) => c.clave === 'marketing_remitente')?.valor;
+  const remitentesQueRevelan = [
+    { donde: 'EMAIL_REMITENTE', remitente: process.env.EMAIL_REMITENTE ?? '' },
+    {
+      donde: 'Parámetros',
+      remitente: typeof marketingRemitente === 'string' ? marketingRemitente : '',
+    },
+    ...(centros ?? []).map((c) => ({ donde: c.nombre, remitente: c.email_remitente ?? '' })),
+  ].filter((r) => remitenteRevela(r.remitente).length > 0);
   const deGrupo = (direcciones ?? []).filter((p) => p.rol === 'direccion' && p.alcance === 'grupo');
   const sinResena = (centros ?? []).filter(
     (c) => c.activo && !c.es_bandeja_grupo && !hay(c.url_resena_google),
@@ -224,6 +244,19 @@ export async function puestaEnMarcha(supabase: Cliente, admin: Cliente): Promise
         hay(process.env.EMAIL_REMITENTE) ? 'EMAIL_REMITENTE ✓' : 'falta EMAIL_REMITENTE',
       ].join(' · '),
       gravedad: 'conviene',
+    },
+    {
+      clave: 'discrecion',
+      titulo: 'Ningún remitente deja ver el motivo',
+      porQue:
+        'Los recordatorios de cita, las campañas y los flujos llegan a pacientes y familias, y el remitente se lee antes de abrir el correo, también en la pantalla bloqueada del móvil. Un dominio con «adicciones» cuenta el motivo a quien esté al lado. Mientras alguno lo deje ver, esos envíos se detienen solos.',
+      hecho: remitentesQueRevelan.length === 0,
+      detalle:
+        remitentesQueRevelan.length === 0
+          ? 'remitentes discretos'
+          : remitentesQueRevelan.map((r) => `${r.donde}: ${r.remitente}`).join(' · '),
+      gravedad: 'bloquea',
+      donde: { texto: 'Centros', href: '/admin/centros' },
     },
     {
       clave: 'fuentes',

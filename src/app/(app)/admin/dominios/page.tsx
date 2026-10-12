@@ -3,6 +3,7 @@ import { exigirDireccion } from '../guard';
 import { Avisos, botonAdmin, botonAdminSecundario, inputAdmin } from '../nav';
 import { claveConfigurada, type RegistroDns } from '@/lib/dominios-correo';
 import { anadirDominio, comprobarDominio, quitarDominio } from './actions';
+import { remitenteRevela } from '@/lib/discrecion';
 
 /**
  * Dominios de correo: darlos de alta, ver qué hay que pegar en el DNS y saber si
@@ -118,6 +119,14 @@ export default async function AdminDominios({
                 <div className="flex flex-wrap items-center gap-3">
                   <h2 className="font-mono text-base font-semibold">{d.dominio}</h2>
                   {chip(d.estado)}
+                  {remitenteRevela(d.dominio).length > 0 && (
+                    <span
+                      className="chip chip-warn"
+                      title="El nombre del dominio deja ver el motivo. Vale para correos al equipo, nunca para pacientes ni familias: los recordatorios y las campañas se detienen si salen con él."
+                    >
+                      Solo correos internos
+                    </span>
+                  )}
                   <span className="text-xs text-ink2">
                     {d.estado === 'verified'
                       ? `verificado ${cuando(d.verificado_at)}`

@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dominioDelRemitenteVerificado } from '@/lib/dominios-correo';
+import { avisoRemitente, remitenteRevela } from '@/lib/discrecion';
 import type { Json } from '@/lib/database.types';
 import type { Database } from '@/lib/database.types';
 import { AREAS, AREAS_FIJAS, CLAVE_CONFIG as CLAVE_AREAS, type Area } from '@/lib/areas';
@@ -769,6 +770,12 @@ export async function editarCentro(centroId: string, formData: FormData) {
      * destinatarios ya preparados. Mientras no haya ningún dominio dado de
      * alta no se bloquea a nadie, para no impedir arrancar.
      */
+    // Lo lee el paciente antes de abrir el correo: no puede contar el motivo.
+    const revela = remitenteRevela(remitente);
+    if (revela.length > 0) {
+      volver('centros', { error: `${nombre}: ${avisoRemitente(remitente, revela)}` });
+    }
+
     const dominio = await dominioDelRemitenteVerificado(createAdminClient(), remitente);
     if (!dominio.ok) {
       volver('centros', {
@@ -1145,7 +1152,11 @@ export async function guardarParametros(formData: FormData) {
   if (resenaUrl !== undefined) filas.push({ clave: 'resena_url', valor: resenaUrl });
 
   const remitente = texto('marketing_remitente');
-  if (remitente !== undefined) filas.push({ clave: 'marketing_remitente', valor: remitente });
+  if (remitente !== undefined) {
+    const revela = remitenteRevela(remitente);
+    if (revela.length > 0) volver('parametros', { error: avisoRemitente(remitente, revela) });
+    filas.push({ clave: 'marketing_remitente', valor: remitente });
+  }
 
   const pie = texto('marketing_pie');
   if (pie !== undefined) {

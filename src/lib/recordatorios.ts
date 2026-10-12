@@ -20,6 +20,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 import { ZONA } from '@/lib/fechas';
 import { emailConfigurado, enviarCorreo } from '@/lib/email';
+import { remitenteRevela } from '@/lib/discrecion';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -35,6 +36,17 @@ function nombreDePila(completo: string | null | undefined): string {
 
 export async function enviarRecordatoriosCita(admin: Cliente): Promise<ResultadoRecordatorios> {
   if (!emailConfigurado()) return { enviados: 0, sinDestinatario: 0 };
+
+  /*
+   * El recordatorio sale con el remitente global y llega al paciente o a su
+   * familia. Si ese remitente deja ver el motivo (un dominio con «adicciones»),
+   * no sale ninguno: las citas quedan sin marcar y se recordarán en cuanto se
+   * cambie. La puesta en marcha lo señala como bloqueante.
+   */
+  if (remitenteRevela(process.env.EMAIL_REMITENTE).length > 0) {
+    console.error('[recordatorios] detenidos: el remitente global deja ver el motivo de la cita');
+    return { enviados: 0, sinDestinatario: 0 };
+  }
 
   const { data: config } = await admin
     .from('configuracion')

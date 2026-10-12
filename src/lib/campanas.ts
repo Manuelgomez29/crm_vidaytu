@@ -19,6 +19,7 @@ import type { Database } from '@/lib/database.types';
 import { enviarCorreo, emailConfigurado } from '@/lib/email';
 import { contactosDelSegmento, type FiltroSegmento } from '@/lib/segmentos';
 import { firmarDestino } from '@/lib/enlaces';
+import { TERMINOS_CLINICOS, normalizar, remitenteRevela } from '@/lib/discrecion';
 
 type Cliente = SupabaseClient<Database>;
 
@@ -28,30 +29,7 @@ export type ResultadoCampanas = {
   fallidos: number;
 };
 
-const TERMINOS_POR_DEFECTO = [
-  'adiccion',
-  'adicciones',
-  'adicto',
-  'adicta',
-  'drogodependencia',
-  'desintoxicacion',
-  'rehabilitacion',
-  'recaida',
-  'alcoholismo',
-  'alcoholico',
-  'cocaina',
-  'heroina',
-  'ludopatia',
-  'consumo',
-  'abstinencia',
-];
-
-function normalizar(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
+const TERMINOS_POR_DEFECTO = TERMINOS_CLINICOS;
 
 /**
  * Términos clínicos encontrados en el contenido. Devuelve la lista, no un
@@ -280,6 +258,22 @@ export async function enviarLote(
       ? (mapa.get('marketing_remitente') as string)
       : undefined);
 
+  /*
+   * Último cerrojo de la discreción. Los remitentes se revisan al guardarlos
+   * (Centros, Parámetros), pero el global vive en el servidor y nadie lo
+   * revisa al escribirlo. Si el que va a salir deja ver el motivo, el lote NO
+   * se envía: los destinatarios se quedan pendientes y salen solos en cuanto
+   * se cambie el remitente. Mejor un correo que llega tarde que uno que cuenta
+   * a la familia lo que el paciente no ha contado.
+   */
+  const efectivo = remitente ?? process.env.EMAIL_REMITENTE;
+  if (remitenteRevela(efectivo).length > 0) {
+    console.error(
+      `[campañas] envío detenido: el remitente «${efectivo}» deja ver ${remitenteRevela(efectivo).join(', ')}`,
+    );
+    return { enviados: 0, fallidos: 0, quedan: 0 };
+  }
+
   const { data: pendientes } = await admin
     .from('campana_destinatarios')
     .select('id, email, token, contacto:contactos (nombre)')
@@ -392,10 +386,7 @@ export async function procesarCampanas(admin: Cliente): Promise<ResultadoCampana
    * terminadas: que hoy no quede nadie pendiente no significa que mañana no
    * llegue alguien al paso.
    */
-  const { data: perpetuas } = await admin
-    .from('campanas_email')
-    .select('id')
-    .eq('estado', 'flujo');
+  const { data: perpetuas } = await admin.from('campanas_email').select('id').eq('estado', 'flujo');
 
   for (const campana of perpetuas ?? []) {
     const lote = await enviarLote(admin, campana.id, tamano);
