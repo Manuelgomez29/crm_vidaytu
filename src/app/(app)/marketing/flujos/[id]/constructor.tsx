@@ -511,7 +511,7 @@ export function Constructor({
         </p>
       )}
 
-      <div className="sticky bottom-2 flex items-center justify-end gap-2">
+      <div className="sticky bottom-[calc(0.5rem+var(--barra-inferior))] flex items-center justify-end gap-2">
         {cambiado && <span className="text-xs text-ink2">Cambios sin guardar</span>}
         <button type="submit" className="btn btn-coral" disabled={!cambiado}>
           Guardar pasos

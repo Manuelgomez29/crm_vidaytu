@@ -70,7 +70,7 @@ export function ProveedorAvisos({ children }: { children: React.ReactNode }) {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed bottom-4 left-1/2 z-[100] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2"
+      className="pointer-events-none fixed bottom-[calc(1rem+var(--barra-inferior))] left-1/2 z-[100] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2"
     >
       {avisos.map((a) => (
         <Tarjeta

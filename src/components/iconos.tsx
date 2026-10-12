@@ -98,3 +98,64 @@ export function IconoSalir() {
     </svg>
   );
 }
+
+export function IconoSol() {
+  return (
+    <svg {...base} aria-hidden>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
+export function IconoTareas() {
+  return (
+    <svg {...base} aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="m8 12 3 3 5-6" />
+    </svg>
+  );
+}
+
+export function IconoPacientes() {
+  return (
+    <svg {...base} aria-hidden>
+      <path d="M10 3h4v7h7v4h-7v7h-4v-7H3v-4h7z" />
+    </svg>
+  );
+}
+
+export function IconoChat() {
+  return (
+    <svg {...base} aria-hidden>
+      <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" />
+    </svg>
+  );
+}
+
+export function IconoEuro() {
+  return (
+    <svg {...base} aria-hidden>
+      <path d="M17 6.5A7 7 0 1 0 17 17.5M4 10h9M4 14h9" />
+    </svg>
+  );
+}
+
+export function IconoCorreo() {
+  return (
+    <svg {...base} aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+export function IconoPuntos() {
+  return (
+    <svg {...base} aria-hidden>
+      <circle cx="5" cy="12" r="1.3" />
+      <circle cx="12" cy="12" r="1.3" />
+      <circle cx="19" cy="12" r="1.3" />
+    </svg>
+  );
+}

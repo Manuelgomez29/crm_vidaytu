@@ -158,6 +158,26 @@ function bloques({ rol, accesoClinico }: PerfilNav): Bloque[] {
   return salida;
 }
 
+/**
+ * Las entradas del menú que esta persona puede pulsar, sin repetir y sin las
+ * de áreas apagadas. De aquí sale también la barra inferior del móvil
+ * (`barra-inferior.tsx`): si cada una decidiera por su cuenta quién ve qué,
+ * algún día no coincidirían.
+ */
+export function entradasActivas(
+  perfil: PerfilNav,
+): { clave: Seccion; texto: string; href: string }[] {
+  const areas = new Set(perfil.areas);
+  const vistas = new Set<Seccion>();
+  const salida: { clave: Seccion; texto: string; href: string }[] = [];
+  for (const e of bloques(perfil).flatMap((b) => b.entradas)) {
+    if ((e.area && !areas.has(e.area)) || vistas.has(e.clave)) continue;
+    vistas.add(e.clave);
+    salida.push({ clave: e.clave, texto: e.texto, href: e.href });
+  }
+  return salida;
+}
+
 /** Subsecciones de las áreas que las tienen. */
 const SUBSECCIONES: Partial<
   Record<Seccion, { texto: string; href: string; soloGrupo?: boolean }[]>

@@ -14,6 +14,7 @@ import { EcoAvisos } from './eco-avisos';
 import { SelectorTema } from './selector-tema';
 import { Campana } from './campana';
 import { CierreDeMenus, Navegacion } from './navegacion-lateral';
+import { BarraInferior } from './barra-inferior';
 
 export type { Seccion } from './navegacion-lateral';
 
@@ -84,6 +85,13 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
   };
   const rolTexto = ROL_TEXTO[perfil?.rol ?? ''] ?? 'Sin rol';
 
+  const perfilNav = {
+    rol: perfil?.rol,
+    accesoClinico: perfil?.acceso_clinico ?? false,
+    alcance: perfil?.alcance,
+    areas: [...areas],
+  };
+
   const marca = (
     <Link href={inicio} className="block">
       <b className="block text-[17px] font-bold tracking-[0.02em] text-white">
@@ -97,14 +105,7 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
     <>
       <div className="border-b border-white/12 px-5 pb-4 pt-5">{marca}</div>
       <div className="flex-1 overflow-y-auto">
-        <Navegacion
-          perfil={{
-            rol: perfil?.rol,
-            accesoClinico: perfil?.acceso_clinico ?? false,
-            alcance: perfil?.alcance,
-            areas: [...areas],
-          }}
-        />
+        <Navegacion perfil={perfilNav} />
       </div>
       <div className="flex items-center gap-2.5 border-t border-white/12 px-4 py-3.5">
         <span className="avatar avatar-coral !h-8 !w-8 !text-xs">{iniciales(nombre)}</span>
@@ -144,7 +145,7 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
           data-armazon
           className="sticky top-0 z-20 flex items-center gap-3.5 border-b border-line bg-surface px-4 py-3 sm:px-6"
         >
-          <details className="relative lg:hidden">
+          <details id="menu-movil" className="relative lg:hidden">
             <summary
               aria-label="Abrir el menú de navegación"
               /* 44x44: es el único camino a todas las secciones en el móvil, y
@@ -154,7 +155,7 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
               <IconoMenu />
             </summary>
             <div
-              className="absolute left-0 z-30 mt-2 flex w-64 flex-col rounded-lg shadow-lg"
+              className="absolute left-0 z-30 mt-2 flex max-h-[calc(100dvh-5rem-var(--barra-inferior))] w-64 flex-col overflow-y-auto rounded-lg shadow-lg"
               style={{ background: 'linear-gradient(180deg,#2C3C5C 0%,#384B71 100%)' }}
             >
               {lateral}
@@ -228,7 +229,7 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main id="contenido" className="px-4 pb-16 pt-5 sm:px-6">
+        <main id="contenido" className="px-4 pb-[calc(4rem+var(--barra-inferior))] pt-5 sm:px-6">
           <ProveedorAvisos>
             <EcoAvisos />
             {children}
@@ -244,6 +245,9 @@ export async function Armazon({ children }: { children: React.ReactNode }) {
 
       {/* Al tocar un enlace tiene que pasar algo, aunque el servidor tarde. */}
       <ProgresoNavegacion />
+
+      {/* En el móvil, las pantallas de cada día al alcance del pulgar. */}
+      <BarraInferior perfil={perfilNav} />
 
       <CierreDeMenus />
     </div>

@@ -84,6 +84,19 @@ input[type='number'] {
   font-variant-numeric: tabular-nums;
 }
 
+/* La barra inferior del móvil (`barra-inferior.tsx`). Lo que se pega al borde de
+   abajo —avisos, barras de botones, el final de cada página— se aparta lo que
+   ocupa ella, y en pantalla grande, donde no hay barra, no se aparta nada. */
+:root {
+  --alto-barra-inferior: 3.75rem;
+  --barra-inferior: calc(var(--alto-barra-inferior) + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 64rem) {
+  :root {
+    --barra-inferior: 0px;
+  }
+}
+
 @layer components {
   /* ---- Chips ------------------------------------------------------------ */
   .chip {

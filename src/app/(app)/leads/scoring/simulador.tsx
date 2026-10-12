@@ -309,7 +309,7 @@ export function Simulador({
       </section>
 
       {/* ---------- Guardar ---------- */}
-      <div className="sticky bottom-3 flex flex-wrap items-center gap-3 rounded-lg bg-surface p-3 ring-1 ring-line">
+      <div className="sticky bottom-[calc(0.75rem+var(--barra-inferior))] flex flex-wrap items-center gap-3 rounded-lg bg-surface p-3 ring-1 ring-line">
         <button type="submit" className="btn btn-primary" disabled={!cambiado}>
           Guardar y recalcular
         </button>
