@@ -82,7 +82,8 @@
     "staging:verificar:salida-hl": "tsx --env-file=.env.staging scripts/verificar-salida-highlevel.ts",
     "staging:verificar:flujos": "tsx --env-file=.env.staging scripts/verificar-flujos.ts",
     "verificar:bloques": "tsx scripts/verificar-bloques.ts",
-    "staging:verificar:espejo-retencion": "tsx --env-file=.env.staging scripts/verificar-espejo-retencion.ts"
+    "staging:verificar:espejo-retencion": "tsx --env-file=.env.staging scripts/verificar-espejo-retencion.ts",
+    "staging:verificar:dominios": "tsx --env-file=.env.staging scripts/verificar-dominios.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

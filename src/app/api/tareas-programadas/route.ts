@@ -8,6 +8,7 @@ import { repartirLeadsSinPropietario } from '@/lib/reparto';
 import { enviarRecordatoriosCita } from '@/lib/recordatorios';
 import { purgarContenidoVencido } from '@/lib/canal';
 import { copiarDeHighLevel, purgarEspejoVencido, tocaCopiar } from '@/lib/espejo';
+import { refrescarDominiosPendientes } from '@/lib/dominios-correo';
 import { volcarDirectorioDeHighLevel } from '@/lib/directorio-highlevel';
 import { enlazarIdentidadesSociales } from '@/lib/puente-identidades';
 import { enviarPendientesAHighLevel } from '@/lib/highlevel-salida';
@@ -111,6 +112,18 @@ export async function POST(req: NextRequest) {
     const espejoPurgado = await fase('canal_espejo_retencion', fallos, () => purgarEspejoVencido(admin), 0);
 
     /*
+     * Los dominios de correo que aún no verifican: se les vuelve a preguntar a
+     * Resend cada pasada. El DNS tarda entre minutos y horas, y nadie tiene que
+     * quedarse pulsando «comprobar».
+     */
+    const dominiosCorreo = await fase(
+      'dominios_correo',
+      fallos,
+      () => refrescarDominiosPendientes(admin),
+      { comprobados: 0, verificadosAhora: 0 },
+    );
+
+    /*
      * La copia de HighLevel es diaria, pero vive aquí y no en un cron aparte:
      * un cron más es una pieza más que puede pararse sin que nadie se entere,
      * y de este motor ya sabemos si corre. Se mira si toca y, si no, no cuesta
@@ -169,6 +182,8 @@ export async function POST(req: NextRequest) {
       push: push.enviados,
       canalPurgados: purgados,
       canalEspejoPurgado: espejoPurgado,
+      dominiosComprobados: dominiosCorreo.comprobados,
+      dominiosVerificadosAhora: dominiosCorreo.verificadosAhora,
       canalCopia: copia?.saltada ?? copia?.recuentos,
       // Un número, además del desglose: la pantalla del motor cuenta cosas, y
       // sin esto la copia no aparecía en ella — invisible justo donde se mira

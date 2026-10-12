@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { dominioDelRemitenteVerificado } from '@/lib/dominios-correo';
 import type { Json } from '@/lib/database.types';
 import type { Database } from '@/lib/database.types';
 import { AREAS, AREAS_FIJAS, CLAVE_CONFIG as CLAVE_AREAS, type Area } from '@/lib/areas';
@@ -759,6 +760,19 @@ export async function editarCentro(centroId: string, formData: FormData) {
     if (!soloCorreo.test(remitente) && !conNombre.test(remitente)) {
       volver('centros', {
         error: `${nombre}: el remitente tiene que ser un correo, o «Nombre <correo@dominio>».`,
+      });
+    }
+
+    /*
+     * Y sobre un dominio VERIFICADO en Dominios de correo. Un remitente cuyo
+     * dominio no verifica no falla al guardar: falla en el envío, con los
+     * destinatarios ya preparados. Mientras no haya ningún dominio dado de
+     * alta no se bloquea a nadie, para no impedir arrancar.
+     */
+    const dominio = await dominioDelRemitenteVerificado(createAdminClient(), remitente);
+    if (!dominio.ok) {
+      volver('centros', {
+        error: `${nombre}: el dominio del remitente (${dominio.dominio}) ${dominio.motivo}. Mira Administración → Dominios de correo.`,
       });
     }
   }

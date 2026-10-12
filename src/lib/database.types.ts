@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1457,6 +1457,59 @@ export type Database = {
           {
             foreignKeyName: "documentos_clinicos_subido_por_fkey"
             columns: ["subido_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dominios_correo: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          dominio: string
+          estado: string
+          id: string
+          region: string
+          registros: Json
+          resend_id: string | null
+          ultimo_chequeo_at: string | null
+          ultimo_error: string | null
+          updated_at: string
+          verificado_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          dominio: string
+          estado?: string
+          id?: string
+          region?: string
+          registros?: Json
+          resend_id?: string | null
+          ultimo_chequeo_at?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+          verificado_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          dominio?: string
+          estado?: string
+          id?: string
+          region?: string
+          registros?: Json
+          resend_id?: string | null
+          ultimo_chequeo_at?: string | null
+          ultimo_error?: string | null
+          updated_at?: string
+          verificado_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dominios_correo_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]

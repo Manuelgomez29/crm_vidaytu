@@ -214,6 +214,7 @@ const SUBSECCIONES: Partial<
     { texto: 'Pipelines', href: '/admin/pipelines', soloGrupo: true },
     { texto: 'Clínica', href: '/admin/clinica', soloGrupo: true },
     { texto: 'Integraciones', href: '/admin/integraciones', soloGrupo: true },
+    { texto: 'Dominios de correo', href: '/admin/dominios', soloGrupo: true },
     { texto: 'Captación', href: '/admin/captacion', soloGrupo: true },
     { texto: 'Retención', href: '/admin/retencion', soloGrupo: true },
     { texto: 'Parámetros', href: '/admin/parametros', soloGrupo: true },
