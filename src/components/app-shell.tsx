@@ -10,6 +10,7 @@ import { Paleta } from './paleta';
 import { Latido } from './latido';
 import { ProgresoNavegacion } from './progreso-navegacion';
 import { ProveedorAvisos } from './avisos';
+import { EcoAvisos } from './eco-avisos';
 import { SelectorTema } from './selector-tema';
 
 export type Seccion =
@@ -613,7 +614,10 @@ export async function AppShell({
               </div>
             </div>
           </div>
-          <ProveedorAvisos>{children}</ProveedorAvisos>
+          <ProveedorAvisos>
+            <EcoAvisos />
+            {children}
+          </ProveedorAvisos>
         </main>
       </div>
 

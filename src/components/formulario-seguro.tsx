@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useAviso } from './avisos';
+import { terminarEnvio } from './envio-en-curso';
 
 /**
  * Un formulario que sobrevive a que se caiga la red.
@@ -189,6 +190,8 @@ export function FormularioSeguro({
           limpiarBorrador();
         } catch (e) {
           if (esFalloDeRed(e)) {
+            // Sin red no hay respuesta que suelte el botón: se suelta aquí.
+            terminarEnvio();
             mostrar({
               texto: 'Sin conexión: no se ha guardado. Lo escrito sigue aquí, inténtalo otra vez.',
               tono: 'error',

@@ -253,6 +253,41 @@ input[type='number'] {
     transform-origin: left;
     animation: avanzar 12s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
   }
+
+  /* El botón que acabas de pulsar, girando hasta que el servidor contesta.
+
+     Lo marca `progreso-navegacion.tsx` en cualquier formulario de acción, así
+     que funciona en los 124 botones sin tocar ninguno. La rueda va ANTES del
+     texto y usa `currentColor`: sale blanca en un botón coral y tinta en uno
+     fantasma, sin una regla por estilo. El texto se queda: «Guardar» girando
+     dice qué está pasando; una rueda sola no. */
+  button[data-cargando] {
+    cursor: progress;
+    opacity: 0.85;
+  }
+  button[data-cargando]::before {
+    content: '';
+    display: inline-block;
+    width: 0.95em;
+    height: 0.95em;
+    margin-right: 0.45em;
+    vertical-align: -0.14em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: girar 0.65s linear infinite;
+  }
+  /* Mientras un formulario está enviando, sus otros botones esperan. */
+  form[data-cargando] button:not([data-cargando]) {
+    pointer-events: none;
+    opacity: 0.55;
+  }
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes avanzar {
