@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { secretoCoincide } from '@/lib/enlaces';
+import { remitenteRevela } from '@/lib/discrecion';
 
 /**
  * Qué hay vivo ahí fuera.
@@ -51,6 +52,19 @@ export async function GET(req: NextRequest) {
       FORMULARIOS_WEBHOOK_SECRET: puesta('FORMULARIOS_WEBHOOK_SECRET'),
       ENLACES_SECRET: puesta('ENLACES_SECRET'),
       NEXT_PUBLIC_URL_APP: process.env.NEXT_PUBLIC_URL_APP ?? null,
+      // Avisos al móvil: las dos mitades del par, y el remitente que firma.
+      VAPID_PRIVATE_KEY: puesta('VAPID_PRIVATE_KEY'),
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: puesta('NEXT_PUBLIC_VAPID_PUBLIC_KEY'),
+      // El asistente de IA (además necesita el interruptor ia_activa).
+      ANTHROPIC_API_KEY: puesta('ANTHROPIC_API_KEY'),
+      // WhatsApp Business: verificación del webhook y firma de lo que llega.
+      WHATSAPP_VERIFY_TOKEN: puesta('WHATSAPP_VERIFY_TOKEN'),
+      WHATSAPP_APP_SECRET: puesta('WHATSAPP_APP_SECRET'),
+      SENTRY_DSN: puesta('SENTRY_DSN'),
     },
+    // Si el remitente global deja ver el motivo, recordatorios y campañas se
+    // detienen solos (lib/discrecion.ts). Se dice aquí para no tener que
+    // adivinarlo por qué no sale nada.
+    remitenteDiscreto: remitenteRevela(process.env.EMAIL_REMITENTE).length === 0,
   });
 }

@@ -84,7 +84,9 @@
     "verificar:bloques": "tsx scripts/verificar-bloques.ts",
     "staging:verificar:espejo-retencion": "tsx --env-file=.env.staging scripts/verificar-espejo-retencion.ts",
     "staging:verificar:dominios": "tsx --env-file=.env.staging scripts/verificar-dominios.ts",
-    "alta:dominios": "tsx --env-file=.env.local scripts/alta-dominios.ts"
+    "alta:dominios": "tsx --env-file=.env.local scripts/alta-dominios.ts",
+    "verificar:discrecion": "tsx scripts/verificar-discrecion.ts",
+    "configurar:correo-acceso": "tsx --env-file=.env.local scripts/correo-de-acceso.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

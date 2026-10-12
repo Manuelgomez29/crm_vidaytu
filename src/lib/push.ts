@@ -20,16 +20,24 @@ import type { Database } from '@/lib/database.types';
 
 type Cliente = SupabaseClient<Database>;
 
+/**
+ * La clave pública es la misma en el navegador y en el servidor: si solo está
+ * la del navegador (`NEXT_PUBLIC_…`), vale. Y el correo de contacto que pide
+ * el protocolo tiene uno de reserva, así que los avisos no esperan a que esté
+ * montado el correo saliente: son cosas distintas.
+ */
+function clavePublica(): string | undefined {
+  return process.env.VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || undefined;
+}
+
 export function pushConfigurado(): boolean {
-  return Boolean(
-    process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.EMAIL_REMITENTE,
-  );
+  return Boolean(clavePublica() && process.env.VAPID_PRIVATE_KEY);
 }
 
 function configurar() {
   webpush.setVapidDetails(
     `mailto:${(process.env.EMAIL_REMITENTE ?? '').replace(/.*<|>.*/g, '') || 'admin@vidaytu.es'}`,
-    process.env.VAPID_PUBLIC_KEY as string,
+    clavePublica() as string,
     process.env.VAPID_PRIVATE_KEY as string,
   );
 }
