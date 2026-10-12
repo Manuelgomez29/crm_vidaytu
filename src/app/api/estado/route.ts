@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
       ZEROCHATS_WEBHOOK_SECRET: puesta('ZEROCHATS_WEBHOOK_SECRET'),
       ZEROCHATS_API_KEY: puesta('ZEROCHATS_API_KEY'),
       RESEND_API_KEY: puesta('RESEND_API_KEY'),
+      // Las dos hacen falta para enviar: una clave sin remitente no manda nada.
+      EMAIL_REMITENTE: puesta('EMAIL_REMITENTE'),
       // El interruptor de las webs que mandan con el secreto global.
       FORMULARIOS_WEBHOOK_SECRET: puesta('FORMULARIOS_WEBHOOK_SECRET'),
       ENLACES_SECRET: puesta('ENLACES_SECRET'),
