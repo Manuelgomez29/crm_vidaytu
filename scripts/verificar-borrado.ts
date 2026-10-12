@@ -185,7 +185,7 @@ async function main() {
     .eq('contacto_id', dos.contactoId);
   comprobar('la cuenta de casos se hace con la clave de servicio', (casos ?? 0) === 1, `${casos}`);
 
-  const accionContactos = fuente('src/app/contactos/actions.ts');
+  const accionContactos = fuente('src/app/(app)/contactos/actions.ts');
   comprobar(
     'y por eso ve también los casos de centros ajenos',
     /createAdminClient\(\)[\s\S]{0,400}from\('lead_contactos'\)[\s\S]{0,200}count: 'exact'/.test(
@@ -203,7 +203,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nLa pantalla pide lo que tiene que pedir:');
 
-  const accionCasos = fuente('src/app/leads/[id]/actions.ts');
+  const accionCasos = fuente('src/app/(app)/leads/[id]/actions.ts');
   comprobar(
     'motivo obligatorio antes de borrar un caso',
     /motivo\.length < 5/.test(accionCasos) && /motivo\.length < 5/.test(accionContactos),
@@ -215,7 +215,8 @@ async function main() {
   );
   comprobar(
     'el porqué se escribe ANTES de borrar',
-    accionCasos.indexOf("accion: 'BORRADO_MANUAL'") < accionCasos.indexOf(".from('leads')\n    .delete()"),
+    accionCasos.indexOf("accion: 'BORRADO_MANUAL'") <
+      accionCasos.indexOf(".from('leads')\n    .delete()"),
     'si fuera después y algo fallara, quedaría el borrado sin explicación',
   );
   comprobar(
@@ -223,7 +224,7 @@ async function main() {
     /supabase\s*\n?\s*\.from\('leads'\)\s*\n?\s*\.delete\(\)/.test(accionCasos),
   );
 
-  const ficha = fuente('src/app/leads/[id]/page.tsx');
+  const ficha = fuente('src/app/(app)/leads/[id]/page.tsx');
   comprobar(
     'el botón solo se le ofrece a la dirección de grupo',
     /esDireccionDeGrupo = esDireccion && perfil\?\.alcance === 'grupo'/.test(ficha) &&

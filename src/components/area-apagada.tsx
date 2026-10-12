@@ -17,7 +17,7 @@ export async function AreaApagada({ area }: { area: Area }) {
   const { texto, etiqueta } = AREAS[area];
 
   return (
-    <AppShell seccion="mi-dia" titulo={texto} descripcion="Todavía no está en marcha">
+    <AppShell titulo={texto} descripcion="Todavía no está en marcha">
       <div className="panel max-w-[60ch] p-6">
         {etiqueta && <span className="chip chip-mut">{etiqueta}</span>}
         <h2 className="mt-3 text-[17px] font-bold">Esta parte llega más adelante</h2>

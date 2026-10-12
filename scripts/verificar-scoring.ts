@@ -192,8 +192,8 @@ async function main() {
    * calientes», con un comentario que juraba que vivían solo en `nivelDeCalor`.
    * Se mira en el código porque es donde estaban y donde pueden volver.
    */
-  const kanban = readFileSync('src/app/leads/kanban.tsx', 'utf8');
-  const listado = readFileSync('src/app/leads/page.tsx', 'utf8');
+  const kanban = readFileSync('src/app/(app)/leads/kanban.tsx', 'utf8');
+  const listado = readFileSync('src/app/(app)/leads/(inicio)/page.tsx', 'utf8');
   comprobar(
     'el kanban ya no lleva los cortes escritos a mano',
     !/puntuacion >= 70|puntuacion >= 40/.test(kanban) && kanban.includes('umbrales.caliente'),
@@ -217,7 +217,7 @@ async function main() {
     'era un JSON editable que ya no leía nadie',
   );
 
-  const parametros = readFileSync('src/app/admin/parametros/page.tsx', 'utf8');
+  const parametros = readFileSync('src/app/(app)/admin/parametros/page.tsx', 'utf8');
   comprobar(
     'y Parámetros ya no ofrece editarla',
     !parametros.includes('scoring_pesos'),

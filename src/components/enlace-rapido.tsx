@@ -30,6 +30,13 @@ import { useEffect, useRef } from 'react';
  * peor, pero nunca dañina.)
  *
  * Se usa igual que `Link`: mismo nombre, mismas propiedades.
+ *
+ * Y una diferencia con `Link`: por defecto NO precarga al entrar en pantalla.
+ * Desde que cada pantalla tiene esqueleto de carga, esa precarga de Next ya no
+ * es inútil —se trae el esqueleto—, pero cada una es una petición con su
+ * comprobación de sesión, y un kanban con cuarenta tarjetas a la vista serían
+ * cuarenta peticiones cada vez que se abre. Quien sí la quiere (el menú: pocos
+ * enlaces, siempre visibles) la pide con `prefetch={null}`.
  */
 
 /** Lo que tiene que quedarse el ratón encima para que cuente como intención. */
@@ -43,9 +50,12 @@ export default function EnlaceRapido(props: Props) {
   const reloj = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hecha = useRef(false);
 
-  useEffect(() => () => {
-    if (reloj.current) clearTimeout(reloj.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (reloj.current) clearTimeout(reloj.current);
+    },
+    [],
+  );
 
   // Quien pidió explícitamente no precargar, o un destino que no es una ruta
   // de aquí, no precarga.
@@ -72,6 +82,7 @@ export default function EnlaceRapido(props: Props) {
   return (
     <Link
       {...props}
+      prefetch={prefetch === undefined ? false : prefetch}
       onMouseEnter={(e) => {
         onMouseEnter?.(e);
         esperar();

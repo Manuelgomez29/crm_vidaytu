@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
-import { buscarRapido, type ResultadoRapido } from '@/app/buscar/acciones';
+import { buscarRapido, type ResultadoRapido } from '@/app/(app)/buscar/acciones';
 
 type Accion = {
   id: string;

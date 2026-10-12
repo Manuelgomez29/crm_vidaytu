@@ -254,7 +254,10 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nLa acción del servidor hace lo mismo que se ha probado:');
 
-  const codigo = (await import('node:fs')).readFileSync('src/app/leads/[id]/actions.ts', 'utf8');
+  const codigo = (await import('node:fs')).readFileSync(
+    'src/app/(app)/leads/[id]/actions.ts',
+    'utf8',
+  );
   const cuerpo = codigo.split('export async function derivarLead')[1]?.split('\nexport ')[0] ?? '';
   comprobar(
     'apunta la derivación con origen y destino',

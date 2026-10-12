@@ -1,4 +1,4 @@
-import { cerrarSesion } from '@/app/leads/actions';
+import { cerrarSesion } from '@/app/(app)/leads/actions';
 
 /**
  * La salida de las dos pantallas que son una puerta cerrada.

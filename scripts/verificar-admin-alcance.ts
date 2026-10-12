@@ -175,7 +175,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nTodas las acciones del panel tienen guardián:');
 
-  const codigo = readFileSync('src/app/admin/actions.ts', 'utf8');
+  const codigo = readFileSync('src/app/(app)/admin/actions.ts', 'utf8');
 
   /*
    * Se recorre el fichero entero y se parte por cada `export async function`.
@@ -239,7 +239,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nLa navegación no ofrece lo que va a rebotar:');
 
-  const shell = readFileSync('src/components/app-shell.tsx', 'utf8');
+  const shell = readFileSync('src/components/navegacion-lateral.tsx', 'utf8');
   comprobar(
     'el menú esconde los ajustes de grupo a quien dirige un centro',
     /soloGrupo[\s\S]*\|\|[\s\S]{0,60}alcance === 'grupo'/.test(shell),

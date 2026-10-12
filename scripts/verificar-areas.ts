@@ -99,7 +99,7 @@ async function main() {
     (a) => !AREAS_FIJAS.includes(a),
   );
   for (const area of apagables) {
-    const ruta = `src/app/${area === 'clinica' ? 'clinica' : area}/layout.tsx`;
+    const ruta = `src/app/(app)/${area === 'clinica' ? 'clinica' : area}/layout.tsx`;
     const hay = existsSync(ruta);
     comprobar(
       `${AREAS[area].texto} se bloquea en ${ruta}`,
@@ -134,7 +134,7 @@ async function main() {
   // ---------------------------------------------------------------------------
   console.log('\nEl menú no ofrece lo que está apagado:');
 
-  const shell = readFileSync('src/components/app-shell.tsx', 'utf8');
+  const shell = readFileSync('src/components/navegacion-lateral.tsx', 'utf8');
   comprobar(
     'cada entrada del menú declara a qué área pertenece',
     (shell.match(/area: '/g) ?? []).length >= 10,

@@ -204,7 +204,7 @@ async function main() {
    * eso —que siga siendo una, y que lleve el filtro—, porque el día que alguien
    * vuelva a añadir una consulta aparte, el problema vuelve entero.
    */
-  const panel = readFileSync('src/app/panel/page.tsx', 'utf8');
+  const panel = readFileSync('src/app/(app)/panel/(inicio)/page.tsx', 'utf8');
 
   comprobar(
     'el cruce sale de la misma lista que las métricas, no de otra consulta',
