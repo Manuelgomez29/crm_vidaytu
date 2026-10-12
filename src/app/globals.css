@@ -299,6 +299,51 @@ input[type='number'] {
   [data-optimista='hecha'] form {
     display: none;
   }
+
+  /* Esqueletos de carga (`esqueletos.tsx`): la pantalla en gris mientras
+     llegan sus datos. El brillo cruza despacio, de izquierda a derecha, para
+     decir «está viniendo» sin llamar la atención; con menos movimiento pedido
+     en el sistema, la pieza se queda gris y quieta. Encima de un fondo que ya
+     es gris (las columnas del kanban) la pieza baja un tono para verse. */
+  .esqueleto {
+    display: block;
+    border-radius: 6px;
+    background-color: var(--color-surface2);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, var(--color-surface) 60%, transparent) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+    animation: brillo 1.6s ease-in-out infinite;
+  }
+  .esqueleto-sobre-gris {
+    background-color: var(--color-line);
+  }
+  /* Entra fundiéndose: si los datos llegan enseguida, el gris apenas se ve. */
+  .esqueleto-entrada {
+    animation: aparecer 0.2s ease-out both;
+  }
+}
+
+@keyframes brillo {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes salir {
