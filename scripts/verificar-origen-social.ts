@@ -277,6 +277,34 @@ async function main() {
   if (eLogin) {
     console.log('  —     sin cuenta de comercial en este entorno');
   } else {
+    /*
+     * Primero, SIN acceso a esa persona: no tiene caso en sus centros ni la
+     * creó ella, así que no sale en su directorio, y su origen tampoco. Antes
+     * esta prueba esperaba verla, y así se coló la fuga de 20261013110000: una
+     * cuenta de admisiones veía las identidades de todo el mundo.
+     */
+    const { data: ajenaVe } = await comercial
+      .from('canal_identidades')
+      .select('id')
+      .eq('contacto_id', persona!.id);
+    comprobar(
+      'no ve el origen de quien no está en su directorio',
+      (ajenaVe ?? []).length === 0,
+      'la identidad se ve con la misma regla que la persona',
+    );
+    const { data: todas } = await comercial.from('canal_identidades').select('contacto_id');
+    const { data: suyas } = await comercial.from('contactos').select('id');
+    const visibles = new Set((suyas ?? []).map((c) => c.id));
+    comprobar(
+      'y ninguna de las que ve es de alguien que no ve',
+      (todas ?? []).every((i) => i.contacto_id && visibles.has(i.contacto_id)),
+      `${(todas ?? []).length} identidades a la vista`,
+    );
+
+    // Ahora sí es suya: la dio de alta ella.
+    const { data: yo } = await comercial.auth.getUser();
+    await admin.from('contactos').update({ created_by: yo.user!.id }).eq('id', persona!.id);
+
     const { data: ve } = await comercial
       .from('canal_identidades')
       .select('usuario, publicacion')
