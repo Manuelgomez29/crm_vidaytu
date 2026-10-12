@@ -91,11 +91,20 @@ export async function enlazarIdentidadesSociales(
     .select('ref, contenido')
     .eq('tipo', 'campo');
 
-  const campoUsuario = (campos ?? []).find((c) => {
-    const x = c.contenido as { name?: string; fieldKey?: string };
-    const texto = `${x.name ?? ''} ${x.fieldKey ?? ''}`.toLowerCase();
-    return texto.includes('ig_username') || texto.includes('instagram');
-  })?.ref;
+  /*
+   * TODOS los campos que encajen, no el primero. Si un día alguien crea en
+   * HighLevel un segundo campo con «Instagram» en el nombre, quedarse con el
+   * primero que aparezca haría que el puente dejara de enlazar sin avisar.
+   */
+  const camposUsuario = new Set(
+    (campos ?? [])
+      .filter((c) => {
+        const x = c.contenido as { name?: string; fieldKey?: string };
+        const texto = `${x.name ?? ''} ${x.fieldKey ?? ''}`.toLowerCase();
+        return texto.includes('ig_username') || texto.includes('instagram');
+      })
+      .map((c) => c.ref),
+  );
 
   const { filas: contactosHL } = await traerTodo((d, h) =>
     admin
@@ -126,11 +135,11 @@ export async function enlazarIdentidadesSociales(
     }
 
     // 2. Y el campo personalizado, si alguien empieza a rellenarlo.
-    const valor = campoUsuario
-      ? c.customFields?.find((f) => f.id === campoUsuario)?.value
-      : undefined;
-    if (typeof valor === 'string' && valor.trim()) {
-      porUsuario.set(valor.trim().replace(/^@/, '').toLowerCase(), fila.ref);
+    for (const campo of c.customFields ?? []) {
+      if (!campo.id || !camposUsuario.has(campo.id)) continue;
+      if (typeof campo.value === 'string' && campo.value.trim()) {
+        porUsuario.set(campo.value.trim().replace(/^@/, '').toLowerCase(), fila.ref);
+      }
     }
   }
 

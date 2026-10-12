@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
+import { traerTodo } from '@/lib/paginar';
 
 /**
  * La copia nocturna de HighLevel.
@@ -21,7 +22,7 @@ const VERSION = '2021-07-28';
 /** Cuántas páginas se piden como mucho por recurso y pasada. */
 const TOPE_PAGINAS = 60;
 /** Cuántas conversaciones se recorren para traer sus mensajes, por pasada. */
-const TOPE_CONVERSACIONES = 400;
+const TOPE_CONVERSACIONES = 200;
 
 /** Páginas de mensajes por conversación: 100 cada una, de sobra para una charla. */
 const TOPE_PAGINAS_MENSAJES = 20;
@@ -87,11 +88,12 @@ type Recuentos = Record<string, number>;
  * cuándo fue la última pasada buena y se decide aquí.
  */
 export async function tocaCopiar(admin: SupabaseClient<Database>): Promise<boolean> {
-  const { data: cfg } = await admin
+  const { data: ajustes } = await admin
     .from('configuracion')
-    .select('valor')
-    .eq('clave', 'canal_copia_cada_horas')
-    .maybeSingle();
+    .select('clave, valor')
+    .in('clave', ['canal_copia_cada_horas', 'canal_copia_reintento_horas']);
+  const cfg = ajustes?.find((a) => a.clave === 'canal_copia_cada_horas');
+  const reintento = Number(ajustes?.find((a) => a.clave === 'canal_copia_reintento_horas')?.valor);
   /*
    * `Number(x) || 24` no vale: el cero es falso en JavaScript, así que un
    * intervalo puesto a cero —«copia en cada pasada»— se convertía en
@@ -103,14 +105,22 @@ export async function tocaCopiar(admin: SupabaseClient<Database>): Promise<boole
 
   const { data: ultima } = await admin
     .from('canal_copias')
-    .select('inicio')
+    .select('inicio, truncado')
     .eq('ok', true)
     .order('inicio', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   if (!ultima) return true;
-  return Date.now() - Date.parse(ultima.inicio) >= horas * 3_600_000;
+  /*
+   * Una copia incompleta se retoma antes: cada pasada trae un tope de
+   * conversaciones, y la primera vez hacen falta varias para ponerse al día.
+   */
+  const espera =
+    ultima.truncado && Number.isFinite(reintento) && reintento >= 0
+      ? Math.min(reintento, horas)
+      : horas;
+  return Date.now() - Date.parse(ultima.inicio) >= espera * 3_600_000;
 }
 
 /**
@@ -162,32 +172,28 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
     await anotar('subcuenta', [{ tipo: 'subcuenta', ref: loc, contenido: sub.location ?? sub }]);
 
     const campos = (await pedir(token, `/locations/${loc}/customFields`)).customFields as
-      | { id: string }[]
-      | undefined;
+      { id: string }[] | undefined;
     await anotar(
       'campo',
       (campos ?? []).map((c) => ({ tipo: 'campo', ref: c.id, contenido: c })),
     );
 
     const valores = (await pedir(token, `/locations/${loc}/customValues`)).customValues as
-      | { id: string }[]
-      | undefined;
+      { id: string }[] | undefined;
     await anotar(
       'valor',
       (valores ?? []).map((v) => ({ tipo: 'valor', ref: v.id, contenido: v })),
     );
 
     const usuarios = (await pedir(token, `/users/?locationId=${loc}`)).users as
-      | { id: string }[]
-      | undefined;
+      { id: string }[] | undefined;
     await anotar(
       'usuario',
       (usuarios ?? []).map((u) => ({ tipo: 'usuario', ref: u.id, contenido: u })),
     );
 
     const embudos = (await pedir(token, `/opportunities/pipelines?locationId=${loc}`)).pipelines as
-      | { id: string }[]
-      | undefined;
+      { id: string }[] | undefined;
     await anotar(
       'embudo',
       (embudos ?? []).map((p) => ({ tipo: 'embudo', ref: p.id, contenido: p })),
@@ -225,18 +231,93 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
       if (p === TOPE_PAGINAS) truncado = true;
     }
 
-    // --- Conversaciones, y los mensajes de cada una -------------------------
-    const conv = await pedir(token, `/conversations/search?locationId=${loc}&limit=100`);
-    const conversaciones = (conv.conversations ?? []) as { id: string }[];
+    // --- Conversaciones: TODAS, y los mensajes de las que cambiaron ---------
+    /*
+     * La lista entera, con el cursor de HighLevel (`startAfterDate` con el
+     * `sort` de la última). La primera versión pedía una sola página de cien
+     * y se quedaba ahí: con 1.799 conversaciones en la cuenta, el respaldo
+     * tenía el 5 % y cada copia salía «incompleta».
+     */
+    type Conversacion = { id: string; lastMessageDate?: number; sort?: number[] };
+    const conversaciones: Conversacion[] = [];
+    let despuesDe: number | null = null;
+    for (let p = 0; p < TOPE_PAGINAS; p++) {
+      const pagina = await pedir(
+        token,
+        `/conversations/search?locationId=${loc}&limit=100${despuesDe ? `&startAfterDate=${despuesDe}` : ''}`,
+      );
+      const lista = (pagina.conversations ?? []) as Conversacion[];
+      conversaciones.push(...lista);
+      if (lista.length < 100) break;
+      const cursor = lista.at(-1)?.sort?.[0];
+      // Sin cursor nuevo no se puede seguir sin repetir: se dice y se deja.
+      if (typeof cursor !== 'number' || cursor === despuesDe) {
+        truncado = true;
+        break;
+      }
+      despuesDe = cursor;
+      if (p === TOPE_PAGINAS - 1) truncado = true;
+    }
+
+    /*
+     * Qué teníamos ya. La fila de cada conversación guarda la fecha de su
+     * último mensaje TAL COMO ESTABA cuando se copiaron sus mensajes: si
+     * HighLevel dice la misma fecha, no hay nada nuevo que traer. Por eso una
+     * conversación cuyos mensajes no caben en esta pasada NO se actualiza: si
+     * se guardara con la fecha nueva, la siguiente pasada creería que ya está.
+     */
+    const { filas: previas } = await traerTodo((d, h) =>
+      admin
+        .from('canal_espejo')
+        .select('ref, ultimo:contenido->lastMessageDate')
+        .eq('sistema', 'highlevel')
+        .eq('tipo', 'conversacion')
+        .order('id')
+        .range(d, h),
+    );
+    const ultimoCopiado = new Map(previas.map((f) => [f.ref, Number(f.ultimo) || null]));
+
+    const sinCambios: Conversacion[] = [];
+    const conCambios: Conversacion[] = [];
+    for (const c of conversaciones) {
+      if (ultimoCopiado.has(c.id) && ultimoCopiado.get(c.id) === (c.lastMessageDate ?? null)) {
+        sinCambios.push(c);
+      } else {
+        conCambios.push(c);
+      }
+    }
+
+    /*
+     * Las que no cambiaron se dan por vistas, con sus mensajes. Si no, la
+     * limpieza por antigüedad (`purgarEspejoVencido`) borraría a los seis
+     * meses los mensajes de una conversación tranquila que sigue existiendo
+     * en HighLevel, que es justo lo que el respaldo tiene que conservar.
+     */
     await anotar(
       'conversacion',
-      conversaciones.map((c) => ({ tipo: 'conversacion', ref: c.id, contenido: c })),
+      sinCambios.map((c) => ({ tipo: 'conversacion', ref: c.id, contenido: c })),
     );
-    if (conversaciones.length === 100) truncado = true;
+    const ahora = new Date().toISOString();
+    for (let i = 0; i < sinCambios.length; i += 200) {
+      const { error } = await admin
+        .from('canal_espejo')
+        .update({ visto_at: ahora })
+        .eq('sistema', 'highlevel')
+        .eq('tipo', 'mensaje')
+        .in(
+          'ref_padre',
+          sinCambios.slice(i, i + 200).map((c) => c.id),
+        );
+      if (error) throw new Error(`Espejo: ${error.message}`);
+    }
 
     /*
      * Los mensajes son el motivo de todo esto: sin ellos se vuelve con una
-     * lista de nombres. Por eso se recorren una a una aunque salga caro.
+     * lista de nombres. Se recorren las conversaciones que cambiaron, las más
+     * recientes primero, hasta `TOPE_CONVERSACIONES` por pasada; las que no
+     * quepan se quedan para la siguiente (y la copia se marca incompleta),
+     * así que la primera vez el respaldo se completa en unos días y después
+     * cada pasada solo trae lo nuevo.
      *
      * Y con TODAS sus páginas. La primera versión pedía solo la primera y
      * marcaba `truncado` si había más: de las 22 conversaciones de la cuenta
@@ -245,7 +326,7 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
      *
      * El cursor es `lastMessageId`, que el propio sobre devuelve.
      */
-    for (const c of conversaciones.slice(0, TOPE_CONVERSACIONES)) {
+    for (const c of conCambios.slice(0, TOPE_CONVERSACIONES)) {
       let desde: string | null = null;
       for (let p = 0; p < TOPE_PAGINAS_MENSAJES; p++) {
         const ruta = `/conversations/${c.id}/messages?limit=100${desde ? `&lastMessageId=${desde}` : ''}`;
@@ -266,7 +347,6 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
           })),
         );
         if (!sobre.nextPage || lote.length === 0) break;
-        // Sin cursor no se puede seguir sin repetir: se dice y se deja.
         desde = sobre.lastMessageId ?? null;
         if (!desde) {
           truncado = true;
@@ -274,8 +354,10 @@ export async function copiarDeHighLevel(admin: SupabaseClient<Database>): Promis
         }
         if (p === TOPE_PAGINAS_MENSAJES - 1) truncado = true;
       }
+      // Solo ahora, con sus mensajes ya dentro, la conversación cuenta como copiada.
+      await anotar('conversacion', [{ tipo: 'conversacion', ref: c.id, contenido: c }]);
     }
-    if (conversaciones.length > TOPE_CONVERSACIONES) truncado = true;
+    if (conCambios.length > TOPE_CONVERSACIONES) truncado = true;
 
     await admin
       .from('canal_copias')
