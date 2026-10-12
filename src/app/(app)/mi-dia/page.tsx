@@ -62,7 +62,12 @@ function FilaCaso({
       href={`/leads/${id}`}
       className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-ground focus-visible:bg-ground"
     >
-      <span className="min-w-0 flex-1">
+      {/*
+        Un mínimo de ancho para el texto: sin él, con un centro de nombre largo
+        («Vidaitu — Bandeja de grupo») y un aviso, los chips se comían la fila y
+        el pie salía letra a letra en vertical. Lo que cede ahora es el chip.
+      */}
+      <span className="min-w-[7rem] flex-1">
         <span className="block truncate text-[13.5px] font-medium">{nombre}</span>
         {/*
           Dos líneas, no una cortada. En el móvil «Eclipse · entró hace 10 días»
@@ -80,10 +85,10 @@ function FilaCaso({
       */}
       {slug && (
         <span
-          className={`chip ${CHIP_CENTRO[slug] ?? 'chip-mut'} hidden shrink-0 sm:inline-flex`}
+          className={`chip ${CHIP_CENTRO[slug] ?? 'chip-mut'} hidden min-w-0 max-w-[45%] sm:inline-flex`}
           title={centro}
         >
-          {centro ?? '—'}
+          <span className="min-w-0 truncate">{centro ?? '—'}</span>
         </span>
       )}
     </Link>
