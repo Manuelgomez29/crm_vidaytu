@@ -466,13 +466,11 @@ export async function sacarInscripcion(flujoId: string, inscripcionId: string) {
     .eq('id', inscripcionId)
     .eq('flujo_id', flujoId);
   if (error) volver(ruta, { error: `No se pudo sacar: ${error.message}` });
-  await admin
-    .from('flujo_eventos')
-    .insert({
-      inscripcion_id: inscripcionId,
-      paso_id: null,
-      tipo: 'salida',
-      detalle: 'sacada a mano desde la pantalla',
-    });
+  await admin.from('flujo_eventos').insert({
+    inscripcion_id: inscripcionId,
+    paso_id: null,
+    tipo: 'salida',
+    detalle: 'sacada a mano desde la pantalla',
+  });
   volver(ruta, { aviso: 'Fuera del flujo.' });
 }

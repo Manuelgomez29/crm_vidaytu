@@ -76,10 +76,7 @@ export default async function LoginPage({
             grupo, esa persona no tiene a quien pedírselo.
           */}
           <p className="mt-5 text-center text-[12.5px] text-muted">
-            <Link
-              href="/clave-olvidada"
-              className="underline underline-offset-2 hover:text-ink2"
-            >
+            <Link href="/clave-olvidada" className="underline underline-offset-2 hover:text-ink2">
               ¿Has olvidado tu contraseña?
             </Link>
           </p>

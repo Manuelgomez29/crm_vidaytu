@@ -110,8 +110,14 @@ export function normalizarDominio(entrada: string): string | null {
 // Resend
 // ---------------------------------------------------------------------------
 
-export async function crearEnResend(dominio: string, region = REGION_POR_DEFECTO): Promise<DominioResend> {
-  const r = await pedir('/domains', { method: 'POST', body: JSON.stringify({ name: dominio, region }) });
+export async function crearEnResend(
+  dominio: string,
+  region = REGION_POR_DEFECTO,
+): Promise<DominioResend> {
+  const r = await pedir('/domains', {
+    method: 'POST',
+    body: JSON.stringify({ name: dominio, region }),
+  });
   return r as unknown as DominioResend;
 }
 
@@ -160,7 +166,10 @@ export async function sincronizarDominio(
   } catch (e) {
     await admin
       .from('dominios_correo')
-      .update({ ultimo_chequeo_at: ahora, ultimo_error: e instanceof Error ? e.message : String(e) })
+      .update({
+        ultimo_chequeo_at: ahora,
+        ultimo_error: e instanceof Error ? e.message : String(e),
+      })
       .eq('id', fila.id);
     return fila.estado;
   }
@@ -235,7 +244,11 @@ export async function dominioDelRemitenteVerificado(
   if (!propio) {
     return (dominios ?? []).length === 0
       ? { ok: true } // Sin dominios dados de alta aún no se bloquea a nadie.
-      : { ok: false, dominio: dominioCompleto, motivo: 'no está dado de alta en Dominios de correo' };
+      : {
+          ok: false,
+          dominio: dominioCompleto,
+          motivo: 'no está dado de alta en Dominios de correo',
+        };
   }
   if (propio.estado !== 'verified') {
     return { ok: false, dominio: propio.dominio, motivo: 'todavía no está verificado' };

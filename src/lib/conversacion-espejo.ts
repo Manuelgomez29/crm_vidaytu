@@ -68,16 +68,20 @@ export async function origenSocialDe(
 
   if (!data) return null;
 
-  const pub = data.publicacion as
-    | { tipo?: string | null; enlace?: string | null; via?: string | null }
-    | null;
+  const pub = data.publicacion as {
+    tipo?: string | null;
+    enlace?: string | null;
+    via?: string | null;
+  } | null;
 
   return {
     plataforma: data.plataforma,
     usuario: data.usuario,
     estado: data.estado,
     etiquetas: data.etiquetas ?? [],
-    publicacion: pub ? { tipo: pub.tipo ?? null, enlace: pub.enlace ?? null, via: pub.via ?? null } : null,
+    publicacion: pub
+      ? { tipo: pub.tipo ?? null, enlace: pub.enlace ?? null, via: pub.via ?? null }
+      : null,
   };
 }
 

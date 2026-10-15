@@ -68,10 +68,7 @@ type RespuestaUpsert = {
  * de aquí en E.164 y el correo en minúsculas, que es lo que esa comparación
  * necesita para acertar.
  */
-async function upsert(
-  token: string,
-  cuerpo: Record<string, unknown>,
-): Promise<RespuestaUpsert> {
+async function upsert(token: string, cuerpo: Record<string, unknown>): Promise<RespuestaUpsert> {
   const r = await fetch(`${BASE}/contacts/upsert`, {
     method: 'POST',
     headers: {

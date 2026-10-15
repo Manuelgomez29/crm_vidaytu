@@ -43,14 +43,19 @@ export const TIPOS_BLOQUE = ['titulo', 'parrafo', 'boton', 'imagen', 'separador'
  * Los colores son los del sistema de diseño (chips y bordes por centro); el
  * nombre es el del centro tal como está en la base. Sin centro = el grupo.
  */
-export function marcaDeCentro(centro: { slug?: string | null; nombre?: string | null } | null | undefined): MarcaCorreo {
+export function marcaDeCentro(
+  centro: { slug?: string | null; nombre?: string | null } | null | undefined,
+): MarcaCorreo {
   const colores: Record<string, string> = {
     horizonte: '#2E5C48',
     eclipse: '#4E506B',
     bellamar: '#384B71',
   };
   if (!centro?.slug) return MARCA_POR_DEFECTO;
-  return { nombre: centro.nombre ?? MARCA_POR_DEFECTO.nombre, color: colores[centro.slug] ?? MARCA_POR_DEFECTO.color };
+  return {
+    nombre: centro.nombre ?? MARCA_POR_DEFECTO.nombre,
+    color: colores[centro.slug] ?? MARCA_POR_DEFECTO.color,
+  };
 }
 
 const MAX_BLOQUES = 40;
@@ -111,8 +116,13 @@ export function validarBloques(entrada: unknown): { bloques: Bloque[] } | { erro
       }
       case 'imagen': {
         const url = urlSegura(String(x.url ?? ''));
-        if (!url) return { error: `${n}: la imagen necesita una dirección que empiece por https://.` };
-        bloques.push({ tipo: 'imagen', url, alt: typeof x.alt === 'string' ? x.alt.trim().slice(0, 200) : '' });
+        if (!url)
+          return { error: `${n}: la imagen necesita una dirección que empiece por https://.` };
+        bloques.push({
+          tipo: 'imagen',
+          url,
+          alt: typeof x.alt === 'string' ? x.alt.trim().slice(0, 200) : '',
+        });
         break;
       }
       case 'separador':

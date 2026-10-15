@@ -135,9 +135,7 @@ export async function asegurarContacto(
       zona: datos.zona ?? null,
       origen: datos.origen ?? null,
       consentimiento_marketing: datos.consentimientoMarketing === true,
-      consentimiento_marketing_at: datos.consentimientoMarketing
-        ? new Date().toISOString()
-        : null,
+      consentimiento_marketing_at: datos.consentimientoMarketing ? new Date().toISOString() : null,
       consentimiento_marketing_origen: datos.consentimientoMarketing
         ? (datos.consentimientoOrigen ?? null)
         : null,

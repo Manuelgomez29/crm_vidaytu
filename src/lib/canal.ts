@@ -134,8 +134,7 @@ export function identidadDesdeEvento(
    * exponer una historia a las 24 horas— y eso es normal, no un fallo.
    */
   const media = evento.data?.media as
-    | { id?: string; type?: string; permalink?: string | null }
-    | undefined;
+    { id?: string; type?: string; permalink?: string | null } | undefined;
   const publicacion: PublicacionDeOrigen | null = media?.id
     ? {
         id: media.id,

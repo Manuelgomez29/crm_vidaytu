@@ -103,7 +103,11 @@ async function anotar(
 }
 
 async function parametro(admin: Cliente, clave: string, porDefecto: number): Promise<number> {
-  const { data } = await admin.from('configuracion').select('valor').eq('clave', clave).maybeSingle();
+  const { data } = await admin
+    .from('configuracion')
+    .select('valor')
+    .eq('clave', clave)
+    .maybeSingle();
   const n = Number(data?.valor);
   return Number.isFinite(n) && n > 0 ? n : porDefecto;
 }
@@ -185,7 +189,8 @@ async function candidatosDe(admin: Cliente, flujo: Flujo, desde: string): Promis
     const salida: Candidato[] = [];
     for (const l of filas) {
       const contacto = await personaDe(admin, l.id);
-      if (contacto) salida.push({ contacto_id: contacto, lead_id: l.id, por: { tipo: d.tipo, lead_id: l.id } });
+      if (contacto)
+        salida.push({ contacto_id: contacto, lead_id: l.id, por: { tipo: d.tipo, lead_id: l.id } });
     }
     return salida;
   }
@@ -218,7 +223,12 @@ async function candidatosDe(admin: Cliente, flujo: Flujo, desde: string): Promis
       const { data } = await q;
       for (const l of data ?? []) {
         const contacto = await personaDe(admin, l.id);
-        if (contacto) salida.push({ contacto_id: contacto, lead_id: l.id, por: { tipo: d.tipo, estado: d.estado } });
+        if (contacto)
+          salida.push({
+            contacto_id: contacto,
+            lead_id: l.id,
+            por: { tipo: d.tipo, estado: d.estado },
+          });
       }
     }
     return salida;
@@ -400,7 +410,11 @@ async function motivoDeSalida(
   const s = flujo.salida ?? {};
 
   if (s.al_convertir !== false && insc.lead_id) {
-    const { data: lead } = await admin.from('leads').select('estado').eq('id', insc.lead_id).maybeSingle();
+    const { data: lead } = await admin
+      .from('leads')
+      .select('estado')
+      .eq('id', insc.lead_id)
+      .maybeSingle();
     if (lead?.estado === 'convertido') return 'el caso convirtió';
   }
 
@@ -480,7 +494,11 @@ async function evaluarCondicion(
 
   if (tipo === 'estado_lead') {
     if (!insc.lead_id) return false;
-    const { data } = await admin.from('leads').select('estado').eq('id', insc.lead_id).maybeSingle();
+    const { data } = await admin
+      .from('leads')
+      .select('estado')
+      .eq('id', insc.lead_id)
+      .maybeSingle();
     return data?.estado === String(config.estado ?? '');
   }
 
@@ -498,7 +516,11 @@ async function avanzar(
   topeDiasHorario: number,
   r: Contadores,
 ): Promise<void> {
-  const terminar = async (estado: 'completada' | 'salida', motivo: string | null, pasoId: string | null) => {
+  const terminar = async (
+    estado: 'completada' | 'salida',
+    motivo: string | null,
+    pasoId: string | null,
+  ) => {
     await admin
       .from('flujo_inscripciones')
       .update({ estado, motivo, siguiente_at: null })
@@ -526,7 +548,8 @@ async function avanzar(
           .eq('id', insc.contacto_id)
           .maybeSingle();
 
-        if (!c?.consentimiento_marketing) return terminar('salida', 'sin consentimiento de marketing', paso.id);
+        if (!c?.consentimiento_marketing)
+          return terminar('salida', 'sin consentimiento de marketing', paso.id);
 
         const email = (c.email ?? '').trim().toLowerCase();
         if (!email || email.endsWith(SUFIJO_SINTETICO)) {
@@ -535,7 +558,13 @@ async function avanzar(
            * que el siguiente paso sea una tarea al comercial, que es justo lo
            * que toca con alguien que no deja email.
            */
-          await anotar(admin, insc.id, paso.id, 'email_omitido', email ? 'correo sintético de Instagram' : 'sin correo');
+          await anotar(
+            admin,
+            insc.id,
+            paso.id,
+            'email_omitido',
+            email ? 'correo sintético de Instagram' : 'sin correo',
+          );
           r.emailsOmitidos++;
           break;
         }
@@ -587,7 +616,13 @@ async function avanzar(
               { onConflict: 'contacto_id,etiqueta_id', ignoreDuplicates: true },
             );
         }
-        await anotar(admin, insc.id, paso.id, 'paso', `etiqueta ${paso.config.accion === 'quitar' ? 'quitada' : 'añadida'}`);
+        await anotar(
+          admin,
+          insc.id,
+          paso.id,
+          'paso',
+          `etiqueta ${paso.config.accion === 'quitar' ? 'quitada' : 'añadida'}`,
+        );
         break;
       }
 
@@ -676,10 +711,7 @@ async function avanzar(
 
     r.avanzados++;
     if (!siguiente) return terminar('completada', null, paso.id);
-    await admin
-      .from('flujo_inscripciones')
-      .update({ paso_actual_id: siguiente })
-      .eq('id', insc.id);
+    await admin.from('flujo_inscripciones').update({ paso_actual_id: siguiente }).eq('id', insc.id);
     pasoId = siguiente;
   }
 
@@ -729,8 +761,13 @@ export async function ejecutarFlujos(admin: Cliente): Promise<ResultadoFlujos> {
   const { filas: todosLosPasos } = await traerTodo((a, b) =>
     admin
       .from('flujo_pasos')
-      .select('id, flujo_id, tipo, config, es_inicio, orden, siguiente_id, siguiente_si_id, siguiente_no_id')
-      .in('flujo_id', activos.map((f) => f.id))
+      .select(
+        'id, flujo_id, tipo, config, es_inicio, orden, siguiente_id, siguiente_si_id, siguiente_no_id',
+      )
+      .in(
+        'flujo_id',
+        activos.map((f) => f.id),
+      )
       .order('orden')
       .range(a, b),
   );

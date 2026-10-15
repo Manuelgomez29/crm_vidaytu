@@ -59,8 +59,8 @@ export default async function ClaveOlvidada({
                   role="alert"
                   className="mt-4 rounded-lg bg-warn-soft px-3 py-2 text-sm text-warn ring-1 ring-warn/25"
                 >
-                  Ya se han pedido varios enlaces para esa cuenta hace poco. Espera un rato y
-                  vuelve a probar: el último que te llegó sigue valiendo durante una hora.
+                  Ya se han pedido varios enlaces para esa cuenta hace poco. Espera un rato y vuelve
+                  a probar: el último que te llegó sigue valiendo durante una hora.
                 </p>
               )}
               {error === 'vacio' && (
