@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dominioDelRemitenteVerificado } from '@/lib/dominios-correo';
 import { avisoRemitente, remitenteRevela } from '@/lib/discrecion';
+import { enCastellano } from '@/lib/mensajes-clave';
 import type { Json } from '@/lib/database.types';
 import type { Database } from '@/lib/database.types';
 import { AREAS, AREAS_FIJAS, CLAVE_CONFIG as CLAVE_AREAS, type Area } from '@/lib/areas';
@@ -184,7 +185,7 @@ export async function crearUsuario(formData: FormData) {
     volver('equipo', {
       error: porInvitacion
         ? `No se pudo enviar la invitación: ${error?.message}. Sin SMTP propio, Supabase limita mucho los envíos: usa la contraseña inicial.`
-        : `No se pudo crear el acceso: ${error?.message}`,
+        : `No se pudo crear el acceso: ${enCastellano(error?.message ?? '')}`,
     });
   }
 

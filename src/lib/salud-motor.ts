@@ -213,9 +213,26 @@ export async function fase<T>(
   try {
     return await trabajo();
   } catch (e) {
-    fallos.push({ fase: nombre, error: e instanceof Error ? e.message : String(e) });
+    fallos.push({ fase: nombre, error: legible(e instanceof Error ? e.message : String(e)) });
     return siFalla;
   }
+}
+
+/**
+ * El error, en una línea que se pueda leer en la pantalla del motor.
+ *
+ * Cuando la base o un servicio de fuera se cae un momento, lo que llega no es
+ * un mensaje sino la PÁGINA de error entera de su proxy: el 14 de octubre se
+ * guardaron 6.500 caracteres de HTML para decir «502: Bad gateway». Se queda
+ * el título de la página, que es lo que dice qué pasó, y se recorta el resto.
+ */
+export function legible(mensaje: string): string {
+  if (/<html|<!doctype/i.test(mensaje)) {
+    const titulo = /<title>([^<]*)<\/title>/i.exec(mensaje)?.[1]?.trim();
+    const antes = mensaje.split(/<!doctype|<html/i)[0].trim();
+    return `${antes} ${titulo ? `«${titulo}»` : '(página de error HTML)'}`.trim();
+  }
+  return mensaje.length > 500 ? `${mensaje.slice(0, 500)}…` : mensaje;
 }
 
 /**
